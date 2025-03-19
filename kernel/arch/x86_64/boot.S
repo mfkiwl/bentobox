@@ -83,8 +83,8 @@ gdt2:
     pop rdi
     call kmain
 
-    cli
 hltLoop:
+    cli
     hlt
     jmp hltLoop
 
@@ -114,6 +114,7 @@ gdt_end:
 section .text
     extern gdt_descriptor
     global gdt_flush
+    global arch_fatal
 
 gdt_flush:
     lgdt [gdt_descriptor]
@@ -125,6 +126,11 @@ gdt_flush:
     mov gs, ax
     mov ss, ax
     ret
+
+arch_fatal:
+    cli
+    hlt
+    jmp arch_fatal
 
 section .bss
 align 16
