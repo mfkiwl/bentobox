@@ -17,7 +17,7 @@ void parse_num(char *s, int *ptr, uint32_t val, uint32_t base) {
 }
 
 void parse_hex(char *s, int *ptr, uint32_t val) {
-    int i = 8;
+    int i = 16;
     while (i-- > 0) {
         s[(*ptr)++] = "0123456789abcdef"[val >> (i * 4) & 0x0F];
     }

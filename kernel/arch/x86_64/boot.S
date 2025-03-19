@@ -89,7 +89,8 @@ hltLoop:
 
 gdtr:
     dw gdt_end - gdt_base - 1
-    dq gdt_base
+    dd gdt_base
+    dd 0
 gdt_base:
     ; null segment
     dq 0
