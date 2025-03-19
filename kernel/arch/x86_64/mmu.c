@@ -1,17 +1,21 @@
 #include <multiboot.h>
-#include <arch/x86_64/vmm.h>
+#include <arch/x86_64/mmu.h>
 #include <misc/string.h>
 #include <misc/printf.h>
 #include <misc/bitmap.h>
 #include <stddef.h>
 #include <stdint.h>
 
+uint64_t pml4[512] __attribute__((aligned(PAGE_SIZE)));
+uint64_t pdp[512] __attribute__((aligned(PAGE_SIZE)));
+uint64_t pd[512] __attribute__((aligned(PAGE_SIZE)));
+uint64_t first_pt[512] __attribute__((aligned(PAGE_SIZE)));
+
 uint8_t *pmm_bitmap = NULL;
-uint64_t pmm_last_page = 0;
 uint64_t pmm_page_count = 0;
 uint64_t pmm_usable_mem = 0;
 
-void pmm_install(void *mboot_info) {
+void mmu_init(void *mboot_info) {
     extern void *end;
     uintptr_t highest_address = 0;
 
@@ -46,53 +50,41 @@ void pmm_install(void *mboot_info) {
     dprintf("%s:%d: usable memory: %dK\n", __FILE__, __LINE__, pmm_usable_mem / 1024);
 }
 
-uint64_t pmm_find_pages(uint64_t page_count) {
+uint64_t mmu_first_frame(uint64_t page_count) {
     uint64_t pages = 0;
-    uint64_t first_page = pmm_last_page;
+    uint64_t first_page = 0;
 
     while (pages < page_count) {
-        if (pmm_last_page >= pmm_page_count) {
+        if (first_page >= pmm_page_count) {
             return 0; /* out of memory */
         }
 
-        if (!bitmap_get(pmm_bitmap, pmm_last_page + pages)) {
+        if (!bitmap_get(pmm_bitmap, first_page + pages)) {
             pages++;
             if (pages == page_count) {
                 for (uint64_t i = 0; i < pages; i++) {
                     bitmap_set(pmm_bitmap, first_page + i);
                 }
-
-                pmm_last_page += pages;
                 return first_page;
             }
         } else {
-            pmm_last_page += !pages ? 1 : pages;
-            first_page = pmm_last_page;
+            first_page += !pages ? 1 : pages;
             pages = 0;
         }
     }
     return 0;
 }
 
-void *pmm_alloc(size_t page_count) {
-    uint64_t pages = pmm_find_pages(page_count);
-    
+void *mmu_alloc(size_t page_count) {
+    uint64_t pages = mmu_first_frame(page_count);
     if (!pages) {
-        pmm_last_page = 0;
-        pages = pmm_find_pages(page_count);
-
-        if (!pages) {
-            printf("%s:%d: allocation failed: out of memory\n", __FILE__, __LINE__);
-            return NULL;
-        }
+        printf("%s:%d: allocation failed: out of memory\n", __FILE__, __LINE__);
+        return NULL;
     }
-
-    uint64_t phys_addr = pages * PAGE_SIZE;
-
-    return (void*)(phys_addr);
+    return (void *)(pages * PAGE_SIZE);
 }
 
-void pmm_free(void *ptr, size_t page_count) {
+void mmu_free(void *ptr, size_t page_count) {
     uint64_t page = (uint64_t)ptr / PAGE_SIZE;
 
     for (uint64_t i = 0; i < page_count; i++)

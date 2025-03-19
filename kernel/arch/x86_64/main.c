@@ -2,7 +2,7 @@
 #include <multiboot.h>
 #include <arch/x86_64/gdt.h>
 #include <arch/x86_64/idt.h>
-#include <arch/x86_64/pmm.h>
+#include <arch/x86_64/mmu.h>
 #include <arch/x86_64/serial.h>
 #include <misc/printf.h>
 #include <misc/assert.h>
@@ -29,7 +29,7 @@ void *mboot2_find_tag(void *base, uint32_t type) {
 	return mboot2_find_next(header, type);
 }
 
-void kmain(void *mboot_info, uint32_t mboot_magic) {
+void kmain(void *mboot_info) {
     vga_clear();
     vga_enable_cursor();
 
@@ -39,10 +39,9 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
         __kernel_name, __kernel_version_major, __kernel_version_minor,
 		__kernel_build_date, __kernel_build_time, __kernel_arch);
 
-    assert(mboot_magic == 0x36d76289);
     gdt_install();
     idt_install();
-	pmm_install(mboot_info);
+	mmu_init(mboot_info);
 
 	printf("Welcome to bentobox v%d.%d (%s %s %s)!\n",
 		__kernel_version_major, __kernel_version_minor,
