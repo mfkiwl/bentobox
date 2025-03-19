@@ -12,7 +12,7 @@ KERNEL_OBJS := $(addprefix bin/kernel/, $(KERNEL_S_SOURCES:.S=.S.o) $(KERNEL_C_S
 
 # Flags
 ASFLAGS = -f elf64 -g -F dwarf
-CCFLAGS = -m64 -std=gnu11 -ffreestanding -Wall -Wextra -nostdlib -I kernel -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone
+CCFLAGS = -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iboot/ -Ikernel/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone
 QEMUFLAGS = -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d
 LDFLAGS = -m elf_x86_64 -Tkernel/arch/x86_64/linker.ld -z noexecstack
 
