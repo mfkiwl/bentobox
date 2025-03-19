@@ -1,3 +1,4 @@
+#include <arch/x86_64/gdt.h>
 #include <misc/printf.h>
 #include <video/vga.h>
 #include <sys/version.h>
@@ -11,5 +12,5 @@ void kmain(void *mboot_info) {
         __kernel_version_patch, __kernel_build_date, __kernel_build_time,
         __kernel_arch);
 
-    for (;;) asm ("hlt");
+    gdt_install();
 }

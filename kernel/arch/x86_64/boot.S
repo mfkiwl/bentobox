@@ -23,6 +23,7 @@ section .text.prologue
     extern pml4
     extern pdp
     extern pd
+
 _start:
     cli
     mov esp, stack_top
@@ -42,7 +43,7 @@ _start:
 
     mov edi, pd
     mov eax, 0x83  ; PRESENT, WRITABLE, HUGE
-    mov ecx, 512
+    mov ecx, 32
 .set_entry:
     mov [edi], eax
     add eax, 0x200000
@@ -109,6 +110,21 @@ gdt_base:
     db 0
     db 0
 gdt_end:
+
+section .text
+    extern gdt_descriptor
+    global gdt_flush
+
+gdt_flush:
+    lgdt [gdt_descriptor]
+
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    ret
 
 section .bss
 align 16

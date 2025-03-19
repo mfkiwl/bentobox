@@ -16,7 +16,7 @@ void parse_num(char *s, int *ptr, uint32_t val, uint32_t base) {
     s[(*ptr)++] = (r + '0');
 }
 
-void parse_hex(char *s, int *ptr, uint32_t val) {
+void parse_hex(char *s, int *ptr, uint64_t val) {
     int i = 16;
     while (i-- > 0) {
         s[(*ptr)++] = "0123456789abcdef"[val >> (i * 4) & 0x0F];
@@ -41,7 +41,7 @@ int vsprintf(char *s, const char *fmt, va_list args) {
                     parse_num(s, &ptr, va_arg(args, int), 10);
                     break;
                 case 'x':
-                    parse_hex(s, &ptr, va_arg(args, uint32_t));
+                    parse_hex(s, &ptr, va_arg(args, uint64_t));
                     break;
                 case 's':
                     parse_string(s, &ptr, va_arg(args, char *));
