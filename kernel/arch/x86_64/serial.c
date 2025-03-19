@@ -15,7 +15,7 @@ void serial_install(void) {
     outb(COM1 + 4, 0x1E);
     outb(COM1, 0x55);
 
-    assert(inb(COM1) != 0x55);
+    assert(inb(COM1) == 0x55);
 
     outb(COM1 + 4, 0x0F);
     dprintf("%s:%d: enabled port 0x3f8\n", __FILE__, __LINE__);
