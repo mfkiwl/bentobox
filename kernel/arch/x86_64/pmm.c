@@ -22,6 +22,10 @@ void pmm_install(void *mboot_info) {
         mmmt = &mmap->entries[i];
         
         if (mmmt->type == MULTIBOOT_MEMORY_AVAILABLE) {
+            if (mmmt->addr >= KERNEL_PHYS_BASE && mmmt->addr < (uintptr_t)&end) {
+                mmmt->len -= (uintptr_t)&end - KERNEL_PHYS_BASE;
+                mmmt->addr = (uintptr_t)&end;
+            }
             pmm_usable_mem += mmmt->len;
             highest_address = mmmt->addr + mmmt->len;
         }
