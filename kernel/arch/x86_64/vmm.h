@@ -15,8 +15,8 @@
 #define KERNEL_VIRT_BASE 0xFFFFFFFF80000000
 #define KERNEL_PHYS_BASE 0x100000
 
-#define VIRTUAL(ptr) ((void *)((uintptr_t)ptr) + KERNEL_VIRT_BASE - KERNEL_PHYS_BASE)
-#define PHYSICAL(ptr) ((void *)((uintptr_t)ptr) - KERNEL_VIRT_BASE + KERNEL_PHYS_BASE)
+#define VIRTUAL(ptr) ((void *)((uintptr_t)ptr) + KERNEL_VIRT_BASE)
+#define PHYSICAL(ptr) ((void *)((uintptr_t)ptr) - KERNEL_VIRT_BASE)
 
 #define DIV_CEILING(x, y) (x + (y - 1)) / y
 #define ALIGN_UP(x, y) DIV_CEILING(x, y) * y
@@ -24,4 +24,6 @@
 
 void vmm_map(uintptr_t virt, uintptr_t phys, uint64_t flags);
 void vmm_unmap(uintptr_t virt);
+void vmm_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint32_t flags);
+void vmm_unmap_pages(uint32_t count, uintptr_t virt);
 void vmm_install(void);

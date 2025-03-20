@@ -6,6 +6,7 @@
 #include <arch/x86_64/vmm.h>
 #include <arch/x86_64/serial.h>
 #include <acpi/acpi.h>
+#include <misc/heap.h>
 #include <misc/printf.h>
 #include <misc/assert.h>
 #include <video/vga.h>
@@ -52,6 +53,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	pmm_install(mboot_info);
 	vmm_install();
 	acpi_install();
+	kernel_heap = heap_create();
 
 	printf("Welcome to bentobox v%d.%d (%s %s %s)!\n",
 		__kernel_version_major, __kernel_version_minor,

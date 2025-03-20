@@ -87,6 +87,18 @@ void vmm_unmap(uintptr_t virt) {
     vmm_flush_tlb(virt); /* flush the tlb entry */
 }
 
+void vmm_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint32_t flags) {
+    for (uint32_t i = 0; i < count * PAGE_SIZE; i += PAGE_SIZE) {
+        vmm_map(virt + i, phys + i, flags);
+    }
+}
+
+void vmm_unmap_pages(uint32_t count, uintptr_t virt) {
+    for (uint32_t i = 0; i < count * PAGE_SIZE; i += PAGE_SIZE) {
+        vmm_unmap(virt + i);
+    }
+}
+
 void vmm_install(void) {
     pml4 = (uintptr_t *)pmm_alloc(1);
     memset(pml4, 0, PAGE_SIZE);
