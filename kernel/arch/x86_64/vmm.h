@@ -22,4 +22,6 @@
 #define ALIGN_UP(x, y) DIV_CEILING(x, y) * y
 #define ALIGN_DOWN(x, y) (x / y) * y
 
+void vmm_map(uintptr_t virt, uintptr_t phys, uint64_t flags);
+void vmm_unmap(uintptr_t virt);
 void vmm_install(void);
