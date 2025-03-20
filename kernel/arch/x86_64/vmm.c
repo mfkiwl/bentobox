@@ -29,7 +29,6 @@ void vmm_switch_pm(uintptr_t *pm) {
 
 uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, bool alloc) {
     if (lvl[entry] & PTE_PRESENT) {
-        //dprintf("ENTRY PRESENT FOR %u, ", entry);
         return (uintptr_t *)PTE_GET_ADDR(lvl[entry]);
     }
     if (!alloc) {
@@ -37,9 +36,7 @@ uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, boo
         return NULL;
     }
 
-    //dprintf("ENTRY NOT PRESENT FOR %u, ", entry);
     uintptr_t *pml = (uintptr_t *)pmm_alloc(1);
-    //dprintf("ALLOCATED AT ADDRESS %x, ", pml);
     memset(pml, 0, PAGE_SIZE);
     lvl[entry] = (uintptr_t)pml | flags;
     return pml;
@@ -110,10 +107,4 @@ void vmm_install(void) {
     vmm_switch_pm(pml4);
     
     dprintf("%s:%d: successfully switched page tables\n", __FILE__, __LINE__);
-
-    uintptr_t test = 0x200000;
-    vmm_map((uintptr_t)test, test, PTE_PRESENT | PTE_WRITABLE);
-    dprintf("That mapped fine.\n");
-    memset((void *)test, 0, PAGE_SIZE);
-    dprintf("That worked.\n");
 }
