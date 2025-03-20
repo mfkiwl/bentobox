@@ -79,5 +79,9 @@ void acpi_install(void) {
 }
 
 void acpi_reboot(void) {
+#ifdef __x86_64__
     outb(fadt->reset_reg.address, fadt->reset_val);
+#else
+    printf("%s:%d (%s) failed to reboot: not implemented\n", __FILE__, __LINE__, __func__);
+#endif
 }
