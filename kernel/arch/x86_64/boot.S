@@ -20,9 +20,7 @@ dd MB2_TAG_SIZE_END
 section .text.prologue
     global _start
     extern kmain
-    extern pml4
-    extern pdp
-    extern pd
+    extern initial_pml
 
 _start:
     cli
@@ -33,17 +31,17 @@ _start:
     push 0
     push ebx
 
-    mov edi, pml4
-    mov eax, pdp
+    mov edi, initial_pml
+    mov eax, initial_pml + 0x1000
     or eax, 0x7    ; PRESENT, WRITABLE, USER
     mov [edi], eax
 
-    mov edi, pdp
-    mov eax, pd
+    mov edi, initial_pml + 0x1000
+    mov eax, initial_pml + 0x2000
     or eax, 0x7    ; PRESENT, WRITABLE, USER
     mov [edi], eax
 
-    mov edi, pd
+    mov edi, initial_pml + 0x2000
     mov eax, 0x83  ; PRESENT, WRITABLE, HUGE
     mov ecx, 32
 .set_entry:
@@ -56,7 +54,7 @@ _start:
     or eax, 1 << 5  ; PAE bit
     mov cr4, eax
 
-    mov eax, pml4
+    mov eax, initial_pml
     mov cr3, eax
 
     mov ecx, 0xC0000080
@@ -128,11 +126,6 @@ gdt_flush:
     mov gs, ax
     mov ss, ax
     ret
-
-arch_fatal:
-    cli
-    hlt
-    jmp arch_fatal
 
 section .bss
 align 16

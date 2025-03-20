@@ -20,7 +20,7 @@ void pmm_install(void *mboot_info) {
 
     for (uint32_t i = 0; i < (mmap->size - sizeof(struct multiboot_tag_mmap)) / mmap->entry_size; i++) {
         mmmt = &mmap->entries[i];
-
+        
         if (mmmt->type == MULTIBOOT_MEMORY_AVAILABLE) {
             pmm_usable_mem += mmmt->len;
             highest_address = mmmt->addr + mmmt->len;

@@ -3,6 +3,7 @@
 #include <arch/x86_64/gdt.h>
 #include <arch/x86_64/idt.h>
 #include <arch/x86_64/pmm.h>
+#include <arch/x86_64/vmm.h>
 #include <arch/x86_64/serial.h>
 #include <misc/printf.h>
 #include <misc/assert.h>
@@ -29,6 +30,11 @@ void *mboot2_find_tag(void *base, uint32_t type) {
 	return mboot2_find_next(header, type);
 }
 
+void arch_fatal(void) {
+	asm ("cli");
+	for (;;) asm ("hlt");
+}
+
 void kmain(void *mboot_info, uint32_t mboot_magic) {
     vga_clear();
     vga_enable_cursor();
@@ -43,6 +49,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
     gdt_install();
     idt_install();
 	pmm_install(mboot_info);
+	vmm_install();
 
 	printf("Welcome to bentobox v%d.%d (%s %s %s)!\n",
 		__kernel_version_major, __kernel_version_minor,
