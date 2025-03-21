@@ -65,7 +65,9 @@ int printf(const char *fmt, ...) {
     va_start(args, fmt);
     char buf[1024] = {0};
     int ret = vsprintf(buf, fmt, args);
+#ifdef __x86_64__
     vga_puts(buf);
+#endif
     va_end(args);
 
     return ret;

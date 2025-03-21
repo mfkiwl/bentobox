@@ -4,6 +4,8 @@
 
 #ifdef __x86_64__
 #include <kernel/arch/x86_64/vmm.h>
+#else
+#include <kernel/arch/riscv/mmu.h>
 #endif
 
 #define PAGE_SIZE 4096

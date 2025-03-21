@@ -1,21 +1,28 @@
 # Target architecture
 ARCH ?= x86_64
 
-# Toolchain
-AS = nasm
-CC = clang
-LD = ld
-
 # Output image name
 IMAGE_NAME = image
 
 # Architecture specific
 ifeq ($(ARCH),x86_64)
-	ARCH_DIR := kernel/arch/x86_64
+	AS = nasm
+	CC = clang
+	LD = ld
+    ARCH_DIR := kernel/arch/x86_64
     ASFLAGS = -f elf64 -g -F dwarf
     CCFLAGS := -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone
     LDFLAGS := -m elf_x86_64 -Tkernel/arch/x86_64/linker.ld -z noexecstack
     QEMUFLAGS := -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -M q35
+else ifeq ($(ARCH),riscv64)
+	AS = riscv64-elf-as
+	CC = riscv64-elf-gcc
+	LD = riscv64-elf-ld
+    ARCH_DIR := kernel/arch/riscv
+    ASFLAGS :=
+    CCFLAGS := -mcmodel=medany -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto
+    LDFLAGS := -m elf64lriscv -Tkernel/arch/riscv/linker.ld -z noexecstack
+    QEMUFLAGS := -machine virt -bios none -kernel bin/$(IMAGE_NAME).elf -mon chardev=mon0,mode=readline,id=mon0 -chardev null,id=mon0 -display gtk
 else
     $(error Unsupported architecture: $(ARCH))
 endif
@@ -51,6 +58,7 @@ kernel: $(KERNEL_OBJS)
 	@echo " LD kernel/*"
 	@$(LD) $(LDFLAGS) $^ -o bin/$(IMAGE_NAME).elf
 
+ifeq ($(ARCH),x86_64)
 iso:
 	@grub-file --is-x86-multiboot2 ./bin/$(IMAGE_NAME).elf; \
 	if [ $$? -eq 1 ]; then \
@@ -62,6 +70,12 @@ iso:
 	@cp boot/grub.cfg iso_root/boot/grub/grub.cfg
 	@grub-mkrescue -o bin/$(IMAGE_NAME).iso iso_root/ -quiet 2>&1 >/dev/null | grep -v libburnia | cat
 	@rm -rf iso_root/
+else ifeq ($(ARCH),riscv64)
+iso:
+	@echo stub
+else
+    $(error Unsupported architecture: $(ARCH))
+endif
 
 clean:
 	@rm -f $(BOOT_OBJS) $(KERNEL_OBJS)
