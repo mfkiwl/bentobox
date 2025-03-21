@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <kernel/multiboot.h>
-#include <kernel/arch/x86_64/vmm.h>
+#include <kernel/mmu.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
 #include <kernel/bitmap.h>

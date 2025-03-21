@@ -1,31 +1,41 @@
+# Target architecture
+ARCH ?= x86_64
+
 # Toolchain
 AS = nasm
 CC = clang
 LD = ld
 
+# Output image name
+IMAGE_NAME = image
+
+# Architecture specific
+ifeq ($(ARCH),x86_64)
+	ARCH_DIR := kernel/arch/x86_64
+    ASFLAGS = -f elf64 -g -F dwarf
+    CCFLAGS := -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone
+    LDFLAGS := -m elf_x86_64 -Tkernel/arch/x86_64/linker.ld -z noexecstack
+    QEMUFLAGS := -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -M q35
+else
+    $(error Unsupported architecture: $(ARCH))
+endif
+
 # Automatically find sources
-KERNEL_S_SOURCES = $(shell cd kernel && find -L * -type f -name '*.S')
-KERNEL_C_SOURCES = $(shell cd kernel && find -L * -type f -name '*.c')
+KERNEL_S_SOURCES := $(shell find kernel -type f -name '*.S' ! -path "kernel/arch/*")
+KERNEL_C_SOURCES := $(shell find kernel -type f -name '*.c' ! -path "kernel/arch/*")
+ARCH_S_SOURCES   := $(shell find $(ARCH_DIR) -type f -name '*.S' | sed 's|^\./||')
+ARCH_C_SOURCES   := $(shell find $(ARCH_DIR) -type f -name '*.c' | sed 's|^\./||')
 
 # Get object files
-KERNEL_OBJS := $(addprefix bin/kernel/, $(KERNEL_S_SOURCES:.S=.S.o) $(KERNEL_C_SOURCES:.c=.c.o))
-
-# Flags
-ASFLAGS = -f elf64 -g -F dwarf
-CCFLAGS = -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone
-QEMUFLAGS = -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -M q35
-LDFLAGS = -m elf_x86_64 -Tkernel/arch/x86_64/linker.ld -z noexecstack
-
-# Output image name
-IMAGE_NAME = krnl64
+KERNEL_OBJS := $(addprefix bin/, $(KERNEL_S_SOURCES:.S=.S.o) $(ARCH_S_SOURCES:.S=.S.o) $(KERNEL_C_SOURCES:.c=.c.o) $(ARCH_C_SOURCES:.c=.c.o))
 
 all: boot kernel iso
 
 run: all
-	@qemu-system-x86_64 $(QEMUFLAGS)
+	@qemu-system-$(ARCH) $(QEMUFLAGS)
 
 run-gdb: all
-	@qemu-system-x86_64 $(QEMUFLAGS) -S -s
+	@qemu-system-$(ARCH) $(QEMUFLAGS) -S -s
 
 bin/kernel/%.c.o: kernel/%.c
 	@echo " CC $<"
