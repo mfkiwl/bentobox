@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include <misc/printf.h>
+#include <kernel/printf.h>
 
 extern void generic_fatal(void);
 

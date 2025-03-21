@@ -1,7 +1,7 @@
 #include <stdint.h>
-#include <arch/x86_64/io.h>
-#include <video/vga.h>
-#include <misc/string.h>
+#include <kernel/arch/x86_64/io.h>
+#include <kernel/video/vga.h>
+#include <kernel/string.h>
 
 uint8_t vga_x = 0;
 uint8_t vga_y = 0;

@@ -22,8 +22,5 @@
 #define ALIGN_UP(x, y) DIV_CEILING(x, y) * y
 #define ALIGN_DOWN(x, y) (x / y) * y
 
-void vmm_map(uintptr_t virt, uintptr_t phys, uint64_t flags);
-void vmm_unmap(uintptr_t virt);
-void vmm_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint32_t flags);
-void vmm_unmap_pages(uint32_t count, uintptr_t virt);
+void pmm_install(void *mboot_info);
 void vmm_install(void);

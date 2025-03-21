@@ -1,8 +1,7 @@
 #include <stddef.h>
-#include <acpi/acpi.h>
-#include <acpi/fadt.h>
-#include <arch/x86_64/io.h>
-#include <misc/printf.h>
+#include <kernel/arch/x86_64/io.h>
+#include <kernel/acpi.h>
+#include <kernel/printf.h>
 
 struct acpi_fadt *fadt = NULL;
 

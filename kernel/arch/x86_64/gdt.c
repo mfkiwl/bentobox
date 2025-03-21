@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include <misc/printf.h>
+#include <kernel/printf.h>
 
 struct gdt_entry {
     uint16_t limit;

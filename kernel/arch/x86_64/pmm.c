@@ -1,10 +1,10 @@
-#include <multiboot.h>
-#include <arch/x86_64/vmm.h>
-#include <misc/string.h>
-#include <misc/printf.h>
-#include <misc/bitmap.h>
-#include <stddef.h>
 #include <stdint.h>
+#include <stddef.h>
+#include <kernel/multiboot.h>
+#include <kernel/arch/x86_64/vmm.h>
+#include <kernel/string.h>
+#include <kernel/printf.h>
+#include <kernel/bitmap.h>
 
 uint8_t *pmm_bitmap = NULL;
 uint64_t pmm_last_page = 0;
@@ -78,7 +78,7 @@ uint64_t pmm_find_pages(uint64_t page_count) {
     return 0;
 }
 
-void *pmm_alloc(size_t page_count) {
+void *mmu_alloc(size_t page_count) {
     uint64_t pages = pmm_find_pages(page_count);
     
     if (!pages) {
@@ -96,7 +96,7 @@ void *pmm_alloc(size_t page_count) {
     return (void*)(phys_addr);
 }
 
-void pmm_free(void *ptr, size_t page_count) {
+void mmu_free(void *ptr, size_t page_count) {
     uint64_t page = (uint64_t)ptr / PAGE_SIZE;
 
     for (uint64_t i = 0; i < page_count; i++)

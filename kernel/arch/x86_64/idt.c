@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
-#include <arch/x86_64/idt.h>
-#include <misc/printf.h>
+#include <kernel/arch/x86_64/idt.h>
+#include <kernel/printf.h>
 
 __attribute__((aligned(0x10)))
 struct idt_entry idt_entries[256];

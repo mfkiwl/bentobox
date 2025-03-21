@@ -1,6 +1,6 @@
-#include <arch/x86_64/io.h>
-#include <misc/printf.h>
-#include <misc/assert.h>
+#include <kernel/arch/x86_64/io.h>
+#include <kernel/printf.h>
+#include <kernel/assert.h>
 
 #define COM1 0x3f8
 

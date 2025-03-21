@@ -1,16 +1,15 @@
 #include <stddef.h>
-#include <multiboot.h>
-#include <arch/x86_64/gdt.h>
-#include <arch/x86_64/idt.h>
-#include <arch/x86_64/pmm.h>
-#include <arch/x86_64/vmm.h>
-#include <arch/x86_64/serial.h>
-#include <acpi/acpi.h>
-#include <misc/heap.h>
-#include <misc/printf.h>
-#include <misc/assert.h>
-#include <video/vga.h>
-#include <sys/version.h>
+#include <kernel/multiboot.h>
+#include <kernel/arch/x86_64/gdt.h>
+#include <kernel/arch/x86_64/idt.h>
+#include <kernel/arch/x86_64/serial.h>
+#include <kernel/mmu.h>
+#include <kernel/acpi.h>
+#include <kernel/heap.h>
+#include <kernel/printf.h>
+#include <kernel/assert.h>
+#include <kernel/video/vga.h>
+#include <kernel/version.h>
 
 void *mboot2_find_next(char *current, uint32_t type) {
 	char *header = current;

@@ -1,8 +1,7 @@
 #include <stdbool.h>
-#include <arch/x86_64/pmm.h>
-#include <arch/x86_64/vmm.h>
-#include <misc/heap.h>
-#include <misc/printf.h>
+#include <kernel/mmu.h>
+#include <kernel/heap.h>
+#include <kernel/printf.h>
 
 struct heap *kernel_heap;
 
@@ -16,10 +15,10 @@ void kfree(void *ptr) {
 
 __attribute__((no_sanitize("undefined")))
 struct heap *heap_create(void) {
-    struct heap *h = (struct heap *)VIRTUAL(pmm_alloc(1));
-    vmm_map((uintptr_t)h, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE);
-    h->head = (struct heap_block *)VIRTUAL(pmm_alloc(1));
-    vmm_map((uintptr_t)h->head, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE);
+    struct heap *h = (struct heap *)VIRTUAL(mmu_alloc(1));
+    mmu_map((uintptr_t)h, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE);
+    h->head = (struct heap_block *)VIRTUAL(mmu_alloc(1));
+    mmu_map((uintptr_t)h->head, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE);
     h->head->next = h->head;
     h->head->prev = h->head;
     h->head->size = 0;
@@ -37,23 +36,23 @@ void heap_delete(struct heap *h) {
     while (current != h->head) {
         next = current->next;
         uint32_t pages = DIV_CEILING(sizeof(struct heap_block) + current->size, PAGE_SIZE);
-        pmm_free(PHYSICAL(current), pages);
-        vmm_unmap_pages(pages, (uintptr_t)current);
+        mmu_free(PHYSICAL(current), pages);
+        mmu_unmap_pages(pages, (uintptr_t)current);
         current = next;
     }
 
-    pmm_free(PHYSICAL(h->head), 1);
-    vmm_unmap((uintptr_t)h->head);
-    pmm_free(PHYSICAL(h), 1);
-    vmm_unmap((uintptr_t)h);
+    mmu_free(PHYSICAL(h->head), 1);
+    mmu_unmap((uintptr_t)h->head);
+    mmu_free(PHYSICAL(h), 1);
+    mmu_unmap((uintptr_t)h);
 }
 
 __attribute__((no_sanitize("undefined")))
 void *heap_alloc(struct heap *h, uint64_t n) {
     uint64_t pages = DIV_CEILING(sizeof(struct heap_block) + n, PAGE_SIZE);
     
-    struct heap_block *block = (struct heap_block *)VIRTUAL(pmm_alloc(pages));
-    vmm_map((uintptr_t)block, (uintptr_t)PHYSICAL(block), PTE_PRESENT | PTE_WRITABLE);
+    struct heap_block *block = (struct heap_block *)VIRTUAL(mmu_alloc(pages));
+    mmu_map((uintptr_t)block, (uintptr_t)PHYSICAL(block), PTE_PRESENT | PTE_WRITABLE);
     block->next = h->head;
     block->prev = h->head->prev;
     block->size = n;
@@ -75,6 +74,6 @@ void heap_free(void *ptr) {
     block->next->prev = block->prev;
     uint64_t pages = DIV_CEILING(sizeof(struct heap_block) + block->size, PAGE_SIZE);
 
-    pmm_free(PHYSICAL(block), pages);
-    vmm_unmap((uintptr_t)block);
+    mmu_free(PHYSICAL(block), pages);
+    mmu_unmap((uintptr_t)block);
 }

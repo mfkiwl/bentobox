@@ -1,8 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
-#include <acpi/acpi.h>
-#include <acpi/madt.h>
-#include <misc/printf.h>
+#include <kernel/acpi.h>
+#include <kernel/printf.h>
 
 struct acpi_madt *madt = NULL;
 struct madt_ioapic *madt_ioapic_list[16];

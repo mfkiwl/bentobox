@@ -1,7 +1,7 @@
 #include <stdarg.h>
 #include <stdint.h>
-#include <misc/string.h>
-#include <video/vga.h>
+#include <kernel/string.h>
+#include <kernel/video/vga.h>
 
 void parse_num(char *s, int *ptr, uint32_t val, uint32_t base) {
     uint32_t n = val / base;

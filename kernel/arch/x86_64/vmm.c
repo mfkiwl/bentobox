@@ -1,10 +1,9 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <arch/x86_64/pmm.h>
-#include <arch/x86_64/vmm.h>
-#include <misc/printf.h>
-#include <misc/string.h>
+#include <kernel/mmu.h>
+#include <kernel/printf.h>
+#include <kernel/string.h>
 
 uintptr_t initial_pml[3][512] __attribute__((aligned(PAGE_SIZE)));
 uintptr_t *pml4 = NULL;
@@ -36,13 +35,13 @@ uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, boo
         return NULL;
     }
 
-    uintptr_t *pml = (uintptr_t *)pmm_alloc(1);
+    uintptr_t *pml = (uintptr_t *)mmu_alloc(1);
     memset(pml, 0, PAGE_SIZE);
     lvl[entry] = (uintptr_t)pml | flags;
     return pml;
 }
 
-void vmm_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
+void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
@@ -57,7 +56,7 @@ void vmm_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     vmm_flush_tlb(virt); /* flush the tlb entry */
 }
 
-void vmm_unmap(uintptr_t virt) {
+void mmu_unmap(uintptr_t virt) {
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
@@ -80,39 +79,39 @@ void vmm_unmap(uintptr_t virt) {
     }
 
     if (empty) {
-        pmm_free(pt, 1); /* free the page table if it is empty */
+        mmu_free(pt, 1); /* free the page table if it is empty */
         pd[pd_index] = 0x00000000; /* clear the pd entry */
     }
 
     vmm_flush_tlb(virt); /* flush the tlb entry */
 }
 
-void vmm_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint32_t flags) {
+void mmu_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint32_t flags) {
     for (uint32_t i = 0; i < count * PAGE_SIZE; i += PAGE_SIZE) {
-        vmm_map(virt + i, phys + i, flags);
+        mmu_map(virt + i, phys + i, flags);
     }
 }
 
-void vmm_unmap_pages(uint32_t count, uintptr_t virt) {
+void mmu_unmap_pages(uint32_t count, uintptr_t virt) {
     for (uint32_t i = 0; i < count * PAGE_SIZE; i += PAGE_SIZE) {
-        vmm_unmap(virt + i);
+        mmu_unmap(virt + i);
     }
 }
 
 void vmm_install(void) {
-    pml4 = (uintptr_t *)pmm_alloc(1);
+    pml4 = (uintptr_t *)mmu_alloc(1);
     memset(pml4, 0, PAGE_SIZE);
     
     for (uintptr_t text = (uintptr_t)text_start_ld; text < (uintptr_t)text_end_ld; text += PAGE_SIZE)
-        vmm_map((uintptr_t)VIRTUAL(text), text, PTE_PRESENT);
+        mmu_map((uintptr_t)VIRTUAL(text), text, PTE_PRESENT);
     for (uintptr_t rodata = (uintptr_t)rodata_start_ld; rodata < (uintptr_t)rodata_end_ld; rodata += PAGE_SIZE)
-        vmm_map((uintptr_t)VIRTUAL(rodata), rodata, PTE_PRESENT);
+        mmu_map((uintptr_t)VIRTUAL(rodata), rodata, PTE_PRESENT);
     for (uintptr_t data = (uintptr_t)data_start_ld; data < (uintptr_t)data_end_ld; data += PAGE_SIZE)
-        vmm_map((uintptr_t)VIRTUAL(data), data, PTE_PRESENT | PTE_WRITABLE);
+        mmu_map((uintptr_t)VIRTUAL(data), data, PTE_PRESENT | PTE_WRITABLE);
     for (uintptr_t bss = (uintptr_t)bss_start_ld; bss < (uintptr_t)bss_end_ld; bss += PAGE_SIZE)
-        vmm_map((uintptr_t)VIRTUAL(bss), bss, PTE_PRESENT | PTE_WRITABLE);
+        mmu_map((uintptr_t)VIRTUAL(bss), bss, PTE_PRESENT | PTE_WRITABLE);
     for (uintptr_t addr = 0; addr < 64 * 1024 * 1024; addr += PAGE_SIZE)
-        vmm_map(addr, addr, PTE_PRESENT | PTE_WRITABLE);
+        mmu_map(addr, addr, PTE_PRESENT | PTE_WRITABLE);
 
     dprintf("%s:%d: done mapping kernel regions\n", __FILE__, __LINE__);
 

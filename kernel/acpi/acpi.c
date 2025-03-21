@@ -1,14 +1,11 @@
 #include <stdint.h>
 #include <stdbool.h>
-#include <arch/x86_64/io.h>
-#include <arch/x86_64/pmm.h>
-#include <arch/x86_64/vmm.h>
-#include <acpi/acpi.h>
-#include <acpi/fadt.h>
-#include <acpi/madt.h>
-#include <misc/string.h>
-#include <misc/printf.h>
-#include <misc/assert.h>
+#include <kernel/arch/x86_64/io.h>
+#include <kernel/mmu.h>
+#include <kernel/acpi.h>
+#include <kernel/printf.h>
+#include <kernel/string.h>
+#include <kernel/assert.h>
 
 bool acpi_use_xsdt = false;
 void *acpi_root_sdt;
@@ -71,7 +68,7 @@ void acpi_install(void) {
     }
     dprintf("%s:%d: ACPI version %s\n", __FILE__, __LINE__, acpi_use_xsdt ? "2.0" : "1.0");
 
-    vmm_map((uintptr_t)acpi_root_sdt, (uintptr_t)acpi_root_sdt, PTE_PRESENT);
+    mmu_map((uintptr_t)acpi_root_sdt, (uintptr_t)acpi_root_sdt, PTE_PRESENT);
     fadt_init();
     madt_init();
 
