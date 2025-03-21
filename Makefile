@@ -17,7 +17,7 @@ QEMUFLAGS = -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -M q35
 LDFLAGS = -m elf_x86_64 -Tkernel/arch/x86_64/linker.ld -z noexecstack
 
 # Output image name
-IMAGE_NAME = image
+IMAGE_NAME = krnl64
 
 all: boot kernel iso
 
@@ -39,16 +39,16 @@ bin/kernel/%.S.o: kernel/%.S
 
 kernel: $(KERNEL_OBJS)
 	@echo " LD kernel/*"
-	@$(LD) $(LDFLAGS) $^ -o bin/kernel.elf
+	@$(LD) $(LDFLAGS) $^ -o bin/$(IMAGE_NAME).elf
 
 iso:
-	@grub-file --is-x86-multiboot2 ./bin/kernel.elf; \
+	@grub-file --is-x86-multiboot2 ./bin/$(IMAGE_NAME).elf; \
 	if [ $$? -eq 1 ]; then \
-		echo " error: kernel.elf is not a valid multiboot2 file"; \
+		echo " error: $(IMAGE_NAME).elf is not a valid multiboot2 file"; \
 		exit 1; \
 	fi
 	@mkdir -p iso_root/boot/grub/
-	@cp bin/kernel.elf iso_root/boot/kernel.elf
+	@cp bin/$(IMAGE_NAME).elf iso_root/boot/$(IMAGE_NAME).elf
 	@cp boot/grub.cfg iso_root/boot/grub/grub.cfg
 	@grub-mkrescue -o bin/$(IMAGE_NAME).iso iso_root/ -quiet 2>&1 >/dev/null | grep -v libburnia | cat
 	@rm -rf iso_root/
