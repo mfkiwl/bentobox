@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <kernel/printf.h>
+#include <kernel/version.h>
 
 // stubs
 void *mmu_alloc(size_t page_count) { return NULL; }
@@ -15,6 +16,8 @@ void generic_fatal(void) {
 }
 
 void kmain() {
-    dprintf("Hello, world! %d\n", 123);
+    dprintf("%s %d.%d %s %s %s\n",
+        __kernel_name, __kernel_version_major, __kernel_version_minor,
+		__kernel_build_date, __kernel_build_time, __kernel_arch);
     for (;;) {}
 }

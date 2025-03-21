@@ -10,7 +10,7 @@ static uint32_t mmio_read(uintptr_t addr) {
 }
 
 static void mmio_write(uintptr_t addr, uint32_t val) {
-	(*((volatile uint32_t *)(addr))) = val;
+	*((volatile uint32_t *)(addr)) = val;
 }
 
 void uart_putchar(char c) {
