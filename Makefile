@@ -31,12 +31,15 @@ endif
 KERNEL_S_SOURCES := $(shell find kernel -type f -name '*.S' ! -path "kernel/arch/*")
 KERNEL_C_SOURCES := $(shell find kernel -type f -name '*.c' ! -path "kernel/arch/*")
 ARCH_S_SOURCES   := $(shell find $(ARCH_DIR) -type f -name '*.S' | sed 's|^\./||')
-ARCH_C_SOURCES   := $(shell find $(ARCH_DIR) -type f -name '*.c' | sed 's|^\./||')
+ARCH_C_SOURCES   := $(shell find $(ARCH_DIR) -type f -name '*.c' | sed 's|^\./||') kernel/target_arch.c
 
 # Get object files
 KERNEL_OBJS := $(addprefix bin/, $(KERNEL_S_SOURCES:.S=.S.o) $(ARCH_S_SOURCES:.S=.S.o) $(KERNEL_C_SOURCES:.c=.c.o) $(ARCH_C_SOURCES:.c=.c.o))
 
-all: boot kernel iso
+test:
+	@echo $(ARCH_C_SOURCES)
+
+all: kernel iso
 
 run: all
 	@qemu-system-$(ARCH) $(QEMUFLAGS)
@@ -54,9 +57,13 @@ bin/kernel/%.S.o: kernel/%.S
 	@mkdir -p "$$(dirname $@)"
 	@$(AS) $(ASFLAGS) -o $@ $<
 
+kernel/target_arch.c:
+	@echo "const char *__kernel_arch = \"$(ARCH)\";" > $@
+
 kernel: $(KERNEL_OBJS)
 	@echo " LD kernel/*"
 	@$(LD) $(LDFLAGS) $^ -o bin/$(IMAGE_NAME).elf
+	@rm kernel/target_arch.c
 
 ifeq ($(ARCH),x86_64)
 iso:
@@ -72,7 +79,6 @@ iso:
 	@rm -rf iso_root/
 else ifeq ($(ARCH),riscv64)
 iso:
-	@echo stub
 else
     $(error Unsupported architecture: $(ARCH))
 endif
