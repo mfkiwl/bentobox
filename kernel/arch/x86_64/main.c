@@ -2,10 +2,12 @@
 #include <kernel/multiboot.h>
 #include <kernel/arch/x86_64/gdt.h>
 #include <kernel/arch/x86_64/idt.h>
+#include <kernel/arch/x86_64/apic.h>
 #include <kernel/arch/x86_64/serial.h>
 #include <kernel/mmu.h>
 #include <kernel/acpi.h>
 #include <kernel/heap.h>
+#include <kernel/string.h>
 #include <kernel/printf.h>
 #include <kernel/assert.h>
 #include <kernel/video/vga.h>
@@ -51,8 +53,10 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
     idt_install();
 	pmm_install(mboot_info);
 	vmm_install();
-	acpi_install();
 	kernel_heap = heap_create();
+
+	acpi_install();
+	lapic_install();
 
 	printf("Welcome to bentobox v%d.%d (%s %s %s)!\n",
 		__kernel_version_major, __kernel_version_minor,

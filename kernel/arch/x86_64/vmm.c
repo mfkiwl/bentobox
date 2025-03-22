@@ -110,7 +110,7 @@ void vmm_install(void) {
         mmu_map((uintptr_t)VIRTUAL(data), data, PTE_PRESENT | PTE_WRITABLE);
     for (uintptr_t bss = (uintptr_t)bss_start_ld; bss < (uintptr_t)bss_end_ld; bss += PAGE_SIZE)
         mmu_map((uintptr_t)VIRTUAL(bss), bss, PTE_PRESENT | PTE_WRITABLE);
-    for (uintptr_t addr = 0; addr < 64 * 1024 * 1024; addr += PAGE_SIZE)
+    for (uintptr_t addr = 0x1000; addr < 64 * 1024 * 1024; addr += PAGE_SIZE)
         mmu_map(addr, addr, PTE_PRESENT | PTE_WRITABLE);
 
     dprintf("%s:%d: done mapping kernel regions\n", __FILE__, __LINE__);
