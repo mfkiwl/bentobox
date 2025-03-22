@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include <kernel/arch/x86_64/idt.h>
+#include <kernel/arch/x86_64/ioapic.h>
 #include <kernel/printf.h>
 
 __attribute__((aligned(0x10)))
@@ -70,6 +72,8 @@ void idt_set_entry(uint8_t index, uint64_t base, uint16_t selector, uint8_t type
 }
 
 void irq_register(uint8_t vector, void *handler) {
+    if (ioapic_enabled && vector <= 15)
+        ioapic_redirect_irq(0, vector + 32, vector, false);
     irq_handlers[vector] = handler;
 }
 

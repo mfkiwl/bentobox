@@ -1,7 +1,7 @@
 #include <cpuid.h>
 #include <kernel/acpi.h>
 #include <kernel/arch/x86_64/io.h>
-#include <kernel/arch/x86_64/apic.h>
+#include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
 #include <kernel/printf.h>
 #include <kernel/assert.h>
@@ -15,14 +15,21 @@ static bool cpu_check_apic(void) {
     return false;
 }
 
+static void pic_mask_all_irqs(void) {
+    outb(0x21, 0xFF);
+    outb(0x21, 0xFF);
+    outb(0x20, 0x20);
+    outb(0x20, 0x20);
+}
+
 __attribute__((no_sanitize("undefined")))
 uint32_t lapic_read(uint32_t reg) {
-    return *((uint32_t *)((uintptr_t)(LAPIC_REGS) + reg));
+    return *((uint32_t*)(VIRTUAL(LAPIC_REGS) + reg));
 }
 
 __attribute__((no_sanitize("undefined")))
 void lapic_write(uint32_t reg, uint32_t value) {
-    *((uint32_t *)((uintptr_t)(LAPIC_REGS) + reg)) = value;
+    *((uint32_t*)(VIRTUAL(LAPIC_REGS) + reg)) = value;
 }
 
 void lapic_stop_timer(void) {
@@ -47,12 +54,14 @@ void lapic_ipi(uint32_t id, uint8_t irq) {
     lapic_write(LAPIC_ICRLO, irq);
 }
 
+__attribute__((no_sanitize("undefined")))
 void lapic_install(void) {
     assert(acpi_root_sdt);
     assert(cpu_check_apic());
 
-    mmu_map(LAPIC_REGS, (uintptr_t)VIRTUAL(LAPIC_REGS), PTE_PRESENT | PTE_WRITABLE);
+    pic_mask_all_irqs();
+    mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE);
     lapic_write(LAPIC_SIV, lapic_read(LAPIC_SIV) | 0x100);
 
-    dprintf("%s:%d: initialized Local APIC\n", __FILE__, __LINE__);
+    dprintf("%s:%d: initialized CPU #0 Local APIC\n", __FILE__, __LINE__);
 }
