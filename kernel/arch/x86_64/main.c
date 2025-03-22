@@ -39,11 +39,6 @@ void generic_fatal(void) {
 	for (;;) asm ("hlt");
 }
 
-void test() {
-	printf("IRQ!\n");
-	lapic_eoi();
-}
-
 void kmain(void *mboot_info, uint32_t mboot_magic) {
     vga_clear();
     vga_enable_cursor();
@@ -64,10 +59,6 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	acpi_install();
 	lapic_install();
 	ioapic_install();
-
-	irq_register(0, test);
-
-	for (;;);
 
 	printf("Welcome to bentobox v%d.%d (%s %s %s)!\n",
 		__kernel_version_major, __kernel_version_minor,
