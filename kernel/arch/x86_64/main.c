@@ -59,6 +59,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	acpi_install();
 	lapic_install();
 	ioapic_install();
+	lapic_calibrate_timer();
 
 	printf("Welcome to bentobox v%d.%d (%s %s %s)!\n",
 		__kernel_version_major, __kernel_version_minor,
