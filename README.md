@@ -45,4 +45,3 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [ ] ELF loading using the MMU
 - [ ] Initial filesystem
 - [X] `unimplemented` macro
-- [ ] Typedef most structs
