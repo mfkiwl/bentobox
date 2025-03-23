@@ -26,7 +26,9 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 ## TODO
 - [ ] `panic()` function
 - [ ] ANSI support in the VGA driver
-- [ ] Write a scheduler
+- [X] Write a scheduler
+    - [X] Mutexes
+    - [ ] Semaphores
 - [ ] Write a VFS
 - [X] FADT cleanup
 - [ ] PCI driver
@@ -43,3 +45,4 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [ ] ELF loading using the MMU
 - [ ] Initial filesystem
 - [X] `unimplemented` macro
+- [ ] Typedef most structs

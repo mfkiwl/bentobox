@@ -121,6 +121,10 @@ void sched_block(enum task_state reason) {
     sched_yield();
 }
 
+void sched_unblock(struct task *proc) {
+    proc->state = RUNNING;
+}
+
 void sched_sleep(int ms) {
     extern size_t pit_ticks;
     current_proc->time.end = pit_ticks + ms;
