@@ -1,13 +1,17 @@
 #include <stddef.h>
+#include <stdatomic.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
 #include <kernel/sched.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/assert.h>
+#include <kernel/spinlock.h>
 
 struct task *processes = NULL;
 struct task *current_proc = NULL;
+
+atomic_flag sched_lock = ATOMIC_FLAG_INIT;
 
 long max_pid = 0;
 
@@ -38,6 +42,7 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->pid = max_pid++;
     proc->heap = heap_create();
 
+    acquire(&sched_lock);
     if (!processes) {
         proc->prev = proc;
         proc->next = proc;
@@ -48,6 +53,7 @@ struct task *sched_new_task(void *entry, const char *name) {
         proc->next = processes;
         processes->prev = proc;
     }
+    release(&sched_lock);
 
     dprintf("%s:%d: created task \"%s\"\n", __FILE__, __LINE__, name);
     return proc;
@@ -75,12 +81,12 @@ void sched_schedule(struct registers *r) {
 }
 
 void sched_yield(void) {
-    unimplemented;
+    asm ("int $0x79");
 }
 
 void sched_idle(void) {
     for (;;) {
-        sched_yield();
+        asm ("hlt");
     }
 }
 

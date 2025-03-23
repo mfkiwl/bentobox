@@ -90,13 +90,13 @@ void isr_handler(struct registers *r) {
     asm volatile("mov %%cr2, %0" : "=r" (cr2));
 
     dprintf("%s:%d: x86 Fault: \033[91m%s\033[0m\n"
-            "rdi: 0x%x rsi: 0x%x rbp:    0x%x\n"
-            "rsp: 0x%x rbx: 0x%x rdx:    0x%x\n"
-            "rcx: 0x%x rax: 0x%x rip:    0x%x\n"
-            "r8:  0x%x r9:  0x%x r10:    0x%x\n"
-            "r11: 0x%x r12: 0x%x r13:    0x%x\n"
-            "r14: 0x%x r15: 0x%x cr2:    0x%x\n"
-            "cs:  0x%x ss:  0x%x rflags: 0x%x\n",
+            "rdi: 0x%lx rsi: 0x%lx rbp:    0x%lx\n"
+            "rsp: 0x%lx rbx: 0x%lx rdx:    0x%lx\n"
+            "rcx: 0x%lx rax: 0x%lx rip:    0x%lx\n"
+            "r8:  0x%lx r9:  0x%lx r10:    0x%lx\n"
+            "r11: 0x%lx r12: 0x%lx r13:    0x%lx\n"
+            "r14: 0x%lx r15: 0x%lx cr2:    0x%lx\n"
+            "cs:  0x%lx ss:  0x%lx rflags: 0x%lx\n",
             __FILE__, __LINE__, isr_errors[r->int_no], r->rdi, r->rsi, r->rbp,
             r->rsp, r->rbx, r->rdx, r->rcx, r->rax, r->rip, r->r8, r->r9,
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,

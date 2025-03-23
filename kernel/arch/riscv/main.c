@@ -2,12 +2,12 @@
 #include <kernel/assert.h>
 #include <kernel/version.h>
 
-void generic_acpi_enable(void) {
-    unimplemented;
-}
-
 void generic_fatal(void) {
     for (;;) asm volatile ("wfi");
+}
+
+void generic_pause(void) {
+    return;
 }
 
 void kmain() {
