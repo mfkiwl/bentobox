@@ -58,7 +58,7 @@ void idt_install(void) {
     };
 
     asm volatile ("lidt %0" :: "m"(idt_descriptor));
-    dprintf("%s:%d: IDT address: 0x%x\n", __FILE__, __LINE__, (uint64_t)&idt_descriptor);
+    dprintf("%s:%d: IDT address: 0x%lx\n", __FILE__, __LINE__, (uint64_t)&idt_descriptor);
 }
 
 void idt_set_entry(uint8_t index, uint64_t base, uint16_t selector, uint8_t type) {

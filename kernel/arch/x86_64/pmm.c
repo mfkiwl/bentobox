@@ -46,8 +46,8 @@ void pmm_install(void *mboot_info) {
         }
     }
 
-    dprintf("%s:%d: initialized allocator at 0x%x\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
-    dprintf("%s:%d: usable memory: %dK\n", __FILE__, __LINE__, pmm_usable_mem / 1024);
+    dprintf("%s:%d: initialized allocator at 0x%lx\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
+    dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, pmm_usable_mem / 1024);
 }
 
 uint64_t pmm_find_pages(uint64_t page_count) {

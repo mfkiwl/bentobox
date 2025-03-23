@@ -64,4 +64,6 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	printf("Welcome to bentobox v%d.%d (%s %s %s)!\n",
 		__kernel_version_major, __kernel_version_minor,
 		__kernel_build_date, __kernel_build_time, __kernel_arch);
+
+	printf("Test %ld", 0x7FFFFFFFFFFFFFFF);
 }

@@ -24,7 +24,7 @@ struct heap *heap_create(void) {
     h->head->size = 0;
     h->head->magic = HEAP_MAGIC;
 
-    dprintf("%s:%d: created heap at 0x%x\n", __FILE__, __LINE__, (uint64_t)h);
+    dprintf("%s:%d: created heap at 0x%lx\n", __FILE__, __LINE__, (uint64_t)h);
     return h;
 }
 
