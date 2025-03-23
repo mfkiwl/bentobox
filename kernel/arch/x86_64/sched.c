@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <stdatomic.h>
+#include <kernel/arch/x86_64/pit.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
 #include <kernel/sched.h>
@@ -38,7 +39,7 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->ring = 0;
     proc->name = name;
     proc->stack = stack;
-    proc->killed = false;
+    proc->state = RUNNING;
     proc->pid = max_pid++;
     proc->heap = heap_create();
 
@@ -60,6 +61,7 @@ struct task *sched_new_task(void *entry, const char *name) {
 }
 
 void sched_schedule(struct registers *r) {
+    acquire(&sched_lock);
     lapic_stop_timer();
 
     if (current_proc) {
@@ -68,14 +70,31 @@ void sched_schedule(struct registers *r) {
         current_proc = processes;
     }
 
+    extern size_t pit_ticks;
+    if (current_proc == RUNNING)
+        current_proc->time.last = pit_ticks - current_proc->time.start;
+
     if (!current_proc->next) {
         current_proc = processes;
     } else {
         current_proc = current_proc->next;
     }
 
+    while (current_proc->state != RUNNING) {
+        if (current_proc->state == PAUSED
+         && pit_ticks >= current_proc->time.end) {
+            current_proc->state = RUNNING;
+            current_proc->time.last = current_proc->time.end - current_proc->time.start;
+            break;
+        }
+        current_proc = current_proc->next;
+    }
+
+    current_proc->time.start = pit_ticks;
+
     memcpy(r, &(current_proc->ctx), sizeof(struct registers));
 
+    release(&sched_lock);
     lapic_eoi();
     lapic_oneshot(0x79, 5);
 }
@@ -84,9 +103,27 @@ void sched_yield(void) {
     asm ("int $0x79");
 }
 
+void sched_block(enum task_state reason) {
+    current_proc->state = reason;
+    sched_yield();
+}
+
+void sched_sleep(int ms) {
+    extern size_t pit_ticks;
+    current_proc->time.end = pit_ticks + ms;
+    sched_block(PAUSED);
+}
+
 void sched_idle(void) {
     for (;;) {
         asm ("hlt");
+    }
+}
+
+static void test(void) {
+    for (;;) {
+        dprintf("last: %d\n", current_proc->time.last);
+        sched_sleep(1000);
     }
 }
 
@@ -98,4 +135,5 @@ void sched_start(void) {
 
 void sched_install(void) {
     sched_new_task(sched_idle, "System Idle Process");
+    sched_new_task(test, "test");
 }

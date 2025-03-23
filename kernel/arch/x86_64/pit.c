@@ -9,7 +9,7 @@
 #define PIT_FREQ  1000
 #define TIMER_IRQ 0
 
-static size_t pit_ticks = 0;
+size_t pit_ticks = 0;
 
 static void pit_handler(struct registers *r) {
     pit_ticks++;
@@ -28,12 +28,6 @@ static void pit_set_timer_phase(size_t hz) {
 void pit_install(void) {
     pit_set_timer_phase(PIT_FREQ);
     irq_register(TIMER_IRQ, pit_handler);
-}
-
-void pit_disable(void) {
-    irq_unregister(TIMER_IRQ);
-    outb(0x43, 0x30);
-    outb(0x40, 0x00);
 }
 
 void pit_sleep(size_t ms) {

@@ -71,7 +71,6 @@ void lapic_calibrate_timer(void) {
     lapic_ticks = ticks;
 
     lapic_stop_timer();
-    pit_disable();
 
     dprintf("%s:%d: calibrated Local APIC timer\n", __FILE__, __LINE__);
 }
