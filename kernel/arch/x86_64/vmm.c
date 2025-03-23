@@ -7,6 +7,7 @@
 
 uintptr_t initial_pml[3][512] __attribute__((aligned(PAGE_SIZE)));
 uintptr_t *pml4 = NULL;
+uintptr_t *kernel_pd = NULL;
 
 extern char text_start_ld[];
 extern char text_end_ld[];
@@ -99,7 +100,7 @@ void mmu_unmap_pages(uint32_t count, uintptr_t virt) {
 }
 
 void vmm_install(void) {
-    pml4 = (uintptr_t *)mmu_alloc(1);
+    pml4 = kernel_pd = (uintptr_t *)mmu_alloc(1);
     memset(pml4, 0, PAGE_SIZE);
     
     for (uintptr_t text = (uintptr_t)text_start_ld; text < (uintptr_t)text_end_ld; text += PAGE_SIZE)

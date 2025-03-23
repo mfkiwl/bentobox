@@ -8,6 +8,7 @@
 #include <kernel/mmu.h>
 #include <kernel/acpi.h>
 #include <kernel/heap.h>
+#include <kernel/sched.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
 #include <kernel/assert.h>
@@ -60,10 +61,11 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	lapic_install();
 	ioapic_install();
 	lapic_calibrate_timer();
+	sched_install();
 
 	printf("Welcome to bentobox v%d.%d (%s %s %s)!\n",
 		__kernel_version_major, __kernel_version_minor,
 		__kernel_build_date, __kernel_build_time, __kernel_arch);
 
-	printf("Test %ld", 0x7FFFFFFFFFFFFFFF);
+	sched_start();
 }

@@ -22,6 +22,8 @@
 #define ALIGN_UP(x, y) DIV_CEILING(x, y) * y
 #define ALIGN_DOWN(x, y) (x / y) * y
 
+extern uintptr_t *kernel_pd;
+
 void *mmu_alloc(size_t page_count);
 void  mmu_free(void *ptr, size_t page_count);
 void  mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags);
