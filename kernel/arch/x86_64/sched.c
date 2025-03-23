@@ -3,6 +3,7 @@
 #include <kernel/arch/x86_64/pit.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
+#include <kernel/heap.h>
 #include <kernel/sched.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
@@ -21,8 +22,8 @@ struct task *sched_new_task(void *entry, const char *name) {
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
     proc->page_dir = kernel_pd;
 
-    void *stack = mmu_alloc(4);
-    mmu_map_pages(4, (uintptr_t)stack, (uintptr_t)VIRTUAL(stack), PTE_PRESENT | PTE_WRITABLE);
+    void *stack = VIRTUAL(mmu_alloc(4));
+    mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE);
     memset(stack, 0, 4 * PAGE_SIZE);
 
     proc->ctx.rdi = 0;
@@ -86,6 +87,18 @@ void sched_schedule(struct registers *r) {
             current_proc->state = RUNNING;
             current_proc->time.last = current_proc->time.end - current_proc->time.start;
             break;
+        } else if (current_proc->state == KILLED) {
+            struct task *proc = current_proc;
+            current_proc = current_proc->next;
+
+            max_pid = proc->pid;
+            proc->prev->next = proc->next;
+            proc->next->prev = proc->prev;
+            heap_delete(proc->heap);
+            mmu_free(PHYSICAL(proc->stack), 4);
+            mmu_unmap_pages(4, (uintptr_t)proc->stack);
+            kfree(proc);
+            break;
         }
         current_proc = current_proc->next;
     }
@@ -114,6 +127,11 @@ void sched_sleep(int ms) {
     sched_block(PAUSED);
 }
 
+void sched_kill(struct task *proc) {
+    proc->state = KILLED;
+    sched_yield();
+}
+
 void sched_idle(void) {
     for (;;) {
         asm ("hlt");
@@ -124,6 +142,8 @@ static void test(void) {
     for (;;) {
         dprintf("last: %d\n", current_proc->time.last);
         sched_sleep(1000);
+        dprintf("commiting suicide... please wait\n");
+        sched_block(KILLED);
     }
 }
 

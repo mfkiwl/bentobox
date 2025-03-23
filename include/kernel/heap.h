@@ -21,5 +21,6 @@ void *kmalloc(size_t n);
 void  kfree(void *ptr);
 
 struct heap *heap_create();
+void  heap_delete(struct heap *h);
 void *heap_alloc(struct heap *h, uint64_t n);
 void  heap_free(void *ptr);
