@@ -17,19 +17,24 @@ atomic_flag sched_lock = ATOMIC_FLAG_INIT;
 
 long max_pid = 0;
 
+void sched_stack_exit(void) {
+    sched_kill(current_proc);
+}
+
 __attribute__((no_sanitize("undefined")))
 struct task *sched_new_task(void *entry, const char *name) {
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
     proc->page_dir = kernel_pd;
 
-    void *stack = VIRTUAL(mmu_alloc(4));
+    uint64_t *stack = VIRTUAL(mmu_alloc(4));
     mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE);
     memset(stack, 0, 4 * PAGE_SIZE);
+    stack[2047] = (uint64_t)sched_stack_exit;
 
     proc->ctx.rdi = 0;
     proc->ctx.rsi = 0;
     proc->ctx.rbp = 0;
-    proc->ctx.rsp = (uint64_t)stack + (4 * PAGE_SIZE) - 4;
+    proc->ctx.rsp = (uint64_t)stack + (4 * PAGE_SIZE) - 8;
     proc->ctx.rbx = 0;
     proc->ctx.rdx = 0;
     proc->ctx.rcx = 0;
@@ -142,12 +147,22 @@ void sched_idle(void) {
     }
 }
 
-static void test(void) {
+static void uptime_task(void) {
+    printf("\n");
+
+    int hours = 0, minutes = 0, seconds = 0;
     for (;;) {
-        dprintf("last: %d\n", current_proc->time.last);
+        if (seconds >= 60) {
+            seconds = 0;
+            minutes++;
+        }
+        if (minutes >= 60) {
+            minutes = 0;
+            hours++;
+        }
+
+        printf("\rUptime: %dh, %dmin, %ds", hours, minutes, seconds++);
         sched_sleep(1000);
-        dprintf("commiting suicide... please wait\n");
-        sched_block(KILLED);
     }
 }
 
@@ -159,5 +174,5 @@ void sched_start(void) {
 
 void sched_install(void) {
     sched_new_task(sched_idle, "System Idle Process");
-    sched_new_task(test, "test");
+    sched_new_task(uptime_task, "Uptime Task");
 }
