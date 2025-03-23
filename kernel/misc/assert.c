@@ -7,3 +7,7 @@ void __assert_failed(const char *file, uint32_t line, const char *func, const ch
     printf("%s:%d (%s) Assertion failed: %s\n", file, line, func, cond);
     generic_fatal();
 }
+
+void __stub(const char *file, uint32_t line, const char *func) {
+    dprintf("%s:%d: %s is a stub\n", file, line, func);
+}

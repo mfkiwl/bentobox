@@ -2,12 +2,13 @@
 #include <kernel/arch/x86_64/io.h>
 #include <kernel/acpi.h>
 #include <kernel/printf.h>
+#include <kernel/assert.h>
 
 struct acpi_fadt *fadt = NULL;
 
-#ifdef __x86_64__
 __attribute__((no_sanitize("alignment")))
 void fadt_init(void) {
+#ifdef __x86_64__
     fadt = (struct acpi_fadt*)acpi_find_table("FACP");
 
     if (!fadt) return;
@@ -23,9 +24,7 @@ void fadt_init(void) {
     }
     
     dprintf("%s:%d: ACPI is already enabled\n", __FILE__, __LINE__);
-}
 #else
-void fadt_init(void) {
-    dprintf("%s:%d: %s is a stub\n", __FILE__, __LINE__, __func__);
-}
+    unimplemented;
 #endif
+}
