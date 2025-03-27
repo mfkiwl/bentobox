@@ -1,10 +1,10 @@
 #include <stdint.h>
 #include <stddef.h>
-#include <kernel/multiboot.h>
 #include <kernel/mmu.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
-#include <kernel/bitmap.h>
+#include <kernel/multiboot.h>
+#include <kernel/misc/bitmap.h>
 
 uint8_t *pmm_bitmap = NULL;
 uint64_t pmm_last_page = 0;

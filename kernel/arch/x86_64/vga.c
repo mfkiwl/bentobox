@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <kernel/arch/x86_64/io.h>
-#include <kernel/video/vga.h>
+#include <kernel/arch/x86_64/vga.h>
 #include <kernel/string.h>
 
 uint8_t vga_x = 0;

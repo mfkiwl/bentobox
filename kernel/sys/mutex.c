@@ -1,8 +1,8 @@
 #include <stdatomic.h>
 #include <kernel/heap.h>
-#include <kernel/mutex.h>
-#include <kernel/sched.h>
-#include <kernel/spinlock.h>
+#include <kernel/sys/mutex.h>
+#include <kernel/sys/sched.h>
+#include <kernel/sys/spinlock.h>
 
 mutex_t *mutex_create(void) {
     mutex_t *m = (mutex_t *)kmalloc(sizeof(mutex_t));

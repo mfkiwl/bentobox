@@ -4,11 +4,11 @@
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
 #include <kernel/heap.h>
-#include <kernel/sched.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/assert.h>
-#include <kernel/spinlock.h>
+#include <kernel/sys/sched.h>
+#include <kernel/sys/spinlock.h>
 
 struct task *processes = NULL;
 struct task *current_proc = NULL;
