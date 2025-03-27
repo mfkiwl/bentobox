@@ -31,7 +31,7 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
     - [ ] Semaphores
 - [ ] Write a VFS
 - [X] FADT cleanup
-- [ ] PCI driver
+- [X] PCI
 - [ ] ATAPIO/NVMe driver
 - [ ] Proper ext2 driver
 - [ ] Framebuffer support
