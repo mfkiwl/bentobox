@@ -29,7 +29,7 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [X] Write a scheduler
     - [X] Mutexes
     - [ ] Semaphores
-- [ ] Write a VFS
+- [X] Write a VFS
 - [X] FADT cleanup
 - [X] PCI
 - [ ] ATAPIO/NVMe driver

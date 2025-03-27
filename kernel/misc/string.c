@@ -107,6 +107,24 @@ char *strcpy(char* dest, const char* src) {
     return ptr;
 }
 
+char *strncpy(char* dest, const char* src, size_t n) {
+    if (dest == NULL) {
+        return NULL;
+    }
+
+    char *ptr = dest;
+    size_t i;
+
+    for (i = 0; i < n && *src != '\0'; i++) {
+        *dest = *src;
+        dest++;
+        src++;
+    }
+
+    *dest = '\0';
+    return ptr;
+}
+
 char *strchr(register const char *s, int c) {
     do {
         if (*s == c) {
@@ -127,6 +145,37 @@ char *strstr(const char *a, const char *b) {
         }
     }
     return 0;
+}
+
+char *strtok(char *str, const char *delim) {
+    static char *last;
+    if (str == NULL) {
+        str = last;
+    }
+    if (str == NULL) {
+        return NULL;
+    }
+
+    while (*str && strchr(delim, *str)) {
+        str++;
+    }
+    if (*str == '\0') {
+        last = NULL;
+        return NULL;
+    }
+
+    char *token = str;
+    while (*str && !strchr(delim, *str)) {
+        str++;
+    }
+    if (*str) {
+        *str = '\0';
+        last = str + 1;
+    } else {
+        last = NULL;
+    }
+
+    return token;
 }
 
 int atoi(char *s) {

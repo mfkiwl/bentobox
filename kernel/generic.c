@@ -1,11 +1,13 @@
 #include <kernel/sys/sched.h>
 #include <kernel/pci.h>
+#include <kernel/vfs.h>
 #include <kernel/printf.h>
 #include <kernel/version.h>
 
 void generic_startup(void) {
 	sched_install();
 	pci_scan();
+    vfs_install();
 }
 
 void generic_main(void) {
