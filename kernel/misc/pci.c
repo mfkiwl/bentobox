@@ -98,8 +98,6 @@ void pci_check_device(uint8_t bus, uint8_t device) {
         primary_bus[device].vendor_id = vendor_id;
         primary_bus[device].device_id = device_id;
     }
-
-    dprintf("%s:%d: found PCI device on bus %d with vendor ID 0x%x, device ID 0x%x, class 0x%x, subclass 0x%x\n", __FILE__, __LINE__, bus, vendor_id, device_id, class, subclass);
 }
 
 void pci_check_bus(uint8_t bus) {
@@ -131,6 +129,8 @@ struct pci_device *pci_get_device(uint16_t vendor, uint16_t device) {
 }
 
 void pci_scan(void) {
+    printf("\033[92m * \033[97mFinding PCI devices...\033[0m\n");
+
     uint8_t function;
     uint8_t bus;
 
