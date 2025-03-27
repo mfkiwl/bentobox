@@ -16,11 +16,11 @@ int32_t null_read(struct vfs_node *node, void *buffer, uint32_t len) {
 }
 
 void zero_initialize(void) {
-    zero_dev = vfs_create_node("zero", VFS_DEVICE);
+    zero_dev = vfs_create_node("zero", VFS_CHARDEVICE);
     zero_dev->read = zero_read;
     vfs_add_node(vfs_dev, zero_dev);
 
-    null_dev = vfs_create_node("null", VFS_DEVICE);
+    null_dev = vfs_create_node("null", VFS_CHARDEVICE);
     null_dev->read = null_read;
     vfs_add_node(vfs_dev, null_dev);
 }

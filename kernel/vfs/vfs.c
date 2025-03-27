@@ -5,6 +5,7 @@
 #include <kernel/printf.h>
 
 extern void zero_initialize(void);
+extern void serial_tty_install(void);
 
 struct vfs_node *vfs_root;
 struct vfs_node *vfs_dev;
@@ -13,7 +14,7 @@ const char *vfs_types[] = {
     "NONE",
     "VFS_FILE",
     "VFS_DIRECTORY",
-    "VFS_DEVICE"
+    "VFS_CHARDEVICE"
 };
 
 struct vfs_node *vfs_create_node(const char *name, enum vfs_node_type type) {
@@ -122,6 +123,7 @@ void vfs_install(void) {
     vfs_add_node(vfs_root, vfs_dev);
 
     zero_initialize();
+    serial_tty_install();
 
     printf("\033[92m * \033[97mInitialized virtual filesystem\033[0m\n");
 }

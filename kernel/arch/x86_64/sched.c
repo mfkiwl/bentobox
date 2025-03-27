@@ -1,3 +1,4 @@
+#include "kernel/vfs.h"
 #include <stddef.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/pit.h>
@@ -164,9 +165,19 @@ static void uptime_task(void) {
     }
 }
 
+static void test(void) {
+    vfs_node_t *tty = vfs_open(vfs_root, "/dev/serial0");
+    char buf[256];
+    for (;;) {
+        vfs_read(tty, buf, sizeof(buf));
+        dprintf(buf);
+    }
+}
+
 void sched_install(void) {
     sched_new_task(sched_idle, "System Idle Process");
-    sched_new_task(uptime_task, "Uptime Task");
+    //sched_new_task(uptime_task, "Uptime Task");
+    sched_new_task(test, "test");
     irq_register(0x79 - 32, sched_schedule);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
