@@ -148,8 +148,6 @@ void sched_idle(void) {
 }
 
 static void uptime_task(void) {
-    printf("\n");
-
     int hours = 0, minutes = 0, seconds = 0;
     for (;;) {
         if (seconds >= 60) {
@@ -175,4 +173,6 @@ void sched_start(void) {
 void sched_install(void) {
     sched_new_task(sched_idle, "System Idle Process");
     sched_new_task(uptime_task, "Uptime Task");
+
+    printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }

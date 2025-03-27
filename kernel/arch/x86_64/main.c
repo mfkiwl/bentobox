@@ -45,14 +45,15 @@ void generic_pause(void) {
 }
 
 void kmain(void *mboot_info, uint32_t mboot_magic) {
-    vga_clear();
-    vga_enable_cursor();
-
     serial_install();
     
     dprintf("%s %d.%d %s %s %s\n",
         __kernel_name, __kernel_version_major, __kernel_version_minor,
 		__kernel_build_date, __kernel_build_time, __kernel_arch);
+
+	vga_clear();
+    vga_enable_cursor();
+	printf("\n  \033[97mStarting up \033[94mbentobox (%s)\033[0m\n\n", __kernel_arch);
 
     assert(mboot_magic == 0x36d76289);
     gdt_install();
@@ -67,9 +68,9 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	lapic_calibrate_timer();
 	sched_install();
 
-	printf("Welcome to bentobox v%d.%d (%s %s %s)!\n",
-		__kernel_version_major, __kernel_version_minor,
-		__kernel_build_date, __kernel_build_time, __kernel_arch);
+	printf("\nWelcome to \033[96mbentobox\033[0m!\n%s %d.%d %s %s %s\n\n",
+        __kernel_name, __kernel_version_major,__kernel_version_minor,
+        __kernel_build_date, __kernel_build_time, __kernel_arch);
 
 	sched_start();
 }

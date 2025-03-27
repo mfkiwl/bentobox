@@ -23,7 +23,7 @@ struct task {
     struct task *next;
     struct task *prev;
     const char *name;
-    uint16_t *stack;
+    uint64_t *stack;
     uint64_t *page_dir;
     uint8_t ring;
     long pid;
