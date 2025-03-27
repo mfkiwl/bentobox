@@ -15,7 +15,6 @@
 #include <kernel/assert.h>
 #include <kernel/version.h>
 #include <kernel/sys/sched.h>
-#include <kernel/video/svgaii.h>
 
 void *mboot2_find_next(char *current, uint32_t type) {
 	char *header = current;
@@ -69,9 +68,8 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	ioapic_install();
 	lapic_calibrate_timer();
 	sched_install();
-	
+
 	pci_install();
-	svgaii_init();
 
 	printf("\nWelcome to \033[96mbentobox\033[0m!\n%s %d.%d %s %s %s\n\n",
         __kernel_name, __kernel_version_major,__kernel_version_minor,
