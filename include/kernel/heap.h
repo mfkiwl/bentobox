@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <stddef.h>
 #include <stdbool.h>
 
 #define HEAP_MAGIC 0x58524332

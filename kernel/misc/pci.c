@@ -130,7 +130,7 @@ struct pci_device *pci_get_device(uint16_t vendor, uint16_t device) {
     return NULL;
 }
 
-void pci_install(void) {
+void pci_scan(void) {
     uint8_t function;
     uint8_t bus;
 

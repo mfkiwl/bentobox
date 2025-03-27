@@ -4,12 +4,10 @@
 #include <kernel/sys/sched.h>
 #include <kernel/sys/spinlock.h>
 
-mutex_t *mutex_create(void) {
-    mutex_t *m = (mutex_t *)kmalloc(sizeof(mutex_t));
+void mutex_init(mutex_t *m) {
     m->locked = 0;
     m->owner = NULL;
     m->queue = NULL;
-    return m;
 }
 
 void mutex_lock(mutex_t *m) {

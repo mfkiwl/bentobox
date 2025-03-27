@@ -164,15 +164,10 @@ static void uptime_task(void) {
     }
 }
 
-void sched_start(void) {
-    dprintf("%s:%d: jumpstarting scheduler...\n", __FILE__, __LINE__);
-    irq_register(0x79 - 32, sched_schedule);
-    lapic_ipi(0, 0x79);
-}
-
 void sched_install(void) {
     sched_new_task(sched_idle, "System Idle Process");
     sched_new_task(uptime_task, "Uptime Task");
+    irq_register(0x79 - 32, sched_schedule);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }

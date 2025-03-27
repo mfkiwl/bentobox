@@ -1,11 +1,11 @@
 #include <stddef.h>
-#include <kernel/multiboot.h>
 #include <kernel/arch/x86_64/gdt.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/vga.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/arch/x86_64/ioapic.h>
 #include <kernel/arch/x86_64/serial.h>
+#include <kernel/sys/sched.h>
 #include <kernel/mmu.h>
 #include <kernel/pci.h>
 #include <kernel/acpi.h>
@@ -14,7 +14,10 @@
 #include <kernel/printf.h>
 #include <kernel/assert.h>
 #include <kernel/version.h>
-#include <kernel/sys/sched.h>
+#include <kernel/multiboot.h>
+
+extern void generic_startup(void);
+extern void generic_main(void);
 
 void *mboot2_find_next(char *current, uint32_t type) {
 	char *header = current;
@@ -67,13 +70,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	lapic_install();
 	ioapic_install();
 	lapic_calibrate_timer();
-	sched_install();
 
-	pci_install();
-
-	printf("\nWelcome to \033[96mbentobox\033[0m!\n%s %d.%d %s %s %s\n\n",
-        __kernel_name, __kernel_version_major,__kernel_version_minor,
-        __kernel_build_date, __kernel_build_time, __kernel_arch);
-
-	sched_start();
+	generic_startup();
+	generic_main();
 }

@@ -17,7 +17,7 @@ struct pci_device {
 
 extern struct pci_device primary_bus[32];
 
-void pci_install();
+void pci_scan(void);
 void pci_check_function(uint8_t bus, uint8_t device, uint8_t function);
 uint8_t pci_get_irq_line(uint8_t bus, uint8_t device, uint8_t function);
 uint16_t pci_config_read_word(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset);
