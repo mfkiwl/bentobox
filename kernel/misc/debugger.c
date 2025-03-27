@@ -1,17 +1,7 @@
 #include <kernel/vfs.h>
+#include <kernel/ctype.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
-
-int tolower(int c) {
-    if (c >= 'A' && c <= 'Z') {
-        return c + ('a' - 'A');
-    }
-    return c;
-}
-
-int isdigit(int c) {
-    return (c >= '0' && c <= '9');
-}
 
 uint64_t hex_to_long(const char *str) {
     uint64_t result = 0;
