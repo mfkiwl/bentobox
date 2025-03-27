@@ -49,6 +49,8 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->state = RUNNING;
     proc->pid = max_pid++;
     proc->heap = heap_create();
+    proc->fd_table[0] = vfs_open(vfs_root, "/dev/serial0");
+    proc->fd_table[1] = vfs_open(vfs_root, "/dev/serial0");
 
     acquire(&sched_lock);
     if (!processes) {
@@ -177,7 +179,9 @@ static void test(void) {
 void sched_install(void) {
     sched_new_task(sched_idle, "System Idle Process");
     //sched_new_task(uptime_task, "Uptime Task");
-    sched_new_task(test, "test");
+    //sched_new_task(test, "test");
+    extern void debugger_task_entry(void);
+    sched_new_task(debugger_task_entry, "bentobox debug shell");
     irq_register(0x79 - 32, sched_schedule);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");

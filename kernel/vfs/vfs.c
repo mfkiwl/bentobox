@@ -56,7 +56,9 @@ struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
         return current->parent;
     }
 
-    char *token = strtok((char *)path, "/");
+    char *copy = kmalloc(strlen(path) + 1);
+    strcpy(copy, path);
+    char *token = strtok(copy, "/");
 
     struct vfs_node *node = current;
     while (token != NULL) {
@@ -77,6 +79,7 @@ struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
     }
 
     node->open = true;
+    kfree(copy);
     return node;
 }
 

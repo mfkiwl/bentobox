@@ -5,9 +5,9 @@
 #include <kernel/version.h>
 
 void generic_startup(void) {
-	sched_install();
-	pci_scan();
     vfs_install();
+	pci_scan();
+	sched_install();
 }
 
 void generic_main(void) {

@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <kernel/arch/x86_64/idt.h>
+#include <kernel/vfs.h>
 #include <kernel/heap.h>
 
 enum task_state {
@@ -30,6 +31,7 @@ struct task {
     enum task_state state;
     struct heap *heap;
     struct task_time time;
+    struct vfs_node *fd_table[16];
 };
 
 extern struct task *processes;
