@@ -144,6 +144,13 @@ struct madt_entry {
     uint8_t length;
 } __attribute__((packed));
 
+struct madt_lapic {
+    struct madt_entry entry;
+    uint8_t core_id;
+    uint8_t id;
+    uint32_t flags;
+} __attribute__((packed));
+
 struct madt_ioapic {
     struct madt_entry entry;
     uint8_t id;
@@ -171,8 +178,9 @@ extern void *acpi_root_sdt;
 
 extern struct acpi_fadt *fadt;
 extern struct acpi_madt *madt;
-extern struct madt_ioapic *madt_ioapic_list[16];
-extern struct madt_iso *madt_iso_list[16];
+extern struct madt_lapic *madt_lapic_list[32];
+extern struct madt_ioapic *madt_ioapic_list[32];
+extern struct madt_iso *madt_iso_list[32];
 extern struct madt_lapic_addr *lapic_addr;
 extern uint32_t madt_lapics;
 extern uint32_t madt_ioapics;

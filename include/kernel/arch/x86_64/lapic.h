@@ -1,4 +1,5 @@
 #pragma once
+#define LAPIC_ESR   0x280
 #define LAPIC_ICRLO 0x0300
 #define LAPIC_ICRHI 0x0310
 #define LAPIC_ICDESTSHIFT 24
@@ -24,3 +25,5 @@ void lapic_eoi(void);
 void lapic_ipi(uint32_t id, uint8_t irq);
 void lapic_oneshot(uint8_t vector, uint32_t ms);
 void lapic_stop_timer(void);
+uint32_t lapic_read(uint32_t reg);
+void lapic_write(uint32_t reg, uint32_t value);

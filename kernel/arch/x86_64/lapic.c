@@ -24,12 +24,12 @@ static void pic_mask_all_irqs(void) {
 }
 
 __attribute__((no_sanitize("undefined")))
-static uint32_t lapic_read(uint32_t reg) {
+uint32_t lapic_read(uint32_t reg) {
     return *((uint32_t*)(VIRTUAL(LAPIC_REGS) + reg));
 }
 
 __attribute__((no_sanitize("undefined")))
-static void lapic_write(uint32_t reg, uint32_t value) {
+void lapic_write(uint32_t reg, uint32_t value) {
     *((uint32_t*)(VIRTUAL(LAPIC_REGS) + reg)) = value;
 }
 

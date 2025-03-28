@@ -4,8 +4,9 @@
 #include <kernel/printf.h>
 
 struct acpi_madt *madt = NULL;
-struct madt_ioapic *madt_ioapic_list[16];
-struct madt_iso *madt_iso_list[16];
+struct madt_lapic *madt_lapic_list[32];
+struct madt_ioapic *madt_ioapic_list[32];
+struct madt_iso *madt_iso_list[32];
 uint32_t madt_lapics = 0;
 uint32_t madt_ioapics = 0;
 uint32_t madt_isos = 0;
@@ -23,7 +24,8 @@ void madt_init() {
 
         switch (entry->type) {
             case 0:
-                madt_lapics++;
+                madt_lapic_list[madt_lapics++] = (struct madt_lapic*)entry;
+                dprintf("%s:%d: CPU #%d LAPIC ID: %d\n", __FILE__, __LINE__, ((struct madt_lapic *)entry)->core_id, ((struct madt_lapic *)entry)->id);
                 break;
             case 1:
                 madt_ioapic_list[madt_ioapics++] = (struct madt_ioapic*)entry;

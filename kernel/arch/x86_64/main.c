@@ -2,6 +2,7 @@
 #include <kernel/arch/x86_64/gdt.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/vga.h>
+#include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/arch/x86_64/ioapic.h>
 #include <kernel/arch/x86_64/serial.h>
@@ -71,6 +72,8 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	ioapic_install();
 	lapic_calibrate_timer();
 
-	generic_startup();
-	generic_main();
+	smp_initialize();
+
+	//generic_startup();
+	//generic_main();
 }
