@@ -6,3 +6,4 @@ struct cpu {
 };
 
 void smp_initialize(void);
+struct cpu *this_core(void);

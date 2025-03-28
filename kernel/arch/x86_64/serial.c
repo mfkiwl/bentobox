@@ -1,5 +1,7 @@
 #include <stddef.h>
+#include <stdatomic.h>
 #include <kernel/arch/x86_64/io.h>
+#include <kernel/sys/spinlock.h>
 #include <kernel/vfs.h>
 #include <kernel/printf.h>
 #include <kernel/assert.h>
@@ -7,6 +9,8 @@
 #define COM1 0x3f8
 
 struct vfs_node *serial_dev = NULL;
+
+atomic_flag serial_lock = ATOMIC_FLAG_INIT;
 
 void serial_install(void) {
     outb(COM1 + 1, 0);
@@ -46,9 +50,11 @@ void serial_write_char(char c) {
 }
 
 void serial_puts(char *str) {
+    acquire(&serial_lock);
     while (*str) {
         serial_write_char(*str++);
     }
+    release(&serial_lock);
 }
 
 int dprintf(const char *fmt, ...) {

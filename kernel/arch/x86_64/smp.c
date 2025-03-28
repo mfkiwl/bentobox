@@ -1,6 +1,9 @@
 #include <stdatomic.h>
+#include <kernel/arch/x86_64/gdt.h>
+#include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/pit.h>
 #include <kernel/arch/x86_64/smp.h>
+#include <kernel/arch/x86_64/vmm.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/sys/spinlock.h>
 #include <kernel/mmu.h>
@@ -14,7 +17,8 @@ extern void _L8000_ap_trampoline();
 volatile uint8_t smp_running_cpus = 1;
 atomic_flag smp_lock = ATOMIC_FLAG_INIT;
 
-struct cpu *smp_cpu_list[32];
+struct cpu bsp;
+struct cpu *smp_cpu_list[32] = { &bsp };
 
 /*
  * https://wiki.osdev.org/Symmetric_Multiprocessing
@@ -31,7 +35,7 @@ void smp_initialize(void) {
 
         acquire(&smp_lock);
 
-        struct cpu *core = (struct cpu *)PHYSICAL(kmalloc(sizeof(struct cpu)));
+        struct cpu *core = (struct cpu *)kmalloc(sizeof(struct cpu));
         core->id = i;
         smp_cpu_list[i] = core;
 
@@ -77,10 +81,16 @@ struct cpu *this_core(void) {
 
 void ap_startup(void) {
     smp_running_cpus++;
-    release(&smp_lock);
+
+    gdt_flush();
+    idt_reinstall();
+    vmm_switch_pm(kernel_pd);
+    lapic_install();
 
     uint64_t id = this_core()->id;
-
     printf("Hello from CPU %d!\n", id);
-    for (;;);
+    
+    release(&smp_lock);
+    asm ("cli");
+	for (;;) asm ("hlt");
 }

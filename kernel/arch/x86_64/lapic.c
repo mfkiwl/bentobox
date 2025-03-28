@@ -2,6 +2,7 @@
 #include <kernel/acpi.h>
 #include <kernel/arch/x86_64/io.h>
 #include <kernel/arch/x86_64/pit.h>
+#include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
 #include <kernel/printf.h>
@@ -50,9 +51,12 @@ void lapic_eoi(void) {
     lapic_write((uint8_t)LAPIC_EOI, 0);
 }
 
-void lapic_ipi(uint32_t id, uint8_t irq) {
+void lapic_ipi(uint32_t id, uint32_t irq) {
     lapic_write(LAPIC_ICRHI, id << LAPIC_ICDESTSHIFT);
     lapic_write(LAPIC_ICRLO, irq);
+    do {
+        asm volatile ("pause" : : : "memory");
+    } while (lapic_read(0x300) & (1 << 12));
 }
 
 void lapic_calibrate_timer(void) {
@@ -84,6 +88,6 @@ void lapic_install(void) {
     mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE);
     lapic_write(LAPIC_SIV, lapic_read(LAPIC_SIV) | 0x100);
 
-    dprintf("%s:%d: initialized CPU #0 Local APIC\n", __FILE__, __LINE__);
-    printf("\033[92m * \033[97mInitialized CPU #0 Local APIC\033[0m\n");
+    struct cpu *core = this_core();
+    dprintf("%s:%d: initialized CPU #%d Local APIC\n", __FILE__, __LINE__, core->id);
 }

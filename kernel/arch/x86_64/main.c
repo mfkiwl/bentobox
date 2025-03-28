@@ -41,6 +41,10 @@ void *mboot2_find_tag(void *base, uint32_t type) {
 }
 
 void generic_fatal(void) {
+	for (uint32_t i = 0; i < madt_lapics; i++) {
+		if (i == 0) continue;
+		lapic_ipi(i, 0x447D);
+	} 
 	asm ("cli");
 	for (;;) asm ("hlt");
 }

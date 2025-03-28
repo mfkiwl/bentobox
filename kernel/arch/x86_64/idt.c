@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <kernel/arch/generic.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/ioapic.h>
 #include <kernel/printf.h>
@@ -61,6 +62,10 @@ void idt_install(void) {
     dprintf("%s:%d: IDT address: 0x%lx\n", __FILE__, __LINE__, (uint64_t)&idt_descriptor);
 }
 
+void idt_reinstall(void) {
+    asm volatile ("lidt %0" :: "m"(idt_descriptor));
+}
+
 void idt_set_entry(uint8_t index, uint64_t base, uint16_t selector, uint8_t type) {
     idt_entries[index].base_low = base & 0xFFFF;
     idt_entries[index].selector = selector;
@@ -85,6 +90,10 @@ void isr_handler(struct registers *r) {
     if (r->int_no == 0xff) {
         return;
     }
+    if (r->int_no == 0x02) {
+        asm ("cli");
+	    for (;;) asm ("hlt");
+    }
 
     uint64_t cr2;
     asm volatile("mov %%cr2, %0" : "=r" (cr2));
@@ -102,8 +111,7 @@ void isr_handler(struct registers *r) {
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,
             r->rflags);
 
-    asm volatile ("cli");
-    for (;;) asm volatile ("hlt");
+    generic_fatal();
 }
 
 void irq_handler(struct registers r) {
