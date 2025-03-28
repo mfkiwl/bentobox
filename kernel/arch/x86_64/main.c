@@ -71,7 +71,6 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	lapic_install();
 	ioapic_install();
 	lapic_calibrate_timer();
-
 	smp_initialize();
 
 	//generic_startup();

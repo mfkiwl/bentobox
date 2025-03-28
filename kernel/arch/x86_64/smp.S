@@ -2,8 +2,8 @@
 
 section .text
     global _L8000_ap_trampoline
+    extern initial_pml
     extern ap_startup
-    %define initial_pml 0x1000
 
 _L8000_ap_trampoline:
     cli
@@ -50,28 +50,16 @@ _L8040_pmode_gdt_end:
     align 32
 [BITS 32]
 _L8060_ap_pmode:
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov fs, ax
+    mov gs, ax
+
     jmp ap_init_paging
 
 ap_init_paging:
-    mov edi, initial_pml
-    mov eax, initial_pml + 0x1000
-    or eax, 0x7    ; PRESENT, WRITABLE, USER
-    mov [edi], eax
-
-    mov edi, initial_pml + 0x1000
-    mov eax, initial_pml + 0x2000
-    or eax, 0x7    ; PRESENT, WRITABLE, USER
-    mov [edi], eax
-
-    mov edi, initial_pml + 0x2000
-    mov eax, 0x83  ; PRESENT, WRITABLE, HUGE
-    mov ecx, 32
-.set_entry:
-    mov [edi], eax
-    add eax, 0x200000
-    add edi, 8
-    loop .set_entry
-
     mov eax, cr4
     or eax, 1 << 5  ; PAE bit
     mov cr4, eax
@@ -102,12 +90,10 @@ gdt3:
     mov fs, ax
     mov gs, ax
 
-    mov al, 'H'
-    out 0xe9, al
-    mov al, 'i'
-    out 0xe9, al
+    mov rsp, ap_stack
+    jmp ap_startup
 
-    jmp $
+section .data
 
 align 16
 ap_gdtr:
@@ -116,14 +102,14 @@ ap_gdtr:
 ap_gdt_base:
     ; null segment
     dq 0
-    ; 64-bit segment
+    ; 64-bit code
     dw 0
     dw 0
     db 0
     db 0x9a
     db 0x20
     db 0
-    ; 64-bit segment
+    ; 64-bit data
     dw 0xffff
     dw 0
     db 0
@@ -131,3 +117,8 @@ ap_gdt_base:
     db 0
     db 0
 ap_gdt_end:
+
+section .bss
+
+resb 4096
+ap_stack:

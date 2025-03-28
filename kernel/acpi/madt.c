@@ -25,7 +25,6 @@ void madt_init() {
         switch (entry->type) {
             case 0:
                 madt_lapic_list[madt_lapics++] = (struct madt_lapic*)entry;
-                dprintf("%s:%d: CPU #%d LAPIC ID: %d\n", __FILE__, __LINE__, ((struct madt_lapic *)entry)->core_id, ((struct madt_lapic *)entry)->id);
                 break;
             case 1:
                 madt_ioapic_list[madt_ioapics++] = (struct madt_ioapic*)entry;

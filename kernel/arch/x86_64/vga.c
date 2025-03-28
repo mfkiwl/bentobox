@@ -1,6 +1,8 @@
 #include <stdint.h>
+#include <stdatomic.h>
 #include <kernel/arch/x86_64/io.h>
 #include <kernel/arch/x86_64/vga.h>
+#include <kernel/sys/spinlock.h>
 #include <kernel/string.h>
 
 uint8_t vga_x = 0;
@@ -10,6 +12,8 @@ uint16_t *vga_buffer = (uint16_t *)0xB8000;
 
 int vga_ansi_index = 0;
 char vga_ansi_code[8] = {0};
+
+atomic_flag vga_lock = ATOMIC_FLAG_INIT;
 
 uint8_t ansi_to_vga(int ansi) {
     static uint8_t table[] = {
@@ -37,9 +41,11 @@ void vga_clear(void) {
 }
 
 void vga_puts(const char *str) {
+    acquire(&vga_lock);
     while (*str) {
         vga_putchar(*str++);
     }
+    release(&vga_lock);
 }
 
 void vga_putchar(const char c) {

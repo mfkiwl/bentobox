@@ -46,6 +46,8 @@ void pmm_install(void *mboot_info) {
         }
     }
 
+    bitmap_set(pmm_bitmap, 8); /* AP trampoline */
+
     dprintf("%s:%d: initialized allocator at 0x%lx\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
     dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, pmm_usable_mem / 1024);
 }
