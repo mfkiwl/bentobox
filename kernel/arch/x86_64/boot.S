@@ -19,6 +19,7 @@ dd MB2_TAG_SIZE_END
 
 section .text.prologue
     global _start
+    global gdtr
     extern kmain
     extern initial_pml
 

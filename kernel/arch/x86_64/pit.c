@@ -35,6 +35,6 @@ void pit_sleep(size_t ms) {
     size_t end_ticks = start_ticks + ms;
 
     while (pit_ticks < end_ticks) {
-        asm volatile ("hlt");
+        asm volatile ("pause");
     }
 }

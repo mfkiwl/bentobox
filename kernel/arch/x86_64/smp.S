@@ -4,6 +4,7 @@ section .text
     global _L8000_ap_trampoline
     extern initial_pml
     extern ap_startup
+    extern gdtr
 
 _L8000_ap_trampoline:
     cli
@@ -76,7 +77,7 @@ ap_init_paging:
     or eax, 0x80000000
     mov cr0, eax
 
-    lgdt [ap_gdtr]
+    lgdt [gdtr]
 
     jmp 0x08:gdt3
 
@@ -92,31 +93,6 @@ gdt3:
 
     mov rsp, ap_stack
     jmp ap_startup
-
-section .data
-
-align 16
-ap_gdtr:
-    dw ap_gdt_end - ap_gdt_base - 1
-    dq ap_gdt_base
-ap_gdt_base:
-    ; null segment
-    dq 0
-    ; 64-bit code
-    dw 0
-    dw 0
-    db 0
-    db 0x9a
-    db 0x20
-    db 0
-    ; 64-bit data
-    dw 0xffff
-    dw 0
-    db 0
-    db 0x92
-    db 0
-    db 0
-ap_gdt_end:
 
 section .bss
 

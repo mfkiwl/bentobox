@@ -80,17 +80,19 @@ struct cpu *this_core(void) {
 }
 
 void ap_startup(void) {
-    smp_running_cpus++;
-
     gdt_flush();
     idt_reinstall();
+    asm ("sti");
     vmm_switch_pm(kernel_pd);
     lapic_install();
+    lapic_calibrate_timer();
 
     uint64_t id = this_core()->id;
     printf("Hello from CPU %d!\n", id);
     
+    smp_running_cpus++;
     release(&smp_lock);
+
     asm ("cli");
 	for (;;) asm ("hlt");
 }

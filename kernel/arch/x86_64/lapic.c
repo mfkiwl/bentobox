@@ -60,7 +60,6 @@ void lapic_ipi(uint32_t id, uint32_t irq) {
 }
 
 void lapic_calibrate_timer(void) {
-    pit_install();
     lapic_stop_timer();
 
     lapic_write(LAPIC_TIMER_DIV, 0);
