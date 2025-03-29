@@ -5,6 +5,7 @@
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
+#include <kernel/panic.h>
 #include <kernel/printf.h>
 #include <kernel/assert.h>
 
@@ -81,7 +82,8 @@ void lapic_calibrate_timer(void) {
 __attribute__((no_sanitize("undefined")))
 void lapic_install(void) {
     assert(acpi_root_sdt);
-    assert(cpu_check_apic());
+    if (!cpu_check_apic())
+        panic("APIC not supported");
 
     pic_mask_all_irqs();
     mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE);

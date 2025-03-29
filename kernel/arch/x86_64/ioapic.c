@@ -2,8 +2,8 @@
 #include <kernel/arch/x86_64/ioapic.h>
 #include <kernel/mmu.h>
 #include <kernel/acpi.h>
+#include <kernel/panic.h>
 #include <kernel/printf.h>
-#include <kernel/assert.h>
 
 bool ioapic_enabled = false;
 
@@ -77,7 +77,8 @@ void ioapic_install(void) {
     uint32_t id = ioapic_read(ioapic, IOAPIC_ID) >> 24;
     uint32_t count = ioapic_gsi_count(ioapic);
 
-    assert(id == ioapic->id);
+    if (id != ioapic->id)
+        panic("APIC ID mismatch");
 
     for (uint32_t i = 0; i <= count; i++) {
         ioapic_write(ioapic, IOAPIC_REDTBL + (2 * i), 0x10000 | (i + 32)); /* mask interrupt */

@@ -3,6 +3,7 @@
 #include <kernel/arch/x86_64/io.h>
 #include <kernel/mmu.h>
 #include <kernel/acpi.h>
+#include <kernel/panic.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/assert.h>
@@ -33,6 +34,7 @@ void *acpi_find_table(const char *signature) {
         
     for (uint32_t i = 0; i < entries; i++) {
         struct acpi_sdt *sdt = (struct acpi_sdt*)(uintptr_t)(*((uint32_t*)rsdt->table + i));
+        mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE);
         if (!memcmp(sdt->signature, signature, 4)) {
             return (void*)sdt;
         }
@@ -55,8 +57,8 @@ void acpi_install(void) {
         }
     }
 
-    /* TODO: use panic() */
-    assert(rsdp);
+    if (!rsdp)
+        panic("couldn't find ACPI");
 
     if (rsdp->revision != 0) {
         /* use xsdt */

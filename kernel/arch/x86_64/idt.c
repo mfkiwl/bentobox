@@ -102,7 +102,7 @@ void isr_handler(struct registers *r) {
     uint8_t bspid;
     asm volatile ("mov $1, %%eax; cpuid; shrl $24, %%ebx;": "=b"(bspid) : :);
 
-    dprintf("%s:%d: x86 Fault: \033[91m%s\033[0m\n"
+    printf("%s:%d: x86 Fault: \033[91m%s\033[0m on CPU %d\n"
             "rdi: 0x%lx rsi: 0x%lx rbp:    0x%lx\n"
             "rsp: 0x%lx rbx: 0x%lx rdx:    0x%lx\n"
             "rcx: 0x%lx rax: 0x%lx rip:    0x%lx\n"
@@ -110,11 +110,10 @@ void isr_handler(struct registers *r) {
             "r11: 0x%lx r12: 0x%lx r13:    0x%lx\n"
             "r14: 0x%lx r15: 0x%lx cr2:    0x%lx\n"
             "cs:  0x%lx ss:  0x%lx rflags: 0x%lx\n",
-            __FILE__, __LINE__, isr_errors[r->int_no], r->rdi, r->rsi, r->rbp,
+            __FILE__, __LINE__, isr_errors[r->int_no], bspid, r->rdi, r->rsi, r->rbp,
             r->rsp, r->rbx, r->rdx, r->rcx, r->rax, r->rip, r->r8, r->r9,
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,
             r->rflags);
-    dprintf("CPU #%d\n", bspid);
 
     generic_fatal();
 }

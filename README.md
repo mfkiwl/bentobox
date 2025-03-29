@@ -1,5 +1,5 @@
 # bentobox
-bentobox is a 64-bit operating system targeting x86_64 and RISC-V
+bentobox is a 64-bit SMP-enabled operating system targeting x86_64 and RISC-V
 
 ## Features on x86_64
 - Supports the multiboot2 protocol
@@ -24,7 +24,7 @@ To build, you need to install the following packages:
 Then, you can simply run `make run` and the kernel will run in QEMU.
 
 ## TODO
-- [ ] `panic()` function
+- [X] `panic()` function
 - [X] ANSI support in the VGA driver
 - [X] Write a scheduler
     - [X] Mutexes
@@ -32,7 +32,7 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [X] Write a VFS
 - [X] FADT cleanup
 - [X] PCI
-- [ ] SMP
+- [X] SMP
 - [ ] ATAPIO/NVMe driver
 - [ ] Proper ext2 driver
 - [ ] Framebuffer support

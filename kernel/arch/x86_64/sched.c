@@ -9,7 +9,6 @@
 #include <kernel/heap.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
-#include <kernel/assert.h>
 #include <kernel/sys/sched.h>
 #include <kernel/sys/spinlock.h>
 
@@ -181,29 +180,20 @@ static void uptime_task(void) {
     }
 }
 
-static void test(void) {
-    vfs_node_t *tty = vfs_open(vfs_root, "/dev/serial0");
-    char buf[256];
-    for (;;) {
-        vfs_read(tty, buf, sizeof(buf));
-        dprintf(buf);
-    }
-}
-
 void sched_start_all_cores(void) {
     irq_register(0x79 - 32, sched_schedule);
     for (uint32_t i = 1; i < madt_lapics; i++) {
         sched_new_task(sched_idle, "System Idle Process", i);
         lapic_ipi(i, 0x79);
-    }    
-    sched_yield();
+    }
+    lapic_ipi(0, 0x79);
 }
 
 void sched_install(void) {
-    sched_new_task(sched_idle, "System Idle Process", 0);
-    sched_new_task(uptime_task, "Uptime Task", 0);
+    sched_new_task(sched_idle, "System Idle Process", -1);
+    sched_new_task(uptime_task, "Uptime Task", -1);
     extern void debugger_task_entry(void);
-    sched_new_task(debugger_task_entry, "bentobox debug shell", 1);
+    sched_new_task(debugger_task_entry, "bentobox debug shell", -1);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }

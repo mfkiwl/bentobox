@@ -45,6 +45,7 @@ void smp_initialize(void) {
         core->lapic_id = madt_lapic_list[i]->id;
         core->processes = NULL;
         core->current_proc = NULL;
+        release(&core->sched_lock);
         smp_cpu_list[i] = core;
 
         /* send INIT IPI */
@@ -78,7 +79,7 @@ void smp_initialize(void) {
     }
 
     dprintf("%s:%d: started %d processors\n", __FILE__, __LINE__, smp_running_cpus);
-    printf("\033[92m * \033[97mInitialized SMP with %d CPUs\033[0m\n", smp_running_cpus);
+    printf("\033[92m * \033[97mInitialized SMP with %d CPU%s\033[0m\n", smp_running_cpus, smp_running_cpus == 1 ? "" : "s");
 }
 
 struct cpu *get_core(int core) {
