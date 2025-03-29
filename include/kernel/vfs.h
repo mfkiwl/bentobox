@@ -8,7 +8,8 @@ typedef enum vfs_node_type {
     NONE,
     VFS_FILE,
     VFS_DIRECTORY,
-    VFS_CHARDEVICE
+    VFS_CHARDEVICE,
+    VFS_BLOCKDEVICE
 } vfs_node_type_t;
 
 typedef struct vfs_node {

@@ -1,4 +1,5 @@
 #include <kernel/sys/sched.h>
+#include <kernel/ata.h>
 #include <kernel/pci.h>
 #include <kernel/vfs.h>
 #include <kernel/printf.h>
@@ -7,6 +8,7 @@
 void generic_startup(void) {
     vfs_install();
 	pci_scan();
+    //ata_install();
 	sched_install();
 }
 

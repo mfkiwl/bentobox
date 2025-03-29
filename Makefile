@@ -1,9 +1,6 @@
 # Target architecture
 ARCH ?= x86_64
 
-# Acceleration method
-ACCEL = -accel tcg
-
 # Output image name
 IMAGE_NAME = image
 
@@ -14,9 +11,9 @@ ifeq ($(ARCH),x86_64)
 	LD = ld
     ARCH_DIR := kernel/arch/x86_64
     ASFLAGS = -f elf64 -g -F dwarf
-    CCFLAGS := -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone
+    CCFLAGS := -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone -fsanitize=undefined
     LDFLAGS := -m elf_x86_64 -Tkernel/arch/x86_64/linker.ld -z noexecstack
-    QEMUFLAGS := -cdrom bin/$(IMAGE_NAME).iso -boot d -M q35 -smp 2 $(ACCEL) -debugcon stdio
+    QEMUFLAGS := -cdrom bin/$(IMAGE_NAME).iso -boot d -M q35 -smp 2 -accel kvm -drive
 else ifeq ($(ARCH),riscv64)
 	AS = riscv64-elf-as
 	CC = riscv64-elf-gcc
@@ -39,7 +36,7 @@ ARCH_C_SOURCES   := $(shell find $(ARCH_DIR) -type f -name '*.c' | sed 's|^\./||
 # Get object files
 KERNEL_OBJS := $(addprefix bin/, $(KERNEL_S_SOURCES:.S=.S.o) $(ARCH_S_SOURCES:.S=.S.o) $(KERNEL_C_SOURCES:.c=.c.o) $(ARCH_C_SOURCES:.c=.c.o))
 
-all: kernel iso
+all: kernel fs iso
 
 run: all
 	@qemu-system-$(ARCH) $(QEMUFLAGS)
@@ -82,6 +79,13 @@ iso:
 else
     $(error Unsupported architecture: $(ARCH))
 endif
+
+fs:
+	@echo " FS bin/fs.hdd"
+	@dd if=/dev/urandom of=bin/fs.hdd bs=1M count=64 status=none
+	
+	@# respectfully, shut the fuck up
+	@mkfs.fat bin/fs.hdd -F 16 2>&1 >/dev/null | grep -v mke2fs | cat
 
 clean:
 	@rm -f $(BOOT_OBJS) $(KERNEL_OBJS)

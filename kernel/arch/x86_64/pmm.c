@@ -1,3 +1,4 @@
+#include "kernel/arch/x86_64/vmm.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <kernel/mmu.h>
@@ -94,6 +95,7 @@ void *mmu_alloc(size_t page_count) {
     }
 
     uint64_t phys_addr = pages * PAGE_SIZE;
+    //mmu_map_pages(page_count, phys_addr, phys_addr, PTE_PRESENT | PTE_WRITABLE);
 
     return (void*)(phys_addr);
 }

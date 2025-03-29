@@ -63,6 +63,14 @@ int vsprintf(char *s, const char *fmt, va_list args) {
     return 0;
 }
 
+int vprintf(const char *fmt, va_list args) {
+    char buf[1024] = {-1};
+    int ret = vsprintf(buf, fmt, args);
+    
+    vga_puts(buf);
+    return ret;
+}
+
 int sprintf(char *str, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);

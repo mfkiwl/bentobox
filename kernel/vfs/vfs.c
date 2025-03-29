@@ -14,7 +14,8 @@ const char *vfs_types[] = {
     "NONE",
     "VFS_FILE",
     "VFS_DIRECTORY",
-    "VFS_CHARDEVICE"
+    "VFS_CHARDEVICE",
+    "VFS_BLOCKDEVICE"
 };
 
 struct vfs_node *vfs_create_node(const char *name, enum vfs_node_type type) {
