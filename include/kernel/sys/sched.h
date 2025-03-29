@@ -34,9 +34,6 @@ struct task {
     struct vfs_node *fd_table[16];
 };
 
-extern struct task *processes;
-extern struct task *current_proc;
-
 void sched_install(void);
 void sched_start(void);
 void sched_yield(void);

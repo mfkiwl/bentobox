@@ -15,9 +15,14 @@
 extern void _L8000_ap_trampoline();
 
 volatile uint8_t smp_running_cpus = 1;
-atomic_flag smp_lock = ATOMIC_FLAG_INIT;
+static atomic_flag smp_init_lock = ATOMIC_FLAG_INIT;
 
-struct cpu bsp;
+struct cpu bsp = {
+    .id = 0,
+    .lapic_id = 0,
+    .processes = NULL,
+    .current_proc = NULL
+};
 struct cpu *smp_cpu_list[32] = { &bsp };
 
 /*
@@ -33,7 +38,7 @@ void smp_initialize(void) {
         if (madt_lapic_list[i]->id == bspid)
             continue; /* skip BSP, that's already running this code */
 
-        acquire(&smp_lock);
+        acquire(&smp_init_lock);
 
         struct cpu *core = (struct cpu *)kmalloc(sizeof(struct cpu));
         core->id = i;
@@ -65,8 +70,8 @@ void smp_initialize(void) {
             } while (lapic_read(LAPIC_ICRLO) & (1 << 12));
         }
 
-        acquire(&smp_lock);
-        release(&smp_lock);
+        acquire(&smp_init_lock);
+        release(&smp_init_lock);
     }
 
     dprintf("%s:%d: started %d processors\n", __FILE__, __LINE__, smp_running_cpus);
@@ -82,7 +87,6 @@ struct cpu *this_core(void) {
 void ap_startup(void) {
     gdt_flush();
     idt_reinstall();
-    asm ("sti");
     vmm_switch_pm(kernel_pd);
     lapic_install();
     lapic_calibrate_timer();
@@ -91,7 +95,7 @@ void ap_startup(void) {
     printf("Hello from CPU %d!\n", id);
     
     smp_running_cpus++;
-    release(&smp_lock);
+    release(&smp_init_lock);
 
     asm ("cli");
 	for (;;) asm ("hlt");

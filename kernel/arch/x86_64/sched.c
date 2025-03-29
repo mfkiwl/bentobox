@@ -1,9 +1,10 @@
-#include "kernel/vfs.h"
 #include <stddef.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/pit.h>
+#include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
+#include <kernel/vfs.h>
 #include <kernel/heap.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
@@ -11,19 +12,24 @@
 #include <kernel/sys/sched.h>
 #include <kernel/sys/spinlock.h>
 
-struct task *processes = NULL;
-struct task *current_proc = NULL;
-
-atomic_flag sched_lock = ATOMIC_FLAG_INIT;
-
 long max_pid = 0;
 
-void sched_stack_exit(void) {
-    sched_kill(current_proc);
+static void sched_stack_exit(void) {
+    sched_kill(this_core()->current_proc);
+}
+
+void sched_lock(void) {
+    acquire(&(this_core()->sched_lock));
+}
+
+void sched_unlock(void) {
+    release(&(this_core()->sched_lock));
 }
 
 __attribute__((no_sanitize("undefined")))
 struct task *sched_new_task(void *entry, const char *name) {
+    struct cpu *this = this_core();
+
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
     proc->page_dir = kernel_pd;
 
@@ -52,52 +58,54 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->fd_table[0] = vfs_open(vfs_root, "/dev/serial0");
     proc->fd_table[1] = vfs_open(vfs_root, "/dev/serial0");
 
-    acquire(&sched_lock);
-    if (!processes) {
+    sched_lock();
+    if (!this->processes) {
         proc->prev = proc;
         proc->next = proc;
-        processes = proc;
+        this->processes = proc;
     } else {
-        proc->prev = processes->prev;
-        processes->prev->next = proc;
-        proc->next = processes;
-        processes->prev = proc;
+        proc->prev = this->processes->prev;
+        this->processes->prev->next = proc;
+        proc->next = this->processes;
+        this->processes->prev = proc;
     }
-    release(&sched_lock);
+    sched_unlock();
 
     dprintf("%s:%d: created task \"%s\"\n", __FILE__, __LINE__, name);
     return proc;
 }
 
 void sched_schedule(struct registers *r) {
-    acquire(&sched_lock);
+    sched_lock();
     lapic_stop_timer();
 
-    if (current_proc) {
-        memcpy(&(current_proc->ctx), r, sizeof(struct registers));
+    struct cpu *this = this_core();
+
+    if (this->current_proc) {
+        memcpy(&(this->current_proc->ctx), r, sizeof(struct registers));
     } else {
-        current_proc = processes;
+        this->current_proc = this->processes;
     }
 
     extern size_t pit_ticks;
-    if (current_proc == RUNNING)
-        current_proc->time.last = pit_ticks - current_proc->time.start;
+    if (this->current_proc == RUNNING)
+        this->current_proc->time.last = pit_ticks - this->current_proc->time.start;
 
-    if (!current_proc->next) {
-        current_proc = processes;
+    if (!this->current_proc->next) {
+        this->current_proc = this->processes;
     } else {
-        current_proc = current_proc->next;
+        this->current_proc = this->current_proc->next;
     }
 
-    while (current_proc->state != RUNNING) {
-        if (current_proc->state == PAUSED
-         && pit_ticks >= current_proc->time.end) {
-            current_proc->state = RUNNING;
-            current_proc->time.last = current_proc->time.end - current_proc->time.start;
+    while (this->current_proc->state != RUNNING) {
+        if (this->current_proc->state == PAUSED
+         && pit_ticks >= this->current_proc->time.end) {
+            this->current_proc->state = RUNNING;
+            this->current_proc->time.last = this->current_proc->time.end - this->current_proc->time.start;
             break;
-        } else if (current_proc->state == KILLED) {
-            struct task *proc = current_proc;
-            current_proc = current_proc->next;
+        } else if (this->current_proc->state == KILLED) {
+            struct task *proc = this->current_proc;
+            this->current_proc = this->current_proc->next;
 
             max_pid = proc->pid;
             proc->prev->next = proc->next;
@@ -108,14 +116,14 @@ void sched_schedule(struct registers *r) {
             kfree(proc);
             break;
         }
-        current_proc = current_proc->next;
+        this->current_proc = this->current_proc->next;
     }
 
-    current_proc->time.start = pit_ticks;
+    this->current_proc->time.start = pit_ticks;
 
-    memcpy(r, &(current_proc->ctx), sizeof(struct registers));
+    memcpy(r, &(this->current_proc->ctx), sizeof(struct registers));
 
-    release(&sched_lock);
+    sched_unlock();
     lapic_eoi();
     lapic_oneshot(0x79, 5);
 }
@@ -125,7 +133,7 @@ void sched_yield(void) {
 }
 
 void sched_block(enum task_state reason) {
-    current_proc->state = reason;
+    this_core()->current_proc->state = reason;
     sched_yield();
 }
 
@@ -135,7 +143,7 @@ void sched_unblock(struct task *proc) {
 
 void sched_sleep(int ms) {
     extern size_t pit_ticks;
-    current_proc->time.end = pit_ticks + ms;
+    this_core()->current_proc->time.end = pit_ticks + ms;
     sched_block(PAUSED);
 }
 

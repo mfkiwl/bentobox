@@ -64,6 +64,7 @@ void idt_install(void) {
 
 void idt_reinstall(void) {
     asm volatile ("lidt %0" :: "m"(idt_descriptor));
+    asm volatile ("sti");
 }
 
 void idt_set_entry(uint8_t index, uint64_t base, uint16_t selector, uint8_t type) {

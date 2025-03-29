@@ -5,6 +5,7 @@ section .text
     extern initial_pml
     extern ap_startup
     extern gdtr
+    extern mmu_alloc
 
 _L8000_ap_trampoline:
     cli
@@ -92,9 +93,14 @@ gdt3:
     mov gs, ax
 
     mov rsp, ap_stack
+    mov rdi, 4
+    call mmu_alloc
+    mov rsp, rax
+
     jmp ap_startup
 
 section .bss
 
-resb 4096
+align 16
+resb 96   ; enough to get mmu_alloc working
 ap_stack:

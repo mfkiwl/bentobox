@@ -1,5 +1,6 @@
 #include <stdatomic.h>
 #include <kernel/heap.h>
+#include <kernel/arch/x86_64/smp.h>
 #include <kernel/sys/mutex.h>
 #include <kernel/sys/sched.h>
 #include <kernel/sys/spinlock.h>
@@ -12,8 +13,9 @@ void mutex_init(mutex_t *m) {
 
 void mutex_lock(mutex_t *m) {
     acquire(&(m->lock));
-    
-    if (!current_proc || m->owner == current_proc) {
+    struct cpu *this = this_core();
+
+    if (!this->current_proc || m->owner == this->current_proc) {
         release(&(m->lock));
         return;
     }
@@ -21,7 +23,7 @@ void mutex_lock(mutex_t *m) {
     while (m->locked) {
         if (!m->queue) {
             m->queue = (mutex_list_t *)kmalloc(sizeof(mutex_list_t));
-            m->queue->proc = current_proc;
+            m->queue->proc = this->current_proc;
             m->queue->next = NULL;
         } else {
             mutex_list_t *i = m->queue;
@@ -29,22 +31,23 @@ void mutex_lock(mutex_t *m) {
                 i = i->next;
             }
             i->next = (mutex_list_t *)kmalloc(sizeof(mutex_list_t));
-            i->next->proc = current_proc;
+            i->next->proc = this->current_proc;
             i->next->next = NULL;
         }
         sched_block(MUTEX);
     }
 
     m->locked = 1;
-    m->owner = current_proc;
+    m->owner = this->current_proc;
     
     release(&(m->lock));
 }
 
 void mutex_unlock(mutex_t *m) {
     acquire(&m->lock);
+    struct cpu *this = this_core();
 
-    if (!current_proc || m->owner != current_proc) {
+    if (!this->current_proc || m->owner != this->current_proc) {
         release(&m->lock);
         return;
     }

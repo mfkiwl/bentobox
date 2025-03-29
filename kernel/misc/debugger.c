@@ -31,13 +31,16 @@ void debugger_task_entry(void) {
             }
             continue;
         }
+        if (!strncmp(input, "int3", 5)) {
+            asm volatile ("int3");
+        }
         if (!strncmp(input, "cls", 4) || !strncmp(input, "clear", 6)) {
             dprintf("\033[2J\033[H");
             continue;
         }
         if (!strncmp(input, "help", 5)) {
             dprintf("bentobox debugger (%s)\n", stdout->name);
-            dprintf("Built-in commands: list, cls/clear, help\n");
+            dprintf("Built-in commands: list, int3, cls/clear, help\n");
             continue;
         }
     }
