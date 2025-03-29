@@ -5,6 +5,7 @@
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
 #include <kernel/vfs.h>
+#include <kernel/acpi.h>
 #include <kernel/heap.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
@@ -12,7 +13,7 @@
 #include <kernel/sys/sched.h>
 #include <kernel/sys/spinlock.h>
 
-long max_pid = 0;
+long max_pid = 0, next_cpu = 0;
 
 static void sched_stack_exit(void) {
     sched_kill(this_core()->current_proc);
@@ -27,9 +28,7 @@ void sched_unlock(void) {
 }
 
 __attribute__((no_sanitize("undefined")))
-struct task *sched_new_task(void *entry, const char *name) {
-    struct cpu *this = this_core();
-
+struct task *sched_new_task(void *entry, const char *name, int cpu) {
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
     proc->page_dir = kernel_pd;
 
@@ -58,20 +57,27 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->fd_table[0] = vfs_open(vfs_root, "/dev/serial0");
     proc->fd_table[1] = vfs_open(vfs_root, "/dev/serial0");
 
+    struct cpu *core = get_core(cpu == -1 ? next_cpu : cpu);
+
     sched_lock();
-    if (!this->processes) {
+    if (!core->processes) {
         proc->prev = proc;
         proc->next = proc;
-        this->processes = proc;
+        core->processes = proc;
     } else {
-        proc->prev = this->processes->prev;
-        this->processes->prev->next = proc;
-        proc->next = this->processes;
-        this->processes->prev = proc;
+        proc->prev = core->processes->prev;
+        core->processes->prev->next = proc;
+        proc->next = core->processes;
+        core->processes->prev = proc;
     }
+    next_cpu++;
+    if (next_cpu >= madt_lapics)
+        next_cpu = 0;
+    else if (next_cpu < 0)
+        next_cpu = madt_lapics - 1;
     sched_unlock();
 
-    dprintf("%s:%d: created task \"%s\"\n", __FILE__, __LINE__, name);
+    dprintf("%s:%d: created task \"%s\" on CPU #%d\n", __FILE__, __LINE__, name, core->id);
     return proc;
 }
 
@@ -184,13 +190,20 @@ static void test(void) {
     }
 }
 
-void sched_install(void) {
-    sched_new_task(sched_idle, "System Idle Process");
-    //sched_new_task(uptime_task, "Uptime Task");
-    //sched_new_task(test, "test");
-    extern void debugger_task_entry(void);
-    sched_new_task(debugger_task_entry, "bentobox debug shell");
+void sched_start_all_cores(void) {
     irq_register(0x79 - 32, sched_schedule);
+    for (uint32_t i = 1; i < madt_lapics; i++) {
+        sched_new_task(sched_idle, "System Idle Process", i);
+        lapic_ipi(i, 0x79);
+    }    
+    sched_yield();
+}
+
+void sched_install(void) {
+    sched_new_task(sched_idle, "System Idle Process", 0);
+    sched_new_task(uptime_task, "Uptime Task", 0);
+    extern void debugger_task_entry(void);
+    sched_new_task(debugger_task_entry, "bentobox debug shell", 1);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }

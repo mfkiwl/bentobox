@@ -42,6 +42,9 @@ void smp_initialize(void) {
 
         struct cpu *core = (struct cpu *)kmalloc(sizeof(struct cpu));
         core->id = i;
+        core->lapic_id = madt_lapic_list[i]->id;
+        core->processes = NULL;
+        core->current_proc = NULL;
         smp_cpu_list[i] = core;
 
         /* send INIT IPI */
@@ -78,6 +81,10 @@ void smp_initialize(void) {
     printf("\033[92m * \033[97mInitialized SMP with %d CPUs\033[0m\n", smp_running_cpus);
 }
 
+struct cpu *get_core(int core) {
+    return smp_cpu_list[core];
+}
+
 struct cpu *this_core(void) {
     uint8_t bspid;
     asm volatile ("mov $1, %%eax; cpuid; shrl $24, %%ebx;": "=b"(bspid) : :);
@@ -90,6 +97,7 @@ void ap_startup(void) {
     vmm_switch_pm(kernel_pd);
     lapic_install();
     lapic_calibrate_timer();
+    lapic_eoi();
 
     uint64_t id = this_core()->id;
     printf("Hello from CPU %d!\n", id);
@@ -97,6 +105,5 @@ void ap_startup(void) {
     smp_running_cpus++;
     release(&smp_init_lock);
 
-    asm ("cli");
 	for (;;) asm ("hlt");
 }

@@ -95,6 +95,7 @@ gdt3:
     mov rsp, ap_stack
     mov rdi, 4
     call mmu_alloc
+    add rax, 16384  ; 16kb stack
     mov rsp, rax
 
     jmp ap_startup
@@ -102,5 +103,5 @@ gdt3:
 section .bss
 
 align 16
-resb 96   ; enough to get mmu_alloc working
+resb 128  ; enough to get mmu_alloc working
 ap_stack:

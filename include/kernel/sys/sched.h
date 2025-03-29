@@ -35,10 +35,11 @@ struct task {
 };
 
 void sched_install(void);
-void sched_start(void);
+void sched_start_all_cores(void);
 void sched_yield(void);
 void sched_block(enum task_state reason);
 void sched_unblock(struct task *proc);
 void sched_sleep(int ms);
 void sched_kill(struct task *proc);
-struct task *sched_new_task(void *entry, const char *name);
+void sched_idle(void);
+struct task *sched_new_task(void *entry, const char *name, int cpu);
