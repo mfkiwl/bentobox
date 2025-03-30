@@ -16,9 +16,11 @@ void *acpi_find_table(const char *signature) {
     if (!acpi_use_xsdt) {
         struct acpi_rsdt *rsdt = (struct acpi_rsdt*)acpi_root_sdt;
         uint32_t entries = (rsdt->sdt.length - sizeof(rsdt->sdt)) / 4;
+        mmu_map((uintptr_t)rsdt->table, (uintptr_t)rsdt->table, PTE_PRESENT);
 
         for (uint32_t i = 0; i < entries; i++) {
             struct acpi_sdt *sdt = (struct acpi_sdt*)(uintptr_t)(*((uint32_t*)rsdt->table + i));
+            mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE);
             if (!memcmp(sdt->signature, signature, 4)) {
                 return (void*)sdt;
             }

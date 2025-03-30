@@ -20,9 +20,6 @@ struct heap *heap_create(void) {
     mmu_map((uintptr_t)h, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE);
     void *phys = mmu_alloc(1);
     h->head = (struct heap_block *)VIRTUAL(phys);
-    dprintf("Heap Head phys address: 0x%lx\n", (uintptr_t)phys);
-    dprintf("Heap Head virt address: 0x%lx\n", (uintptr_t)h->head);
-    dprintf("0x%lx+0x%lx = 0x%lx\n", phys, KERNEL_VIRT_BASE, (phys + KERNEL_VIRT_BASE));
     mmu_map((uintptr_t)h->head, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE);
     h->head->next = h->head;
     h->head->prev = h->head;

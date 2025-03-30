@@ -28,6 +28,7 @@ void pmm_install(void *mboot_info) {
         
         if (mmmt->addr < KERNEL_PHYS_BASE) {
             mmmt->type = MULTIBOOT_MEMORY_RESERVED;
+            continue;
         }
 
         if (mmmt->type == MULTIBOOT_MEMORY_AVAILABLE) {
@@ -38,9 +39,6 @@ void pmm_install(void *mboot_info) {
             pmm_usable_mem += mmmt->len;
             highest_address = mmmt->addr + mmmt->len;
         }
-
-        printf("Memory segment: addr=0x%x, len=0x%x, type=%u\n",
-            mmmt->addr, mmmt->len, mmmt->type);
     }
 
     pmm_bitmap = (uint8_t *)(ALIGN_UP((uintptr_t)&end, PAGE_SIZE));
@@ -48,34 +46,19 @@ void pmm_install(void *mboot_info) {
     uint64_t bitmap_size = ALIGN_UP(pmm_page_count / 8, PAGE_SIZE);
     memset(pmm_bitmap, 0xFF, bitmap_size);
 
-    printf("PMM Bitmap address: 0x%lx\n", pmm_bitmap);
-    printf("PMM Bitmap size: %d\n", bitmap_size);
-
     for (uint32_t i = 0; i < (mmap->size - sizeof(struct multiboot_tag_mmap)) / mmap->entry_size; i++) {
         mmmt = &mmap->entries[i];
 
         if (mmmt->type == MULTIBOOT_MEMORY_AVAILABLE) {
-            //if (mmmt->addr <= (uint64_t)pmm_bitmap) {
-            //    printf("Uhh that's gonna be overwritten\n");
-            //    mmmt->len -= bitmap_size;
-            //    mmmt->addr += bitmap_size;
-            //}
-            printf("Marking addr=0x%x, len=0x%x as free\n", mmmt->addr, mmmt->len);
+            if (mmmt->addr <= (uint64_t)pmm_bitmap) {
+                mmmt->len -= bitmap_size;
+                mmmt->addr += bitmap_size;
+            }
             for (uint64_t j = 0; j < mmmt->len; j += PAGE_SIZE) {
                 bitmap_clear(pmm_bitmap, (mmmt->addr + j) / PAGE_SIZE);
             }
         }
     }
-
-    //bitmap_set(pmm_bitmap, 8); /* AP trampoline */
-
-    //for (uint64_t addr = 0x80000; addr < (ALIGN_UP((uintptr_t)&end, PAGE_SIZE)) + bitmap_size; addr += PAGE_SIZE) {
-    //    bitmap_set(pmm_bitmap, addr / PAGE_SIZE);
-    //}
-
-    //for (uint64_t addr = (uint64_t)pmm_bitmap; addr < (uint64_t)pmm_bitmap + bitmap_size; addr += PAGE_SIZE) {
-    //    bitmap_set(pmm_bitmap, addr / PAGE_SIZE);
-    //}
 
     dprintf("%s:%d: initialized allocator at 0x%lx\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
     dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, pmm_usable_mem / 1024);

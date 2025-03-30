@@ -127,9 +127,6 @@ void sched_schedule(struct registers *r) {
 
     this->current_proc->time.start = pit_ticks;
 
-    //dprintf("CPU %d ABOUT TO CONTEXT SWITCH!!\n", this->id);
-    //dprintf("Task name: %s\nRIP: 0x%lx CS: %d RFLAGS: 0x%lx \nRSP: 0x%lx SS: %d\n", this->current_proc->name, this->current_proc->ctx.rip, this->current_proc->ctx.cs, this->current_proc->ctx.rflags, this->current_proc->ctx.rsp, this->current_proc->ctx.ss);
-
     memcpy(r, &(this->current_proc->ctx), sizeof(struct registers));
 
     sched_unlock();
