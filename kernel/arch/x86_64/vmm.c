@@ -49,7 +49,7 @@ uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, boo
 }
 
 void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
-    //acquire(&vmm_lock);
+    acquire(&vmm_lock);
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
@@ -62,7 +62,7 @@ void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     pt[pt_index] = phys | flags; /* map the page */
     
     vmm_flush_tlb(virt); /* flush the tlb entry */
-    //release(&vmm_lock);
+    release(&vmm_lock);
 }
 
 void mmu_unmap(uintptr_t virt) {

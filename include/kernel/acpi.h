@@ -139,6 +139,16 @@ struct acpi_madt {
     char table[];
 } __attribute__((packed));
 
+struct acpi_hpet {
+    struct acpi_sdt sdt;
+    uint32_t event_timer_block_id;
+    uint32_t reserved;
+    uint64_t address;
+    uint8_t id;
+    uint16_t min_ticks;
+    uint8_t page_protection;
+}__attribute__((packed));
+
 struct madt_entry {
     uint8_t type;
     uint8_t length;
