@@ -1,7 +1,6 @@
 #include <stddef.h>
 #include <kernel/arch/x86_64/gdt.h>
 #include <kernel/arch/x86_64/idt.h>
-#include <kernel/arch/x86_64/pit.h>
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/vga.h>
 #include <kernel/arch/x86_64/hpet.h>
@@ -87,6 +86,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
     gdt_install();
     idt_install();
 	pmm_install(mboot_info);
+	mmu_mark_used(mboot_info);
 	vmm_install();
 	kernel_heap = heap_create();
 

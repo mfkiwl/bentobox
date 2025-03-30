@@ -1,7 +1,6 @@
 #include <cpuid.h>
 #include <kernel/acpi.h>
 #include <kernel/arch/x86_64/io.h>
-#include <kernel/arch/x86_64/pit.h>
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/hpet.h>
 #include <kernel/arch/x86_64/lapic.h>

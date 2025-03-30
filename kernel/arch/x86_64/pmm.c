@@ -68,6 +68,10 @@ void pmm_install(void *mboot_info) {
     dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, pmm_usable_mem / 1024);
 }
 
+void mmu_mark_used(void *addr) {
+    bitmap_set(pmm_bitmap, (uintptr_t)addr / PAGE_SIZE);
+}
+
 uint64_t pmm_find_pages(uint64_t page_count) {
     uint64_t pages = 0;
     uint64_t first_page = pmm_last_page;
