@@ -30,17 +30,6 @@ struct cpu *smp_cpu_list[32] = { &bsp };
  */
 __attribute__((no_sanitize("undefined")))
 void smp_initialize(void) {
-    struct stackframe {
-        struct stackframe *ebp;
-        uint64_t eip;
-    };
-    struct stackframe *frame_ptr = __builtin_frame_address(0);
-
-    for (int i = 0; i < 8 && frame_ptr->ebp; i++) {
-        printf("  [ESP+%d] = 0x%lx\n", i * 8, frame_ptr->eip);
-        frame_ptr = frame_ptr->ebp;
-    }
-
     uint8_t bspid;
     asm volatile ("mov $1, %%eax; cpuid; shrl $24, %%ebx;": "=b"(bspid) : :); /* get the BSP's LAPIC ID */
 
@@ -92,15 +81,6 @@ void smp_initialize(void) {
 
     dprintf("%s:%d: started %d processors\n", __FILE__, __LINE__, smp_running_cpus);
     printf("\033[92m * \033[97mInitialized SMP with %d CPU%s\033[0m\n", smp_running_cpus, smp_running_cpus == 1 ? "" : "s");
-
-    // unused
-    //extern void generic_startup();
-    //extern void generic_main();
-
-    //generic_startup();
-    //generic_main();
-
-    //printf("Stack address: 0x%lx\n", &a);
 }
 
 struct cpu *get_core(int core) {
