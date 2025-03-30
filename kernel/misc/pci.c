@@ -64,7 +64,7 @@ uint8_t pci_get_secondary_bus(uint8_t bus, uint8_t device, uint8_t function) {
     uint8_t header_type = pci_get_header_type(bus, device, function);
 
     if (header_type != 0x1) {
-        printf("%s:%d: invalid PCI header type 0x%x\n", __FILE__, __LINE__, header_type);
+        return 0xFF;
     }
 
     return (uint8_t)(pci_config_read_word(bus, device, function, 0x18) >> 8);

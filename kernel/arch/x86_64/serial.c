@@ -26,7 +26,6 @@ void serial_install(void) {
         return;
 
     outb(COM1 + 4, 0x0F);
-    dprintf("%s:%d: enabled port 0x3f8\n", __FILE__, __LINE__);
 }
 
 int serial_is_bus_empty(void) {
