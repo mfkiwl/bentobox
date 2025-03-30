@@ -23,7 +23,8 @@ void pmm_install(void *mboot_info) {
     struct multiboot_tag_mmap *mmap = mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_MMAP);
     struct multiboot_mmap_entry *mmmt = NULL;
 
-    for (uint32_t i = 0; i < (mmap->size - sizeof(struct multiboot_tag_mmap)) / mmap->entry_size; i++) {
+    uint32_t i;
+    for (i = 0; i < (mmap->size - sizeof(struct multiboot_tag_mmap)) / mmap->entry_size; i++) {
         mmmt = &mmap->entries[i];
         
         if (mmmt->addr < KERNEL_PHYS_BASE) {
@@ -36,33 +37,32 @@ void pmm_install(void *mboot_info) {
                 mmmt->len -= (uintptr_t)&end - KERNEL_PHYS_BASE;
                 mmmt->addr = (uintptr_t)&end;
             }
-            pmm_usable_mem += mmmt->len;
             highest_address = mmmt->addr + mmmt->len;
         }
     }
 
-    pmm_bitmap = (uint8_t *)(ALIGN_UP((uintptr_t)&end, PAGE_SIZE));
+    pmm_bitmap = (uint8_t *)PAGE_SIZE;
     pmm_page_count = highest_address / PAGE_SIZE;
     uint64_t bitmap_size = ALIGN_UP(pmm_page_count / 8, PAGE_SIZE);
     memset(pmm_bitmap, 0xFF, bitmap_size);
 
-    for (uint32_t i = 0; i < (mmap->size - sizeof(struct multiboot_tag_mmap)) / mmap->entry_size; i++) {
+    for (i = 0; i < (mmap->size - sizeof(struct multiboot_tag_mmap)) / mmap->entry_size; i++) {
         mmmt = &mmap->entries[i];
 
         if (mmmt->type == MULTIBOOT_MEMORY_AVAILABLE) {
-            if (mmmt->addr <= (uint64_t)pmm_bitmap) {
-                mmmt->len -= bitmap_size;
-                mmmt->addr += bitmap_size;
-            }
-            // TODO: properly mark multiboot2 tags region as used
-            size_t m = 0x1000000;
-            mmmt->len -= m;
-            mmmt->addr += m;
             for (uint64_t j = 0; j < mmmt->len; j += PAGE_SIZE) {
                 bitmap_clear(pmm_bitmap, (mmmt->addr + j) / PAGE_SIZE);
             }
+            pmm_usable_mem += mmmt->len;
         }
     }
+
+    for (i = 0; i < (uint64_t)pmm_bitmap + bitmap_size; i += PAGE_SIZE) {
+        bitmap_set(pmm_bitmap, (uint64_t)pmm_bitmap + i / PAGE_SIZE);
+        pmm_usable_mem -= PAGE_SIZE;
+    }
+
+    pmm_usable_mem -= PAGE_SIZE; /* NULL */
 
     dprintf("%s:%d: initialized allocator at 0x%lx\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
     dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, pmm_usable_mem / 1024);
