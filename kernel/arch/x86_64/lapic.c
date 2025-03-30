@@ -75,8 +75,6 @@ void lapic_calibrate_timer(void) {
     lapic_ticks = ticks;
 
     lapic_stop_timer();
-
-    dprintf("%s:%d: calibrated Local APIC timer\n", __FILE__, __LINE__);
 }
 
 __attribute__((no_sanitize("undefined")))
@@ -88,7 +86,4 @@ void lapic_install(void) {
     pic_mask_all_irqs();
     mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE);
     lapic_write(LAPIC_SIV, lapic_read(LAPIC_SIV) | 0x100);
-
-    struct cpu *core = this_core();
-    dprintf("%s:%d: initialized CPU #%d Local APIC\n", __FILE__, __LINE__, core->id);
 }
