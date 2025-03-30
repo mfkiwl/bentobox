@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include <kernel/arch/x86_64/smp.h>
 
 struct acpi_rsdp {
     char signature[8];
@@ -188,9 +189,9 @@ extern void *acpi_root_sdt;
 
 extern struct acpi_fadt *fadt;
 extern struct acpi_madt *madt;
-extern struct madt_lapic *madt_lapic_list[32];
-extern struct madt_ioapic *madt_ioapic_list[32];
-extern struct madt_iso *madt_iso_list[32];
+extern struct madt_lapic *madt_lapic_list[SMP_MAX_CORES];
+extern struct madt_ioapic *madt_ioapic_list[SMP_MAX_CORES];
+extern struct madt_iso *madt_iso_list[SMP_MAX_CORES];
 extern struct madt_lapic_addr *lapic_addr;
 extern uint32_t madt_lapics;
 extern uint32_t madt_ioapics;

@@ -23,7 +23,7 @@ struct cpu bsp = {
     .processes = NULL,
     .current_proc = NULL
 };
-struct cpu *smp_cpu_list[32] = { &bsp };
+struct cpu *smp_cpu_list[SMP_MAX_CORES] = { &bsp };
 
 /*
  * https://wiki.osdev.org/Symmetric_Multiprocessing

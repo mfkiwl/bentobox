@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <stdatomic.h>
 
+#define SMP_MAX_CORES 256
+
 struct cpu {
     uint64_t id;
     uint64_t lapic_id;

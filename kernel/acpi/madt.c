@@ -4,9 +4,9 @@
 #include <kernel/printf.h>
 
 struct acpi_madt *madt = NULL;
-struct madt_lapic *madt_lapic_list[32];
-struct madt_ioapic *madt_ioapic_list[32];
-struct madt_iso *madt_iso_list[32];
+struct madt_lapic *madt_lapic_list[SMP_MAX_CORES];
+struct madt_ioapic *madt_ioapic_list[SMP_MAX_CORES];
+struct madt_iso *madt_iso_list[SMP_MAX_CORES];
 uint32_t madt_lapics = 0;
 uint32_t madt_ioapics = 0;
 uint32_t madt_isos = 0;
