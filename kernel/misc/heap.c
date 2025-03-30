@@ -1,3 +1,4 @@
+#include "kernel/arch/x86_64/vmm.h"
 #include <stdbool.h>
 #include <kernel/mmu.h>
 #include <kernel/heap.h>
@@ -17,7 +18,11 @@ __attribute__((no_sanitize("undefined")))
 struct heap *heap_create(void) {
     struct heap *h = (struct heap *)VIRTUAL(mmu_alloc(1));
     mmu_map((uintptr_t)h, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE);
-    h->head = (struct heap_block *)VIRTUAL(mmu_alloc(1));
+    void *phys = mmu_alloc(1);
+    h->head = (struct heap_block *)VIRTUAL(phys);
+    dprintf("Heap Head phys address: 0x%lx\n", (uintptr_t)phys);
+    dprintf("Heap Head virt address: 0x%lx\n", (uintptr_t)h->head);
+    dprintf("0x%lx+0x%lx = 0x%lx\n", phys, KERNEL_VIRT_BASE, (phys + KERNEL_VIRT_BASE));
     mmu_map((uintptr_t)h->head, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE);
     h->head->next = h->head;
     h->head->prev = h->head;

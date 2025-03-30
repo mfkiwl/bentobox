@@ -102,7 +102,7 @@ void isr_handler(struct registers *r) {
     uint8_t bspid;
     asm volatile ("mov $1, %%eax; cpuid; shrl $24, %%ebx;": "=b"(bspid) : :);
 
-    printf("%s:%d: x86 Fault: \033[91m%s\033[0m on CPU %d\n"
+    dprintf("%s:%d: x86 Fault: \033[91m%s\033[0m on CPU %d\n"
             "rdi: 0x%lx rsi: 0x%lx rbp:    0x%lx\n"
             "rsp: 0x%lx rbx: 0x%lx rdx:    0x%lx\n"
             "rcx: 0x%lx rax: 0x%lx rip:    0x%lx\n"

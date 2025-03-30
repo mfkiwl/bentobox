@@ -46,6 +46,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->ctx.rax = 0;
     proc->ctx.rip = (uint64_t)entry;
     proc->ctx.cs = 0x8;
+    proc->ctx.ss = 0x10;
     proc->ctx.rflags = 0x202;
     proc->ring = 0;
     proc->name = name;
@@ -126,6 +127,9 @@ void sched_schedule(struct registers *r) {
 
     this->current_proc->time.start = pit_ticks;
 
+    //dprintf("CPU %d ABOUT TO CONTEXT SWITCH!!\n", this->id);
+    //dprintf("Task name: %s\nRIP: 0x%lx CS: %d RFLAGS: 0x%lx \nRSP: 0x%lx SS: %d\n", this->current_proc->name, this->current_proc->ctx.rip, this->current_proc->ctx.cs, this->current_proc->ctx.rflags, this->current_proc->ctx.rsp, this->current_proc->ctx.ss);
+
     memcpy(r, &(this->current_proc->ctx), sizeof(struct registers));
 
     sched_unlock();
@@ -134,7 +138,7 @@ void sched_schedule(struct registers *r) {
 }
 
 void sched_yield(void) {
-    asm ("int $0x79");
+    lapic_ipi(this_core()->lapic_id, 0x79);
 }
 
 void sched_block(enum task_state reason) {
@@ -192,8 +196,8 @@ void sched_start_all_cores(void) {
 void sched_install(void) {
     sched_new_task(sched_idle, "System Idle Process", -1);
     sched_new_task(uptime_task, "Uptime Task", -1);
-    extern void debugger_task_entry(void);
-    sched_new_task(debugger_task_entry, "bentobox debug shell", -1);
+    //extern void debugger_task_entry(void);
+    //sched_new_task(debugger_task_entry, "bentobox debug shell", -1);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }

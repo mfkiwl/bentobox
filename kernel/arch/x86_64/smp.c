@@ -100,8 +100,8 @@ void ap_startup(void) {
     lapic_calibrate_timer();
     lapic_eoi();
 
-    uint64_t id = this_core()->id;
-    printf("Hello from CPU %d!\n", id);
+    //uint64_t id = this_core()->id;
+    //printf("Hello from CPU %d!\n", id);
     
     smp_running_cpus++;
     release(&smp_init_lock);

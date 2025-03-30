@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdatomic.h>
+#include <kernel/sys/spinlock.h>
 #include <kernel/mmu.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
@@ -18,13 +20,17 @@ extern char data_end_ld[];
 extern char bss_start_ld[];
 extern char bss_end_ld[];
 
+atomic_flag vmm_lock = ATOMIC_FLAG_INIT;
+
 void vmm_flush_tlb(uintptr_t virt) {
     __asm__ volatile ("invlpg (%0)" ::"r"(virt) : "memory");
 }
 
 __attribute__((no_sanitize("undefined")))
 void vmm_switch_pm(uintptr_t *pm) {
+    acquire(&vmm_lock);
     asm volatile("mov %0, %%cr3" ::"r"((uint64_t)pm) : "memory");
+    release(&vmm_lock);
 }
 
 uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, bool alloc) {
@@ -43,6 +49,7 @@ uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, boo
 }
 
 void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
+    //acquire(&vmm_lock);
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
@@ -55,9 +62,11 @@ void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     pt[pt_index] = phys | flags; /* map the page */
     
     vmm_flush_tlb(virt); /* flush the tlb entry */
+    //release(&vmm_lock);
 }
 
 void mmu_unmap(uintptr_t virt) {
+    acquire(&vmm_lock);
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
@@ -85,6 +94,7 @@ void mmu_unmap(uintptr_t virt) {
     }
 
     vmm_flush_tlb(virt); /* flush the tlb entry */
+    release(&vmm_lock);
 }
 
 void mmu_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint32_t flags) {

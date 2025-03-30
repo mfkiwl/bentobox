@@ -15,8 +15,8 @@
 #define PTE_USER 4ul
 #define PTE_NX (1ul << 63)
 
-#define VIRTUAL(ptr) ((void *)((uintptr_t)ptr) + KERNEL_VIRT_BASE)
-#define PHYSICAL(ptr) ((void *)((uintptr_t)ptr) - KERNEL_VIRT_BASE)
+#define VIRTUAL(ptr) ((void *)((uintptr_t)(ptr) + (uintptr_t)KERNEL_VIRT_BASE))
+#define PHYSICAL(ptr) ((void *)((uintptr_t)(ptr) - (uintptr_t)KERNEL_VIRT_BASE))
 
 #define DIV_CEILING(x, y) (x + (y - 1)) / y
 #define ALIGN_UP(x, y) DIV_CEILING(x, y) * y
