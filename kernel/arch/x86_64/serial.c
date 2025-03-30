@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/io.h>
+#include <kernel/sys/sched.h>
 #include <kernel/sys/spinlock.h>
 #include <kernel/vfs.h>
 #include <kernel/printf.h>
@@ -37,7 +38,9 @@ int serial_is_data_ready(void) {
 }
 
 char serial_read_char(void) {
-    while (serial_is_data_ready() == 0);
+    while (serial_is_data_ready() == 0) {
+        sched_yield();
+    }
     return inb(COM1);
 }
 
@@ -79,8 +82,6 @@ int32_t serial_read(struct vfs_node *node, void *buffer, uint32_t len) {
     uint32_t i = 0;
 
     while (i < len) {
-        while (!serial_is_data_ready());
-
         buf[i] = serial_read_char();
 
         if (buf[i] == '\r') {

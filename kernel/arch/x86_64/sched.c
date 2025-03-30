@@ -191,8 +191,8 @@ void sched_start_all_cores(void) {
 void sched_install(void) {
     sched_new_task(sched_idle, "System Idle Process", -1);
     sched_new_task(uptime_task, "Uptime Task", -1);
-    //extern void debugger_task_entry(void);
-    //sched_new_task(debugger_task_entry, "bentobox debug shell", -1);
+    extern void debugger_task_entry(void);
+    sched_new_task(debugger_task_entry, "bentobox debug shell", -1);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }
