@@ -3,6 +3,7 @@
 #include <kernel/arch/x86_64/io.h>
 #include <kernel/arch/x86_64/pit.h>
 #include <kernel/arch/x86_64/smp.h>
+#include <kernel/arch/x86_64/hpet.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
 #include <kernel/panic.h>
@@ -67,7 +68,7 @@ void lapic_calibrate_timer(void) {
     lapic_write(LAPIC_TIMER_LVT, (1 << 16) | 0xff);
     lapic_write(LAPIC_TIMER_INITCNT, 0xFFFFFFFF);
 
-    pit_sleep(1);
+    hpet_sleep(1000);
 
     lapic_write(LAPIC_TIMER_LVT, LAPIC_TIMER_DISABLE);
 

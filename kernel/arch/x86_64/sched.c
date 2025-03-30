@@ -2,6 +2,7 @@
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/pit.h>
 #include <kernel/arch/x86_64/smp.h>
+#include <kernel/arch/x86_64/hpet.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
 #include <kernel/vfs.h>
@@ -92,9 +93,9 @@ void sched_schedule(struct registers *r) {
         this->current_proc = this->processes;
     }
 
-    extern size_t pit_ticks;
+    size_t hpet_ticks = hpet_get_ticks();
     if (this->current_proc == RUNNING)
-        this->current_proc->time.last = pit_ticks - this->current_proc->time.start;
+        this->current_proc->time.last = hpet_ticks - this->current_proc->time.start;
 
     if (!this->current_proc->next) {
         this->current_proc = this->processes;
@@ -104,7 +105,7 @@ void sched_schedule(struct registers *r) {
 
     while (this->current_proc->state != RUNNING) {
         if (this->current_proc->state == PAUSED
-         && pit_ticks >= this->current_proc->time.end) {
+         && hpet_ticks >= this->current_proc->time.end) {
             this->current_proc->state = RUNNING;
             this->current_proc->time.last = this->current_proc->time.end - this->current_proc->time.start;
             break;
@@ -124,7 +125,7 @@ void sched_schedule(struct registers *r) {
         this->current_proc = this->current_proc->next;
     }
 
-    this->current_proc->time.start = pit_ticks;
+    this->current_proc->time.start = hpet_ticks;
 
     memcpy(r, &(this->current_proc->ctx), sizeof(struct registers));
 
@@ -146,9 +147,8 @@ void sched_unblock(struct task *proc) {
     proc->state = RUNNING;
 }
 
-void sched_sleep(int ms) {
-    extern size_t pit_ticks;
-    this_core()->current_proc->time.end = pit_ticks + ms;
+void sched_sleep(int us) {
+    this_core()->current_proc->time.end = hpet_get_ticks() + us * (hpet_period / 1000000);
     sched_block(PAUSED);
 }
 
@@ -176,7 +176,7 @@ static void uptime_task(void) {
         }
 
         printf("\rUptime: %dh, %dmin, %ds", hours, minutes, seconds++);
-        sched_sleep(1000);
+        sched_sleep(1000000);
     }
 }
 

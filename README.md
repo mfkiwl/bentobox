@@ -7,6 +7,7 @@ bentobox is a 64-bit SMP-enabled operating system targeting x86_64 and RISC-V
 - VGA text mode and serial driver
 - ACPI table parsing
 - LAPIC & IOAPIC support
+- HPET timer support
 - SMP-aware scheduler
 - Node Graph VFS
 

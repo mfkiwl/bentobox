@@ -1,9 +1,9 @@
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/gdt.h>
 #include <kernel/arch/x86_64/idt.h>
-#include <kernel/arch/x86_64/pit.h>
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/vmm.h>
+#include <kernel/arch/x86_64/hpet.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/sys/spinlock.h>
 #include <kernel/mmu.h>
@@ -62,14 +62,14 @@ void smp_initialize(void) {
             asm volatile ("pause" : : : "memory");                                                   /* wait for delivery */
         } while (lapic_read(LAPIC_ICRLO) & (1 << 12));
 
-        pit_sleep(10);
+        hpet_sleep(10000);
 
         /* send STARTUP IPI (twice) */
         for(int j = 0; j < 2; j++) {
             lapic_write(LAPIC_ESR, 0);                                                        /* clear APIC errors */
             lapic_write(LAPIC_ICRHI, i << LAPIC_ICDESTSHIFT);                                 /* select AP */
             lapic_write(LAPIC_ICRLO, (lapic_read(LAPIC_ICRLO) & 0xfff0f800) | 0x000608); /* trigger STARTUP IPI for 0x0800:0x0000 */
-            pit_sleep(1);
+            hpet_sleep(200);
             do {
                 asm volatile ("pause" : : : "memory");                                                   /* wait for delivery */
             } while (lapic_read(LAPIC_ICRLO) & (1 << 12));

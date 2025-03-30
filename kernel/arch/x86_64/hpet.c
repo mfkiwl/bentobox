@@ -20,24 +20,11 @@ void hpet_write(uint32_t reg, uint64_t value) {
     *((uint64_t*)(VIRTUAL(hpet->address) + reg)) = value;
 }
 
-uint64_t hpet_get_ticks(void) {
+size_t hpet_get_ticks(void) {
     return hpet_read(HPET_REG_MAIN_COUNTER);
 }
 
-size_t last_second = -1, second = 0, ticks = 0;
-
-void hpet_irq_handler(struct registers *r) {
-    second = hpet_get_ticks() / 100000000;
-    if (last_second != second) {
-        last_second = second;
-        printf("\r%lu", ticks);
-        ticks = 0;
-    }
-    ticks++;
-    lapic_eoi();
-}
-
-void arm_hpet_interrupt_timer(int n, size_t femtos) {
+void arm_hpet_interrupt_timer(int n, size_t femtos, void *handler) {
     uint64_t config = hpet_read(HPET_REG_CONFIG);
     hpet_write(HPET_REG_CONFIG, config & ~0x1);
     
@@ -68,15 +55,23 @@ void arm_hpet_interrupt_timer(int n, size_t femtos) {
     
     dprintf("%s:%d: using interrupt route %lu\n", __FILE__, __LINE__, used_route);
     
-    irq_register(used_route, hpet_irq_handler);
+    irq_register(used_route, handler);
     
     uint64_t ticks = femtos / hpet_period;
     
-    dprintf("%s:%d: calibrating timer to %luus\n", __FILE__, __LINE__, femtos / 1000000); 
+    dprintf("%s:%d: calibrating timer to %luns\n", __FILE__, __LINE__, ticks / 1000); 
     
     hpet_write(HPET_REG_MAIN_COUNTER, 0);
     hpet_write(HPET_COMPARATOR_REGS(n) + 8, ticks);
     hpet_write(HPET_REG_CONFIG, config | 0x1);
+}
+
+void hpet_sleep(size_t us) {
+    size_t end_ticks = hpet_read(HPET_REG_MAIN_COUNTER) + us * (hpet_period / 1000000);
+
+    while (hpet_read(HPET_REG_MAIN_COUNTER) < end_ticks) {
+        asm ("pause");
+    }
 }
 
 void hpet_install(void) {
@@ -90,14 +85,13 @@ void hpet_install(void) {
     mmu_map((uintptr_t)VIRTUAL(hpet->address), hpet->address, PTE_PRESENT | PTE_WRITABLE);
     
     uint64_t cap = hpet_read(HPET_REG_CAP);
-    hpet_period = cap >> 32;
+    hpet_period = (cap >> 32) * 10;
+
+    dprintf("%s:%d: 1us is %lu ticks\n", __FILE__, __LINE__, hpet_period * 1 / 1000000);
 
     hpet_write(HPET_REG_CONFIG, 0x0);
     hpet_write(HPET_REG_MAIN_COUNTER, 0);
-    
-    arm_hpet_interrupt_timer(0, 1000000000000);
-    
-    for (;;) {
-        //printf("\rHPET timer ticks: %lu", hpet_read(HPET_REG_MAIN_COUNTER));
-    }
+    hpet_write(HPET_REG_CONFIG, 0x1);
+
+    dprintf("%s:%d: enabled HPET\n", __FILE__, __LINE__);
 }
