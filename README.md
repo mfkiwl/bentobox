@@ -29,8 +29,6 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [X] `panic()` function
 - [X] ANSI support in the VGA driver
 - [X] Write a scheduler
-    - [X] Mutexes
-    - [ ] Semaphores
 - [X] Write a VFS
 - [X] FADT cleanup
 - [X] PCI
@@ -43,6 +41,6 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
     - [ ] Mouse
 - [ ] TSS and ring3
 - [ ] ELF loading using the MMU
+- [ ] Symbol table
 - [ ] Initial filesystem
 - [X] `unimplemented` macro
-- [ ] Symbol table
