@@ -1,5 +1,6 @@
 #include <stdarg.h>
 #include <stdint.h>
+#include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/arch/x86_64/vga.h>
 
@@ -87,9 +88,7 @@ int printf(const char *fmt, ...) {
     va_start(args, fmt);
     char buf[1024] = {0};
     int ret = vsprintf(buf, fmt, args);
-#ifdef __x86_64__
-    vga_puts(buf);
-#endif
+    puts(buf);
     va_end(args);
 
     return ret;

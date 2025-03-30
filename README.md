@@ -34,13 +34,9 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [X] FADT cleanup
 - [X] PCI
 - [X] SMP
-    - [ ] Test with UBSAN?
 - [ ] ATA/NVMe driver
 - [ ] Proper ext2 driver
-- [ ] Framebuffer support
-    - [ ] Multiboot2 framebuffer (VBE)
-    - [ ] VMware SVGAII driver
-    - [ ] Framebuffer console
+- [X] Framebuffer support
 - [ ] PS/2 drivers
     - [ ] Keyboard
     - [ ] Mouse
@@ -48,3 +44,4 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [ ] ELF loading using the MMU
 - [ ] Initial filesystem
 - [X] `unimplemented` macro
+- [ ] Symbol table

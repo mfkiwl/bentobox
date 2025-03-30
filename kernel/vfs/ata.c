@@ -129,7 +129,7 @@ void ata_install(void) {
         printf("\033[92m * \033[97mInitialized ATA Primary Master\033[0m\n");
     }
 
-    ata_dev = vfs_create_node("hda", VFS_CHARDEVICE);
+    ata_dev = vfs_create_node("hda", VFS_BLOCKDEVICE);
     ata_dev->write = NULL;
     ata_dev->read = atafs_read;
     vfs_add_node(vfs_dev, ata_dev);

@@ -54,6 +54,10 @@ void pmm_install(void *mboot_info) {
                 mmmt->len -= bitmap_size;
                 mmmt->addr += bitmap_size;
             }
+            // TODO: properly mark multiboot2 tags region as used
+            size_t m = 0x1000000;
+            mmmt->len -= m;
+            mmmt->addr += m;
             for (uint64_t j = 0; j < mmmt->len; j += PAGE_SIZE) {
                 bitmap_clear(pmm_bitmap, (mmmt->addr + j) / PAGE_SIZE);
             }

@@ -1,17 +1,19 @@
 #include <stddef.h>
 #include <kernel/arch/x86_64/gdt.h>
 #include <kernel/arch/x86_64/idt.h>
-#include <kernel/arch/x86_64/vga.h>
 #include <kernel/arch/x86_64/pit.h>
 #include <kernel/arch/x86_64/smp.h>
+#include <kernel/arch/x86_64/vga.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/arch/x86_64/ioapic.h>
 #include <kernel/arch/x86_64/serial.h>
 #include <kernel/sys/sched.h>
 #include <kernel/mmu.h>
 #include <kernel/pci.h>
+#include <kernel/lfb.h>
 #include <kernel/acpi.h>
 #include <kernel/heap.h>
+#include <kernel/fbterm.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
 #include <kernel/assert.h>
@@ -20,6 +22,8 @@
 
 extern void generic_startup(void);
 extern void generic_main(void);
+
+struct console console;
 
 void *mboot2_find_next(char *current, uint32_t type) {
 	char *header = current;
@@ -39,6 +43,14 @@ void *mboot2_find_tag(void *base, uint32_t type) {
 	char *header = base;
 	header += 8;
 	return mboot2_find_next(header, type);
+}
+
+void puts(char *s) {
+	if (!lfb.addr) {
+		vga_puts(s);
+	} else {
+		fbterm_puts(&console, s);
+	}
 }
 
 void generic_fatal(void) {
@@ -70,16 +82,17 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
         __kernel_name, __kernel_version_major, __kernel_version_minor,
 		__kernel_build_date, __kernel_build_time, __kernel_arch);
 
-	vga_clear();
-    vga_enable_cursor();
-	printf("\n  \033[97mStarting up \033[94mbentobox (%s)\033[0m\n\n", __kernel_arch);
-
     assert(mboot_magic == 0x36d76289);
     gdt_install();
     idt_install();
 	pmm_install(mboot_info);
 	vmm_install();
 	kernel_heap = heap_create();
+
+	lfb_initialize(mboot_info);
+	fbterm_init(&console, &lfb);
+
+	printf("\n  \033[97mStarting up \033[94mbentobox (%s)\033[0m\n\n", __kernel_arch);
 
 	acpi_install();
 	lapic_install();

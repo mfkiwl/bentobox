@@ -8,7 +8,7 @@
 void generic_startup(void) {
     vfs_install();
 	pci_scan();
-    //ata_install();
+    ata_install();
 	sched_install();
 }
 

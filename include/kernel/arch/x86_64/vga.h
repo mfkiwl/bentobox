@@ -1,8 +1,6 @@
 #pragma once
 #include <stdint.h>
 
-#define CURSOR_HEIGHT 2
-
 extern uint8_t vga_x;
 extern uint8_t vga_y;
 

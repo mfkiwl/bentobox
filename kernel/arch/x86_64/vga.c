@@ -4,6 +4,7 @@
 #include <kernel/arch/x86_64/vga.h>
 #include <kernel/sys/spinlock.h>
 #include <kernel/string.h>
+#include <kernel/fbterm.h>
 
 uint8_t vga_x = 0;
 uint8_t vga_y = 0;
