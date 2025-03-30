@@ -11,7 +11,7 @@ ifeq ($(ARCH),x86_64)
 	LD = ld
     ARCH_DIR := kernel/arch/x86_64
     ASFLAGS = -f elf64 -g -F dwarf
-    CCFLAGS := -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone #-fsanitize=undefined
+    CCFLAGS := -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone -fsanitize=undefined
     LDFLAGS := -m elf_x86_64 -Tkernel/arch/x86_64/linker.ld -z noexecstack
     QEMUFLAGS := -cdrom bin/$(IMAGE_NAME).iso -boot d -M q35 -smp 2 -accel kvm -drive
 else ifeq ($(ARCH),riscv64)

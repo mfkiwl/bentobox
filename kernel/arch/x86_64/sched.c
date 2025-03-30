@@ -26,7 +26,6 @@ void sched_unlock(void) {
     release(&(this_core()->sched_lock));
 }
 
-__attribute__((no_sanitize("undefined")))
 struct task *sched_new_task(void *entry, const char *name, int cpu) {
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
     proc->page_dir = kernel_pd;
