@@ -86,7 +86,6 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
     gdt_install();
     idt_install();
 	pmm_install(mboot_info);
-	mmu_mark_used(mboot_info);
 	vmm_install();
 	kernel_heap = heap_create();
 

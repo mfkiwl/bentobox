@@ -62,14 +62,19 @@ void pmm_install(void *mboot_info) {
         pmm_usable_mem -= PAGE_SIZE;
     }
 
+	mmu_mark_used(mboot_info, 2);
+
     pmm_usable_mem -= PAGE_SIZE; /* NULL */
 
     dprintf("%s:%d: initialized allocator at 0x%lx\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
     dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, pmm_usable_mem / 1024);
 }
 
-void mmu_mark_used(void *addr) {
-    bitmap_set(pmm_bitmap, (uintptr_t)addr / PAGE_SIZE);
+void mmu_mark_used(void *ptr, size_t page_count) {
+    for (size_t i = 0; i < page_count * PAGE_SIZE; i += PAGE_SIZE) {
+        bitmap_set(pmm_bitmap, ((uintptr_t)ptr + i) / PAGE_SIZE);
+    }
+    pmm_usable_mem -= page_count * PAGE_SIZE;
 }
 
 uint64_t pmm_find_pages(uint64_t page_count) {

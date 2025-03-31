@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <kernel/mmu.h>
 #include <kernel/acpi.h>
+#include <kernel/panic.h>
 #include <kernel/printf.h>
 
 struct acpi_hpet *hpet = NULL;
@@ -77,10 +78,8 @@ void hpet_sleep(size_t us) {
 void hpet_install(void) {
     hpet = acpi_find_table("HPET");
 
-    if (!hpet) {
-        printf("%s:%d: HPET not found\n", __FILE__, __LINE__);
-        return;
-    }
+    if (!hpet)
+        panic("HPET not found!");
 
     mmu_map((uintptr_t)VIRTUAL(hpet->address), hpet->address, PTE_PRESENT | PTE_WRITABLE);
     

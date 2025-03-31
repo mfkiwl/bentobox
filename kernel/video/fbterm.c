@@ -128,7 +128,7 @@ void fbterm_init(struct console *console, struct framebuffer *fb) {
 
     uint32_t border = fb->height % 16 / 2;
 
-    console->width = (fb->width - border) / 8 - (fb->width / 8 / 8);
+    console->width = (fb->width - border) / 9;
     console->height = fb->height / 16;
     console->border_x = border;
     console->border_y = border;

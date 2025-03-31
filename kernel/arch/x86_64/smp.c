@@ -9,8 +9,10 @@
 #include <kernel/mmu.h>
 #include <kernel/acpi.h>
 #include <kernel/heap.h>
+#include <kernel/panic.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
+#include <kernel/assert.h>
 
 extern void _L8000_ap_trampoline();
 
@@ -30,6 +32,12 @@ struct cpu *smp_cpu_list[SMP_MAX_CORES] = { &bsp };
  */
 __attribute__((no_sanitize("undefined")))
 void smp_initialize(void) {
+    assert(madt_lapics > 0);
+    if (madt_lapics == 1)
+        return;
+    if (madt_lapics > SMP_MAX_CORES)
+        panic("Too many cores! Please rebuild bentobox with SMP_MAX_CORES=%u", madt_lapics);
+
     uint8_t bspid;
     asm volatile ("mov $1, %%eax; cpuid; shrl $24, %%ebx;": "=b"(bspid) : :); /* get the BSP's LAPIC ID */
 

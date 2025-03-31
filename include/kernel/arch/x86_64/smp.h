@@ -2,12 +2,12 @@
 #include <stdint.h>
 #include <stdatomic.h>
 
-#define SMP_MAX_CORES 256
+#define SMP_MAX_CORES 32
 
 struct cpu {
     uint64_t id;
     uint64_t lapic_id;
-    // TODO: store current pm here
+    uintptr_t *pml4;
 
     struct task *processes;
     struct task *current_proc;
