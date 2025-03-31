@@ -1,6 +1,7 @@
 #include <stdarg.h>
-#include <kernel/arch/generic.h>
 #include <kernel/printf.h>
+
+extern void generic_fatal(void);
 
 void __panic(char *file, int line, char *fmt, ...) {
     va_list args;

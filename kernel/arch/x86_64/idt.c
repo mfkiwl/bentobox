@@ -1,10 +1,11 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <kernel/arch/generic.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/ioapic.h>
 #include <kernel/printf.h>
+
+extern void generic_fatal(void);
 
 __attribute__((aligned(0x10)))
 struct idt_entry idt_entries[256];
