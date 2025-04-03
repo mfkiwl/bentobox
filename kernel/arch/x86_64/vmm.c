@@ -60,9 +60,11 @@ void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
     uintptr_t pt_index = (virt >> 12) & 0x1ff;
 
-    uintptr_t *pdpt = vmm_get_next_lvl(this->pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE, true);
-    uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE, true);
-    uintptr_t *pt = vmm_get_next_lvl(pd, pd_index, PTE_PRESENT | PTE_WRITABLE, true);
+    /* TODO: use separate pagemaps for usermode processes */
+    
+    uintptr_t *pdpt = vmm_get_next_lvl(this->pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
+    uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
+    uintptr_t *pt = vmm_get_next_lvl(pd, pd_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
 
     pt[pt_index] = phys | flags; /* map the page */
     
@@ -120,17 +122,19 @@ void vmm_install(void) {
     kernel_pd = (uintptr_t *)mmu_alloc(1);
     this_core()->pml4 = kernel_pd;
     memset(kernel_pd, 0, PAGE_SIZE);
+
+    /* TODO: use separate pagemaps for usermode processes */
     
     for (uintptr_t text = (uintptr_t)text_start_ld; text < (uintptr_t)text_end_ld; text += PAGE_SIZE)
-        mmu_map((uintptr_t)VIRTUAL(text), text, PTE_PRESENT);
+        mmu_map((uintptr_t)VIRTUAL(text), text, PTE_PRESENT | PTE_USER);
     for (uintptr_t rodata = (uintptr_t)rodata_start_ld; rodata < (uintptr_t)rodata_end_ld; rodata += PAGE_SIZE)
-        mmu_map((uintptr_t)VIRTUAL(rodata), rodata, PTE_PRESENT);
+        mmu_map((uintptr_t)VIRTUAL(rodata), rodata, PTE_PRESENT | PTE_USER);
     for (uintptr_t data = (uintptr_t)data_start_ld; data < (uintptr_t)data_end_ld; data += PAGE_SIZE)
-        mmu_map((uintptr_t)VIRTUAL(data), data, PTE_PRESENT | PTE_WRITABLE);
+        mmu_map((uintptr_t)VIRTUAL(data), data, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     for (uintptr_t bss = (uintptr_t)bss_start_ld; bss < (uintptr_t)bss_end_ld; bss += PAGE_SIZE)
-        mmu_map((uintptr_t)VIRTUAL(bss), bss, PTE_PRESENT | PTE_WRITABLE);
+        mmu_map((uintptr_t)VIRTUAL(bss), bss, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     for (uintptr_t addr = 0x1000; addr < 64 * 1024 * 1024; addr += PAGE_SIZE)
-        mmu_map(addr, addr, PTE_PRESENT | PTE_WRITABLE);
+        mmu_map(addr, addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
 
     dprintf("%s:%d: done mapping kernel regions\n", __FILE__, __LINE__);
 
