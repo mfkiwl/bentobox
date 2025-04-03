@@ -1,7 +1,7 @@
 #pragma once
 #include <stdarg.h>
 #include <kernel/arch/x86_64/smp.h>
-#include <kernel/sys/sched.h>
+#include <kernel/sched.h>
 
 #define stdin (this_core()->current_proc->fd_table[0])
 #define stdout (this_core()->current_proc->fd_table[1])

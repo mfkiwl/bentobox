@@ -1,9 +1,9 @@
 #include <stdatomic.h>
 #include <kernel/heap.h>
 #include <kernel/arch/x86_64/smp.h>
-#include <kernel/sys/mutex.h>
-#include <kernel/sys/sched.h>
-#include <kernel/sys/spinlock.h>
+#include <kernel/sched.h>
+#include <kernel/mutex.h>
+#include <kernel/spinlock.h>
 
 void mutex_init(mutex_t *m) {
     m->locked = 0;

@@ -7,10 +7,10 @@
 #include <kernel/vfs.h>
 #include <kernel/acpi.h>
 #include <kernel/heap.h>
+#include <kernel/sched.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
-#include <kernel/sys/sched.h>
-#include <kernel/sys/spinlock.h>
+#include <kernel/spinlock.h>
 
 long max_pid = 0, next_cpu = 0;
 

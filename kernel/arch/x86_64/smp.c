@@ -6,7 +6,6 @@
 #include <kernel/arch/x86_64/vmm.h>
 #include <kernel/arch/x86_64/hpet.h>
 #include <kernel/arch/x86_64/lapic.h>
-#include <kernel/sys/spinlock.h>
 #include <kernel/mmu.h>
 #include <kernel/acpi.h>
 #include <kernel/heap.h>
@@ -14,6 +13,7 @@
 #include <kernel/string.h>
 #include <kernel/printf.h>
 #include <kernel/assert.h>
+#include <kernel/spinlock.h>
 
 extern void _L8000_ap_trampoline();
 

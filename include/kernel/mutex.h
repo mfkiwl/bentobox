@@ -1,6 +1,6 @@
 #pragma once
 #include <stdatomic.h>
-#include <kernel/sys/sched.h>
+#include <kernel/sched.h>
 
 typedef struct mutex_list {
     struct task *proc;

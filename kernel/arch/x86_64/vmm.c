@@ -2,11 +2,11 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdatomic.h>
-#include <kernel/sys/spinlock.h>
 #include <kernel/mmu.h>
 #include <kernel/panic.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
+#include <kernel/spinlock.h>
 
 uintptr_t initial_pml[3][512] __attribute__((aligned(PAGE_SIZE)));
 uintptr_t *kernel_pd = NULL;

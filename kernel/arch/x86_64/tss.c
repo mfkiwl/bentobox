@@ -4,7 +4,9 @@
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
-#include <kernel/sys/sched.h>
+#include <kernel/sched.h>
+
+/* TODO: add a lock to the TSS */
 
 struct tss_entry tss[SMP_MAX_CORES];
 

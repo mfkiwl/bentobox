@@ -1,8 +1,8 @@
 #include <stddef.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/io.h>
-#include <kernel/sys/sched.h>
-#include <kernel/sys/spinlock.h>
+#include <kernel/sched.h>
+#include <kernel/spinlock.h>
 #include <kernel/vfs.h>
 #include <kernel/printf.h>
 

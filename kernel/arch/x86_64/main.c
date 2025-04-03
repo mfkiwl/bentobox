@@ -8,12 +8,12 @@
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/arch/x86_64/ioapic.h>
 #include <kernel/arch/x86_64/serial.h>
-#include <kernel/sys/sched.h>
 #include <kernel/mmu.h>
 #include <kernel/pci.h>
 #include <kernel/lfb.h>
 #include <kernel/acpi.h>
 #include <kernel/heap.h>
+#include <kernel/sched.h>
 #include <kernel/fbterm.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>

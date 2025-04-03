@@ -2,7 +2,7 @@
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/io.h>
 #include <kernel/arch/x86_64/vga.h>
-#include <kernel/sys/spinlock.h>
+#include <kernel/spinlock.h>
 #include <kernel/string.h>
 #include <kernel/fbterm.h>
 
