@@ -2,18 +2,20 @@
 #include <kernel/arch/x86_64/gdt.h>
 #include <kernel/arch/x86_64/tss.h>
 #include <kernel/arch/x86_64/smp.h>
+#include <kernel/spinlock.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/sched.h>
-
-/* TODO: add a lock to the TSS */
 
 struct tss_entry tss[SMP_MAX_CORES];
 
 extern void flush_tss();
 extern void *stack_top;
 
+atomic_flag tss_lock = ATOMIC_FLAG_INIT;
+
 void write_tss(int core, int index, uint64_t rsp0) {
+    acquire(&tss_lock);
     uint64_t base = (uint64_t)&tss[core];
     uint32_t limit = base + sizeof(struct tss_entry) - 1;
 
@@ -23,6 +25,7 @@ void write_tss(int core, int index, uint64_t rsp0) {
     tss[core].rsp0 = rsp0;
 
     flush_tss();
+    release(&tss_lock);
 }
 
 void tss_install(void) {
