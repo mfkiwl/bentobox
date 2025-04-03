@@ -9,7 +9,7 @@
 struct tss_entry tss[SMP_MAX_CORES];
 
 extern void flush_tss();
-extern uint64_t stack_top;
+extern void *stack_top;
 
 void write_tss(int core, int index, uint64_t rsp0) {
     uint64_t base = (uint64_t)&tss[core];
@@ -24,7 +24,7 @@ void write_tss(int core, int index, uint64_t rsp0) {
 }
 
 void tss_install(void) {
-    write_tss(this_core()->id, 5, (uint64_t)&stack_top);
+    write_tss(this_core()->id, 5, (uint64_t)stack_top);
     dprintf("%s:%d: initialized TSS on CPU #%d\n", __FILE__, __LINE__, this_core()->id);
 }
 
