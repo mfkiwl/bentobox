@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <flanterm.h>
 
 struct framebuffer {
     uint64_t addr;
@@ -9,6 +10,7 @@ struct framebuffer {
 };
 
 extern struct framebuffer lfb;
+extern struct flanterm_context *ft_ctx;
 
 void fb_draw_char(struct framebuffer *fb, uint32_t x, uint32_t y, uint8_t c, uint32_t fore, uint32_t back);
 void lfb_initialize(void *mboot_info);

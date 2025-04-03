@@ -14,17 +14,15 @@
 #include <kernel/acpi.h>
 #include <kernel/heap.h>
 #include <kernel/sched.h>
-#include <kernel/fbterm.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
 #include <kernel/assert.h>
 #include <kernel/version.h>
 #include <kernel/multiboot.h>
+#include <flanterm.h>
 
 extern void generic_startup(void);
 extern void generic_main(void);
-
-struct console console;
 
 void *mboot2_find_next(char *current, uint32_t type) {
 	char *header = current;
@@ -47,10 +45,10 @@ void *mboot2_find_tag(void *base, uint32_t type) {
 }
 
 void puts(char *s) {
-	if (!lfb.addr) {
+	if (!ft_ctx) {
 		vga_puts(s);
 	} else {
-		fbterm_puts(&console, s);
+		flanterm_write(ft_ctx, s, strlen(s));
 	}
 }
 
@@ -92,7 +90,6 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	kernel_heap = heap_create();
 
 	lfb_initialize(mboot_info);
-	fbterm_init(&console, &lfb);
 
 	printf("\n  \033[97mStarting up \033[94mbentobox (%s)\033[0m\n\n", __kernel_arch);
 

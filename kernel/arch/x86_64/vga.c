@@ -4,7 +4,8 @@
 #include <kernel/arch/x86_64/vga.h>
 #include <kernel/spinlock.h>
 #include <kernel/string.h>
-#include <kernel/fbterm.h>
+
+#define CURSOR_SIZE 2
 
 uint8_t vga_x = 0;
 uint8_t vga_y = 0;
@@ -122,7 +123,7 @@ void vga_scroll(void) {
 
 void vga_enable_cursor(void) {
     outb(0x3D4, 0x0A);
-    outb(0x3D5, (inb(0x3D5) & 0xC0) | (16 - CURSOR_HEIGHT));
+    outb(0x3D5, (inb(0x3D5) & 0xC0) | (16 - CURSOR_SIZE));
     outb(0x3D4, 0x0B);
     outb(0x3D5, (inb(0x3D5) & 0xE0) | 15);
 }

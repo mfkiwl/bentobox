@@ -4,8 +4,11 @@
 #include <kernel/string.h>
 #include <kernel/printf.h>
 #include <kernel/multiboot.h>
+#include <flanterm.h>
+#include <backends/fb.h>
 
 struct framebuffer lfb;
+struct flanterm_context *ft_ctx;
 
 void fb_draw_char(struct framebuffer *fb, uint32_t x, uint32_t y, uint8_t c, uint32_t fore, uint32_t back) {
     uint32_t *display = (uint32_t *)fb->addr;
@@ -38,4 +41,26 @@ void lfb_initialize(void *mboot_info) {
     lfb.width = fb->common.framebuffer_width;
     lfb.height = fb->common.framebuffer_height;
     lfb.pitch = fb->common.framebuffer_pitch;
+
+    ft_ctx = flanterm_fb_init(
+        NULL,
+        NULL,
+        (uint32_t *)fb->common.framebuffer_addr,
+        fb->common.framebuffer_width,
+        fb->common.framebuffer_height,
+        fb->common.framebuffer_pitch,
+        fb->framebuffer_red_mask_size,
+        fb->framebuffer_red_field_position,
+        fb->framebuffer_green_mask_size,
+        fb->framebuffer_green_field_position,
+        fb->framebuffer_blue_mask_size,
+        fb->framebuffer_blue_field_position,
+        NULL,
+        NULL, NULL,
+        NULL, NULL,
+        NULL, NULL,
+        NULL, 0, 0, 1,
+        0, 0,
+        0
+    );
 }
