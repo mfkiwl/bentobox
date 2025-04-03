@@ -1,33 +1,32 @@
 #include <stdint.h>
+#include <stdbool.h>
 #include <kernel/arch/x86_64/gdt.h>
+#include <kernel/arch/x86_64/tss.h>
 #include <kernel/printf.h>
 
-struct gdt_entry {
-    uint16_t limit;
-    uint16_t base_low;
-    uint8_t  base_mid;
-    uint8_t  access;
-    uint8_t  gran;
-    uint8_t  base_high;
-} __attribute__((packed));
-
-struct gdtr {
-    uint16_t size;
-    uint64_t offset;
-} __attribute__((packed));
-
-struct gdt_entry gdt_entries[6];
+struct gdt_table gdt_table;
 struct gdtr gdt_descriptor;
 
 extern void gdt_flush(void);
 
-void gdt_set_entry(uint8_t index, uint16_t limit, uint32_t base, uint8_t access, uint8_t gran) {
-    gdt_entries[index].limit = limit;
-    gdt_entries[index].base_low = base & 0xFFFF;
-    gdt_entries[index].base_mid = (base >> 16) & 0xFF;
-    gdt_entries[index].access = access;
-    gdt_entries[index].gran = gran;
-    gdt_entries[index].base_high = (base >> 24) & 0xFF;
+void gdt_set_entry(uint8_t index, uint16_t limit, uint64_t base, uint8_t access, uint8_t gran) {
+    if (index == 5) {
+        gdt_table.tss.limit = limit;
+        gdt_table.tss.base_low = base & 0xFFFF;
+        gdt_table.tss.base_mid = (base >> 16) & 0xFF;
+        gdt_table.tss.access = access;
+        gdt_table.tss.gran = gran;
+        gdt_table.tss.base_high = (base >> 24) & 0xFF;
+        gdt_table.tss.base_long = (base >> 32);
+        return;
+    }
+
+    gdt_table.gdt_entries[index].limit = limit;
+    gdt_table.gdt_entries[index].base_low = base & 0xFFFF;
+    gdt_table.gdt_entries[index].base_mid = (base >> 16) & 0xFF;
+    gdt_table.gdt_entries[index].access = access;
+    gdt_table.gdt_entries[index].gran = gran;
+    gdt_table.gdt_entries[index].base_high = (base >> 24) & 0xFF;
 }
 
 void gdt_install(void) {
@@ -38,8 +37,8 @@ void gdt_install(void) {
     gdt_set_entry(4, 0x0000, 0x00000000, 0xF2, 0x00);
 
     gdt_descriptor = (struct gdtr) {
-        .size = sizeof(struct gdt_entry) * 9 - 1,
-        .offset = (uint64_t)&gdt_entries
+        .size = sizeof(gdt_table) - 1,
+        .offset = (uint64_t)&gdt_table
     };
     gdt_flush();
 

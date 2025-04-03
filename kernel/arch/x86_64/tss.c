@@ -7,32 +7,29 @@
 #include <kernel/string.h>
 #include <kernel/sched.h>
 
-struct tss_entry tss[SMP_MAX_CORES];
-
 extern void flush_tss();
 extern void *stack_top;
 
+struct tss_entry tss;
+
 atomic_flag tss_lock = ATOMIC_FLAG_INIT;
 
-void write_tss(int core, int index, uint64_t rsp0) {
+void write_tss(int index, uint64_t rsp0) {
     acquire(&tss_lock);
-    uint64_t base = (uint64_t)&tss[core];
-    uint32_t limit = base + sizeof(struct tss_entry) - 1;
-
-    gdt_set_entry(index, limit, base, 0b10001001, 0b00100000);
+    gdt_set_entry(index, sizeof(struct tss_entry), (uint64_t)&tss, 0x89, 0x20);
     
-    memset(&tss[core], 0, sizeof(struct tss_entry));
-    tss[core].rsp0 = rsp0;
+    memset(&tss, 0, sizeof(struct tss_entry));
+    tss.rsp0 = rsp0;
 
     flush_tss();
     release(&tss_lock);
 }
 
 void tss_install(void) {
-    write_tss(this_core()->id, 5, (uint64_t)stack_top);
+    write_tss(5, (uint64_t)stack_top);
     dprintf("%s:%d: initialized TSS on CPU #%d\n", __FILE__, __LINE__, this_core()->id);
 }
 
 void set_kernel_stack(uint64_t stack) {
-    tss[this_core()->id].rsp0 = stack;
+    tss.rsp0 = stack;
 }

@@ -19,6 +19,5 @@ struct tss_entry {
     uint16_t iomap_base;
 } __attribute__((packed));
 
-void write_tss(int core, int index, uint64_t rsp0);
 void tss_install(void);
 void set_kernel_stack(uint64_t stack);

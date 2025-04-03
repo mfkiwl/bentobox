@@ -85,8 +85,8 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 
     assert(mboot_magic == 0x36d76289);
     gdt_install();
-	tss_install();
     idt_install();
+	tss_install();
 	pmm_install(mboot_info);
 	vmm_install();
 	kernel_heap = heap_create();
