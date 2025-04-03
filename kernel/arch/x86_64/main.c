@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <kernel/arch/x86_64/gdt.h>
+#include <kernel/arch/x86_64/tss.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/vga.h>
@@ -84,6 +85,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 
     assert(mboot_magic == 0x36d76289);
     gdt_install();
+	tss_install();
     idt_install();
 	pmm_install(mboot_info);
 	vmm_install();

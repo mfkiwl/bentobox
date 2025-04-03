@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <kernel/arch/x86_64/gdt.h>
 #include <kernel/printf.h>
 
 struct gdt_entry {
@@ -15,7 +16,7 @@ struct gdtr {
     uint64_t offset;
 } __attribute__((packed));
 
-struct gdt_entry gdt_entries[9];
+struct gdt_entry gdt_entries[6];
 struct gdtr gdt_descriptor;
 
 extern void gdt_flush(void);

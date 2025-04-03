@@ -1,5 +1,6 @@
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/gdt.h>
+#include <kernel/arch/x86_64/tss.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/vmm.h>
@@ -102,9 +103,10 @@ struct cpu *this_core(void) {
 }
 
 void ap_startup(void) {
-    gdt_flush();
     idt_reinstall();
     vmm_switch_pm(kernel_pd);
+    gdt_flush();
+    tss_install();
     lapic_install();
     lapic_calibrate_timer();
     lapic_eoi();

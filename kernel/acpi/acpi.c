@@ -50,7 +50,7 @@ __attribute__((no_sanitize("undefined")))
 void acpi_install(void) {
     struct acpi_rsdp *rsdp = NULL;
 
-    /* TODO: search for RSDP in multiboot2 headers */
+    /* TODO: search for RSDP in EBDA then BIOS memory region */
     for (uint16_t *addr = (uint16_t*)0x000E0000; addr < (uint16_t*)0x000FFFFF; addr += 16) {
         if (!strncmp((const char*)addr, "RSD PTR ", 8)) {
             rsdp = (struct acpi_rsdp *)addr;
