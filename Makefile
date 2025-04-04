@@ -36,7 +36,7 @@ ARCH_C_SOURCES   := $(shell find $(ARCH_DIR) -type f -name '*.c' | sed 's|^\./||
 # Get object files
 KERNEL_OBJS := $(addprefix bin/, $(KERNEL_S_SOURCES:.S=.S.o) $(ARCH_S_SOURCES:.S=.S.o) $(KERNEL_C_SOURCES:.c=.c.o) $(ARCH_C_SOURCES:.c=.c.o))
 
-all: kernel fs iso
+all: kernel hdd iso
 
 run: all
 	@qemu-system-$(ARCH) $(QEMUFLAGS)
@@ -83,12 +83,8 @@ else
     $(error Unsupported architecture: $(ARCH))
 endif
 
-fs:
-	@echo " FS bin/fs.hdd"
-	@dd if=/dev/urandom of=bin/fs.hdd bs=1M count=64 status=none
-	
-	@# respectfully, shut the fuck up
-	@mkfs.fat bin/fs.hdd -F 16 2>&1 >/dev/null | grep -v mke2fs | cat
+hdd:
+	@dd if=/dev/zero of=bin/fs.hdd bs=1M count=64 status=none
 
 clean:
 	@rm -f $(BOOT_OBJS) $(KERNEL_OBJS)
