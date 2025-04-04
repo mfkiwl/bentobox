@@ -21,4 +21,5 @@ uint8_t pci_get_irq_line(uint8_t bus, uint8_t device, uint8_t function);
 uint16_t pci_config_read_word(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset);
 uint32_t pci_read(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset);
 void pci_write(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset, uint32_t value);
-struct pci_device *pci_get_device(uint16_t vendor, uint16_t device);
+struct pci_device *pci_get_device(uint8_t class, uint8_t subclass);
+struct pci_device *pci_get_device_from_vendor(uint16_t vendor, uint16_t device);

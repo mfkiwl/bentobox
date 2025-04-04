@@ -119,7 +119,16 @@ void pci_check_function(uint8_t bus, uint8_t device, uint8_t function) {
     }
 }
 
-struct pci_device *pci_get_device(uint16_t vendor, uint16_t device) {
+struct pci_device *pci_get_device(uint8_t class, uint8_t subclass) {
+    for (int i = 0; i < 32; i++) {
+        if (primary_bus[i].class == class && primary_bus[i].subclass == subclass) {
+            return &primary_bus[i];
+        }
+    }
+    return NULL;
+}
+
+struct pci_device *pci_get_device_from_vendor(uint16_t vendor, uint16_t device) {
     for (int i = 0; i < 32; i++) {
         if (primary_bus[i].vendor_id == vendor && primary_bus[i].device_id == device) {
             return &primary_bus[i];
