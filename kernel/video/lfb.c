@@ -3,9 +3,8 @@
 #include <kernel/lfb.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
+#include <kernel/flanterm.h>
 #include <kernel/multiboot.h>
-#include <flanterm.h>
-#include <backends/fb.h>
 
 struct framebuffer lfb;
 struct flanterm_context *ft_ctx;

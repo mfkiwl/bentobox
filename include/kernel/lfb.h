@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
-#include <flanterm.h>
+#include <kernel/flanterm.h>
 
 struct framebuffer {
     uint64_t addr;
