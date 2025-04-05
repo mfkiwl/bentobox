@@ -56,6 +56,10 @@ uint8_t pci_get_subclass(uint8_t bus, uint8_t device, uint8_t function) {
     return (uint8_t)(pci_config_read_word(bus, device, function, 0x0A));
 }
 
+uint8_t pci_get_progif(uint8_t bus, uint8_t device, uint8_t function) {
+    return (uint8_t)(pci_config_read_word(bus, device, function, 0x08) >> 8);
+}
+
 uint8_t pci_get_header_type(uint8_t bus, uint8_t device, uint8_t function) {
     return (uint8_t)(pci_config_read_word(bus, device, function, 0x0E));
 }
@@ -68,6 +72,19 @@ uint8_t pci_get_secondary_bus(uint8_t bus, uint8_t device, uint8_t function) {
     }
 
     return (uint8_t)(pci_config_read_word(bus, device, function, 0x18) >> 8);
+}
+
+int pci_find_capability(struct pci_device *dev, uint8_t cap_id) {
+    uint8_t status = pci_read(dev->bus, dev->device, 0x00, 0x06) >> 16;
+    if (!(status & (1 << 4))) return 0;
+
+    uint8_t offset = pci_read(dev->bus, dev->device, 0x00, 0x34) & 0xFF;
+    while (offset) {
+        uint32_t cap = pci_read(dev->bus, dev->device, 0x00, offset);
+        if ((cap & 0xFF) == cap_id) return offset;
+        offset = (cap >> 8) & 0xFF;
+    }
+    return 0;
 }
 
 void pci_check_device(uint8_t bus, uint8_t device) {
@@ -99,7 +116,7 @@ void pci_check_device(uint8_t bus, uint8_t device) {
         primary_bus[device].device_id = device_id;
     }
 
-    dprintf("Vendor=0x%x,Device=0x%x,Class=0x%x,Subclass=0x%x\n", vendor_id, device_id, class, subclass);
+    dprintf("* Vendor=0x%x,Device=0x%x,Class=0x%x,Subclass=0x%x\n", vendor_id, device_id, class, subclass);
 }
 
 void pci_check_bus(uint8_t bus) {
@@ -140,6 +157,7 @@ struct pci_device *pci_get_device_from_vendor(uint16_t vendor, uint16_t device) 
 }
 
 void pci_scan(void) {
+    dprintf("%s:%d: detecting PCI devices\n", __FILE__, __LINE__);
     uint8_t function;
     uint8_t bus;
 

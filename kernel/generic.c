@@ -1,14 +1,14 @@
 #include <kernel/sched.h>
 #include <kernel/pci.h>
-#include <kernel/ata.h>
 #include <kernel/vfs.h>
+#include <kernel/ahci.h>
 #include <kernel/printf.h>
 #include <kernel/version.h>
 
 void generic_startup(void) {
     vfs_install();
 	pci_scan();
-    ata_install();
+    ahci_install();
 	sched_install();
 }
 

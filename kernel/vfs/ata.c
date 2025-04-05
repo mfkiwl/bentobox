@@ -2,7 +2,6 @@
 #include <kernel/arch/x86_64/io.h>
 #include <kernel/ata.h>
 #include <kernel/vfs.h>
-#include <kernel/pci.h>
 #include <kernel/printf.h>
 
 uint16_t ata_base;
@@ -126,16 +125,8 @@ int32_t atafs_read(struct vfs_node *node, void *buffer, uint32_t len) {
 }
 
 void ata_install(void) {
-    struct pci_device *controller = pci_get_device(0x01, 0x06);
-    if (controller) {
-        printf("Found AHCI controller!\n");
+    if (ata_identify(ATA_PRIMARY, ATA_MASTER) != ATA_OK)
         return;
-    }
-
-    if (ata_identify(ATA_PRIMARY, ATA_MASTER)) {
-        printf("\033[91m * \033[97mFailed to initialize ATA Primary Master\033[0m\n");
-        return;
-    }
 
     printf("\033[92m * \033[97mInitialized ATA Primary Master\033[0m\n");
 

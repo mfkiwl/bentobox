@@ -10,11 +10,6 @@
 
 #define PAGE_SIZE 4096
 
-#define PTE_PRESENT 1ul
-#define PTE_WRITABLE 2ul
-#define PTE_USER 4ul
-#define PTE_NX (1ul << 63)
-
 #define VIRTUAL(ptr) ((void *)((uintptr_t)(ptr) + (uintptr_t)KERNEL_VIRT_BASE))
 #define PHYSICAL(ptr) ((void *)((uintptr_t)(ptr) - (uintptr_t)KERNEL_VIRT_BASE))
 
