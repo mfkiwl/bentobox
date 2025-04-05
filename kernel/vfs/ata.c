@@ -126,9 +126,9 @@ int32_t atafs_read(struct vfs_node *node, void *buffer, uint32_t len) {
 }
 
 void ata_install(void) {
-    struct pci_device *controller = pci_get_device(0x01, 0x01);
+    struct pci_device *controller = pci_get_device(0x06, 0x01);
     if (controller) {
-        printf("Found ATA controller!\n");
+        printf("Found AHCI controller!\n");
         return;
     }
 

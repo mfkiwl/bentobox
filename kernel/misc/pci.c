@@ -98,6 +98,8 @@ void pci_check_device(uint8_t bus, uint8_t device) {
         primary_bus[device].vendor_id = vendor_id;
         primary_bus[device].device_id = device_id;
     }
+
+    printf("Vendor=0x%x,Device=0x%x,Class=0x%x,Subclass=0x%x\n", vendor_id, device_id, class, subclass);
 }
 
 void pci_check_bus(uint8_t bus) {
