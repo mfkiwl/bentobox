@@ -7,6 +7,7 @@
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/assert.h>
+#include <kernel/multiboot.h>
 
 bool acpi_use_xsdt = false;
 void *acpi_root_sdt;
@@ -46,18 +47,31 @@ void *acpi_find_table(const char *signature) {
     return NULL;
 }
 
-__attribute__((no_sanitize("undefined")))
-void acpi_install(void) {
-    struct acpi_rsdp *rsdp = NULL;
-
-    /* TODO: search for RSDP in EBDA then BIOS memory region */
+void *acpi_get_rsdp(void *base) {
     for (uint16_t *addr = (uint16_t*)0x000E0000; addr < (uint16_t*)0x000FFFFF; addr += 16) {
         if (!strncmp((const char*)addr, "RSD PTR ", 8)) {
-            rsdp = (struct acpi_rsdp *)addr;
             dprintf("%s:%d: found RSDP at address 0x%x\n", __FILE__, __LINE__, addr);
-            break;
+            return (void *)addr;
         }
     }
+
+    void *rsdp = mboot2_find_tag(base, 14);
+    if (rsdp != NULL) {
+        dprintf("%s:%d: found RSDP at address 0x%lx\n", __FILE__, __LINE__, rsdp + 8);
+        return (void *)(rsdp + 8);
+    }
+
+	rsdp = mboot2_find_tag(base, 15);
+    if (rsdp != NULL) {
+        dprintf("%s:%d: found RSDP at address 0x%lx\n", __FILE__, __LINE__, rsdp + 8);
+        return (void *)(rsdp + 8);
+    }
+    return NULL;
+}
+
+__attribute__((no_sanitize("undefined")))
+void acpi_install(void *mboot_info) {
+    struct acpi_rsdp *rsdp = acpi_get_rsdp(mboot_info);
 
     if (!rsdp)
         panic("couldn't find ACPI");

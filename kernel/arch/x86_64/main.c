@@ -93,7 +93,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 
 	printf("\n  \033[97mStarting up \033[94mbentobox (%s)\033[0m\n\n", __kernel_arch);
 
-	acpi_install();
+	acpi_install(mboot_info);
 	lapic_install();
 	ioapic_install();
 	hpet_install();
