@@ -54,6 +54,7 @@ void puts(char *s) {
 
 void generic_fatal(void) {
 	for (uint32_t i = 0; i < madt_lapics; i++) {
+		if (i == this_core()->lapic_id) continue;
 		lapic_ipi(i, 0x447D);
 	}
 	asm ("cli");
