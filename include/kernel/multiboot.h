@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 
+#define MULTIBOOT_TAG_TYPE_MODULE           3
 #define MULTIBOOT_TAG_TYPE_MMAP             6
 #define MULTIBOOT_TAG_TYPE_FRAMEBUFFER      8
 
@@ -47,6 +48,14 @@ struct multiboot_tag_framebuffer_common {
     uint8_t framebuffer_type;
     uint16_t reserved;
 } __attribute__((packed));
+
+struct multiboot_tag_module {
+    uint32_t type;
+    uint32_t size;
+    uint32_t mod_start;
+    uint32_t mod_end;
+    char string[0];
+};
 
 struct multiboot_color {
     uint8_t red;

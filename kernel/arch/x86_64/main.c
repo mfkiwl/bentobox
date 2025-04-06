@@ -11,6 +11,7 @@
 #include <kernel/mmu.h>
 #include <kernel/pci.h>
 #include <kernel/lfb.h>
+#include <kernel/mod.h>
 #include <kernel/acpi.h>
 #include <kernel/sched.h>
 #include <kernel/malloc.h>
@@ -65,16 +66,6 @@ void generic_pause(void) {
 	__builtin_ia32_pause();
 }
 
-void mubsan_log(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
-    
-    asm volatile ("cli");
-    for (;;) asm volatile ("hlt");
-}
-
 void kmain(void *mboot_info, uint32_t mboot_magic) {
     serial_install();
     
@@ -100,6 +91,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	hpet_install();
 	lapic_calibrate_timer();
 	smp_initialize();
+	mod_install(mboot_info);
 
 	generic_startup();
 	generic_main();
