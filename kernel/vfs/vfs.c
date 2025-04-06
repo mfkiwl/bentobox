@@ -1,6 +1,6 @@
 #include <stddef.h>
 #include <kernel/vfs.h>
-#include <kernel/heap.h>
+#include <kernel/malloc.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
 

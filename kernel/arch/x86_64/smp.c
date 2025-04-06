@@ -8,8 +8,8 @@
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
 #include <kernel/acpi.h>
-#include <kernel/heap.h>
 #include <kernel/panic.h>
+#include <kernel/malloc.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
 #include <kernel/assert.h>

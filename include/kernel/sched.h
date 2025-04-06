@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/vfs.h>
-#include <kernel/heap.h>
+#include <kernel/malloc.h>
 
 enum task_state {
     RUNNING,

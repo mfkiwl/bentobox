@@ -12,8 +12,8 @@
 #include <kernel/pci.h>
 #include <kernel/lfb.h>
 #include <kernel/acpi.h>
-#include <kernel/heap.h>
 #include <kernel/sched.h>
+#include <kernel/malloc.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
 #include <kernel/assert.h>

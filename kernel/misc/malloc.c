@@ -1,7 +1,7 @@
 #include "kernel/arch/x86_64/vmm.h"
 #include <stdbool.h>
 #include <kernel/mmu.h>
-#include <kernel/heap.h>
+#include <kernel/malloc.h>
 #include <kernel/printf.h>
 
 struct heap *kernel_heap;

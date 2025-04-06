@@ -6,8 +6,8 @@
 #include <kernel/mmu.h>
 #include <kernel/vfs.h>
 #include <kernel/acpi.h>
-#include <kernel/heap.h>
 #include <kernel/sched.h>
+#include <kernel/malloc.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
