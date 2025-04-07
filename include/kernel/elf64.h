@@ -105,4 +105,5 @@ typedef struct {
 	int  symbol_count;
 } Elf64;
 
+Elf64 *elf_load_ksym(struct multiboot_tag_elf_sections *mboot_elf);
 Elf64 *elf_module(struct multiboot_tag_module *mod);

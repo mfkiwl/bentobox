@@ -5,13 +5,15 @@
 #include <kernel/string.h>
 #include <kernel/multiboot.h>
 
-char *elf_get_symbol_name(Elf64 *elf, Elf64_Addr addr) {
+void elf_get_symbol_name(char *str, Elf64 *elf, Elf64_Addr addr) {
     for (int i = 0; i < elf->symbol_count; i++) {
-        if (elf->symtab[i].st_value == addr) {
-            return &elf->strtab[elf->symtab[i].st_name];
+        if (addr >= elf->symtab[i].st_value &&
+            addr < elf->symtab[i].st_value + elf->symtab[i].st_size) {
+            sprintf(str, "%s+%lu", &elf->strtab[elf->symtab[i].st_name], addr - elf->symtab[i].st_value);
+            return;
         }
     }
-    return "(none)";
+    strcpy(str, "(none)");
 }
 
 Elf64 *elf_module(struct multiboot_tag_module *mod) {
@@ -32,8 +34,8 @@ Elf64 *elf_module(struct multiboot_tag_module *mod) {
     Elf64_Shdr *shdr = (Elf64_Shdr *)(mod->mod_start + ehdr->e_shoff);
     Elf64_Sym *symtab = NULL;
     char *strtab = NULL;
-    int i, symbol_count = 0;
 
+    int i, symbol_count = 0;
     for (i = 0; i < ehdr->e_shnum; i++) {
         if (shdr[i].sh_type == SHT_STRTAB && ehdr->e_shstrndx != i) {
             strtab = (char *)(mod->mod_start + shdr[i].sh_offset);
@@ -60,7 +62,10 @@ Elf64 *elf_module(struct multiboot_tag_module *mod) {
     elf->strtab = strtab;
     elf->symbol_count = symbol_count;
 
-    printf("elf: %s\n", elf_get_symbol_name(elf, 0x401000));
+    char str[256];
+    elf_get_symbol_name(str, elf, 0x401004);
+
+    printf("elf: %s\n", str);
 
     return NULL;
 }
