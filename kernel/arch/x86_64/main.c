@@ -11,8 +11,8 @@
 #include <kernel/mmu.h>
 #include <kernel/pci.h>
 #include <kernel/lfb.h>
-#include <kernel/mod.h>
 #include <kernel/acpi.h>
+#include <kernel/elf64.h>
 #include <kernel/sched.h>
 #include <kernel/malloc.h>
 #include <kernel/string.h>
@@ -91,7 +91,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	hpet_install();
 	lapic_calibrate_timer();
 	smp_initialize();
-	mod_install(mboot_info);
+    elf_module(mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_MODULE));
 
 	generic_startup();
 	generic_main();

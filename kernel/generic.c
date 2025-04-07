@@ -1,6 +1,7 @@
 #include <kernel/sched.h>
 #include <kernel/pci.h>
 #include <kernel/vfs.h>
+#include <kernel/elf64.h>
 #include <kernel/printf.h>
 #include <kernel/version.h>
 

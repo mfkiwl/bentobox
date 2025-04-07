@@ -57,14 +57,13 @@ void pmm_install(void *mboot_info) {
         }
     }
 
-    for (i = 0; i < (uint64_t)pmm_bitmap + bitmap_size; i += PAGE_SIZE) {
-        bitmap_set(pmm_bitmap, (uint64_t)pmm_bitmap + i / PAGE_SIZE);
-        pmm_usable_mem -= PAGE_SIZE;
+    struct multiboot_tag_module *mod = mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_MODULE);
+    while (mod) {
+        mmu_mark_used((void *)(uintptr_t)mod->mod_start, ALIGN_UP(mod->mod_end - mod->mod_start, PAGE_SIZE) / PAGE_SIZE);
+        mod = mboot2_find_tag(mod, MULTIBOOT_TAG_TYPE_MODULE);
     }
 
 	mmu_mark_used(mboot_info, 2);
-
-    pmm_usable_mem -= PAGE_SIZE; /* NULL */
 
     dprintf("%s:%d: initialized allocator at 0x%lx\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
     dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, pmm_usable_mem / 1024);
