@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/ioapic.h>
+#include <kernel/ksym.h>
 #include <kernel/elf64.h>
 #include <kernel/printf.h>
 
@@ -104,7 +105,7 @@ void isr_handler(struct registers *r) {
     uint8_t bspid;
     asm volatile ("mov $1, %%eax; cpuid; shrl $24, %%ebx;": "=b"(bspid) : :);
 
-    dprintf("%s:%d: x86 Fault: \033[91m%s\033[0m on CPU %d\n"
+    printf("%s:%d: x86 Fault: \033[91m%s\033[0m on CPU %d\n"
             "rdi: 0x%lx rsi: 0x%lx rbp:    0x%lx\n"
             "rsp: 0x%lx rbx: 0x%lx rdx:    0x%lx\n"
             "rcx: 0x%lx rax: 0x%lx rip:    0x%lx\n"
@@ -117,16 +118,14 @@ void isr_handler(struct registers *r) {
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,
             r->rflags);
 
-    struct stackframe {
-        struct stackframe *rbp;
-        uint64_t rip;
-    };
     struct stackframe *frame_ptr = __builtin_frame_address(0);
+
+    printf("%s:%d: traceback:\n", __FILE__, __LINE__);
 
     char s[256];
     for (int i = 0; i < 8 && frame_ptr->rbp; i++) {
         elf_symbol_name(s, ksymtab, kstrtab, ksym_count, frame_ptr->rip);
-        dprintf("#%d  0x%lx in %s\n", i, frame_ptr->rip, s);
+        printf("#%d  0x%lx in %s\n", i, frame_ptr->rip, s);
         frame_ptr = frame_ptr->rbp;
     }
 

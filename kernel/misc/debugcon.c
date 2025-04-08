@@ -1,4 +1,5 @@
 #include <kernel/vfs.h>
+#include <kernel/panic.h>
 #include <kernel/ctype.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
@@ -33,6 +34,10 @@ void debugger_task_entry(void) {
         }
         if (!strncmp(input, "int3", 5)) {
             asm volatile ("int3");
+        }
+        if (!strncmp(input, "panic ", 6)) {
+            panic(input + 6);
+            continue;
         }
         if (!strncmp(input, "cls", 4) || !strncmp(input, "clear", 6)) {
             dprintf("\033[2J\033[H");

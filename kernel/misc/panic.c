@@ -1,4 +1,6 @@
 #include <stdarg.h>
+#include <kernel/ksym.h>
+#include <kernel/elf64.h>
 #include <kernel/printf.h>
 
 extern void generic_fatal(void);
@@ -9,6 +11,19 @@ void __panic(char *file, int line, char *fmt, ...) {
     char buf[1024] = {-1};
     vsprintf(buf, fmt, args);
     va_end(args);
+
     printf("%s:%d: Kernel panic: %s\n", file, line, buf);
+
+    struct stackframe *frame_ptr = __builtin_frame_address(0);
+
+    printf("%s:%d: traceback:\n", __FILE__, __LINE__);
+
+    char s[256];
+    for (int i = 0; i < 8 && frame_ptr->rbp; i++) {
+        elf_symbol_name(s, ksymtab, kstrtab, ksym_count, frame_ptr->rip);
+        printf("#%d  0x%lx in %s\n", i, frame_ptr->rip, s);
+        frame_ptr = frame_ptr->rbp;
+    }
+
     generic_fatal();
 }
