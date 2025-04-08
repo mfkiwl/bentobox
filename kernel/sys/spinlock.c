@@ -1,10 +1,10 @@
 #include <stdatomic.h>
 
-extern void generic_pause();
-
 void acquire(atomic_flag *lock) {
     while (atomic_flag_test_and_set_explicit(lock, memory_order_acquire)) {
-        generic_pause();
+#ifdef __x86_64__
+        __builtin_ia32_pause();
+#endif
     }
 }
 

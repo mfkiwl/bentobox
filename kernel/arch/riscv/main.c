@@ -6,9 +6,7 @@ void generic_fatal(void) {
     for (;;) asm volatile ("wfi");
 }
 
-void generic_pause(void) {
-    return;
-}
+void generic_load_modules(void) { unimplemented; }
 
 void kmain() {
     dprintf("%s %d.%d %s %s %s\n",

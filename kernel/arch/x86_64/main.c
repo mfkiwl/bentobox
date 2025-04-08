@@ -25,6 +25,8 @@
 extern void generic_startup(void);
 extern void generic_main(void);
 
+static void *mboot = NULL;
+
 void *mboot2_find_next(char *current, uint32_t type) {
 	char *header = current;
 	while ((uintptr_t)header & 7) header++;
@@ -70,8 +72,9 @@ void generic_fatal(void) {
 	for (;;) asm ("hlt");
 }
 
-void generic_pause(void) {
-	__builtin_ia32_pause();
+void generic_load_modules(void) {
+	assert(mboot);
+	mboot2_load_modules(mboot);
 }
 
 void kmain(void *mboot_info, uint32_t mboot_magic) {
@@ -82,6 +85,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 		__kernel_commit_hash, __kernel_build_date, __kernel_build_time, __kernel_arch);
 
     assert(mboot_magic == 0x36d76289);
+	mboot = mboot_info;
     gdt_install();
     idt_install();
 	tss_install();
@@ -100,7 +104,6 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	hpet_install();
 	lapic_calibrate_timer();
 	smp_initialize();
-	mboot2_load_modules(mboot_info);
 
 	generic_startup();
 	generic_main();
