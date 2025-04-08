@@ -33,7 +33,7 @@ void debugger_task_entry(void) {
             continue;
         }
         if (!strncmp(input, "int3", 5)) {
-            asm volatile ("int3");
+            //asm volatile ("int3");
         }
         if (!strncmp(input, "panic ", 6)) {
             panic(input + 6);

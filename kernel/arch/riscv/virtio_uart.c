@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <kernel/printf.h>
+#include <kernel/assert.h>
 
 #define UART_BASE 0x10000000
 
@@ -26,6 +27,12 @@ void uart_puts(const char * str) {
         uart_putchar(*str++);
     }
 }
+
+void puts(char *str) {
+	uart_puts(str);
+}
+
+void serial_tty_install() { unimplemented; }
 
 int dprintf(const char *fmt, ...) {
     va_list args;

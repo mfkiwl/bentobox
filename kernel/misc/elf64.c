@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <kernel/mmu.h>
 #include <kernel/elf64.h>
 #include <kernel/printf.h>
@@ -46,12 +45,12 @@ int elf_module(struct multiboot_tag_module *mod) {
 
     if (memcmp(ehdr->e_ident, "\x7f""ELF", 4)) {
         printf("elf: invalid elf file\n");
-        return -EINVAL;
+        return -1;
     }
 
     if (ehdr->e_ident[EI_CLASS] != ELFCLASS64) {
         printf("elf: unsupported elf class\n");
-        return -EINVAL;
+        return -1;
     }
 
     Elf64_Shdr *shdr = (Elf64_Shdr *)(mod->mod_start + ehdr->e_shoff);

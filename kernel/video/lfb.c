@@ -3,6 +3,7 @@
 #include <kernel/lfb.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
+#include <kernel/assert.h>
 #include <kernel/flanterm.h>
 #include <kernel/multiboot.h>
 
@@ -23,6 +24,7 @@ void fb_draw_char(struct framebuffer *fb, uint32_t x, uint32_t y, uint8_t c, uin
 }
 
 void lfb_initialize(void *mboot_info) {
+#ifdef __x86_64__
     struct multiboot_tag_framebuffer *fb = mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_FRAMEBUFFER);
 
     if (!fb || fb->common.framebuffer_addr == 0xB8000) {
@@ -62,4 +64,7 @@ void lfb_initialize(void *mboot_info) {
         0, 0,
         0
     );
+#else
+    unimplemented;
+#endif
 }

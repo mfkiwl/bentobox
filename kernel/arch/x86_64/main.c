@@ -46,7 +46,7 @@ void *mboot2_find_tag(void *base, uint32_t type) {
 }
 
 void mboot2_load_modules(void *base) {
-	struct multiboot_tag_module *mod = mboot2_find_tag(base, MULTIBOOT_TAG_TYPE_MODULE);
+	struct multiboot_tag_module *mod = mboot2_find_tag(mboot2_find_tag(base, MULTIBOOT_TAG_TYPE_MODULE), MULTIBOOT_TAG_TYPE_MODULE);
     while (mod) {
     	elf_module(mod);
         mod = mboot2_find_tag(mod, MULTIBOOT_TAG_TYPE_MODULE);
@@ -77,9 +77,9 @@ void generic_pause(void) {
 void kmain(void *mboot_info, uint32_t mboot_magic) {
     serial_install();
     
-    dprintf("%s %d.%d %s %s %s %s\n",
+    dprintf("%s %d.%d-%s %s %s %s\n",
         __kernel_name, __kernel_version_major, __kernel_version_minor,
-		__kernel_build_date, __kernel_build_time, __kernel_arch, __kernel_commit_hash);
+		__kernel_commit_hash, __kernel_build_date, __kernel_build_time, __kernel_arch);
 
     assert(mboot_magic == 0x36d76289);
     gdt_install();
@@ -93,6 +93,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 
 	printf("\n  \033[97mStarting up \033[94mbentobox (%s)\033[0m\n\n", __kernel_arch);
 
+    elf_module(mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_MODULE));
 	acpi_install(mboot_info);
 	lapic_install();
 	ioapic_install();

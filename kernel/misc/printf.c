@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
-#include <kernel/arch/x86_64/vga.h>
 
 void parse_num(char *s, int *ptr, int64_t val, uint32_t base, bool is_signed) {
     if (is_signed && val < 0) {
@@ -68,7 +67,7 @@ int vprintf(const char *fmt, va_list args) {
     char buf[1024] = {-1};
     int ret = vsprintf(buf, fmt, args);
     
-    vga_puts(buf);
+    puts(buf);
     return ret;
 }
 
