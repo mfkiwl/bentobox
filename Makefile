@@ -64,6 +64,7 @@ bin/kernel/%.S.o: kernel/%.S
 
 kernel/target_arch.c:
 	@echo "const char *__kernel_arch = \"$(ARCH)\";" > $@
+	@echo "const char *__kernel_commit_hash = \"$(shell git rev-parse --short HEAD)\";" >> $@
 	
 bin/modules/%.o: modules/%.c
 	@echo " CC $<"

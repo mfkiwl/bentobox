@@ -125,14 +125,6 @@ void vmm_install(void) {
 
     /* TODO: use separate pagemaps for usermode processes */
     
-    for (uintptr_t text = (uintptr_t)text_start_ld; text < (uintptr_t)text_end_ld; text += PAGE_SIZE)
-        mmu_map((uintptr_t)VIRTUAL(text), text, PTE_PRESENT | PTE_USER);
-    for (uintptr_t rodata = (uintptr_t)rodata_start_ld; rodata < (uintptr_t)rodata_end_ld; rodata += PAGE_SIZE)
-        mmu_map((uintptr_t)VIRTUAL(rodata), rodata, PTE_PRESENT | PTE_USER);
-    for (uintptr_t data = (uintptr_t)data_start_ld; data < (uintptr_t)data_end_ld; data += PAGE_SIZE)
-        mmu_map((uintptr_t)VIRTUAL(data), data, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    for (uintptr_t bss = (uintptr_t)bss_start_ld; bss < (uintptr_t)bss_end_ld; bss += PAGE_SIZE)
-        mmu_map((uintptr_t)VIRTUAL(bss), bss, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     for (uintptr_t addr = 0x1000; addr < 64 * 1024 * 1024; addr += PAGE_SIZE)
         mmu_map(addr, addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
 

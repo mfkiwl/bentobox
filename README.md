@@ -39,9 +39,12 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [ ] PS/2 drivers
     - [ ] Keyboard
     - [ ] Mouse
-- [ ] TSS and ring3
+- [ ] Userspace support
+    - [X] TSS
+    - [ ] Ring 3 in the scheduler
+    - [ ] Port a libc
 - [ ] ELF loading using the MMU
-- [ ] Symbol table
+- [X] Symbol table
 - [ ] Initial filesystem
 - [X] `unimplemented` macro
 - [ ] Simplify the PCI driver

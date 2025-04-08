@@ -7,6 +7,7 @@ extern int __kernel_version_major;
 extern int __kernel_version_minor;
 
 extern const char *__kernel_arch;
+extern const char *__kernel_commit_hash;
 
 extern const char *__kernel_build_date;
 extern const char *__kernel_build_time;
