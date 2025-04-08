@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/ioapic.h>
+#include <kernel/elf64.h>
 #include <kernel/printf.h>
 
 extern void generic_fatal(void);
@@ -115,6 +116,19 @@ void isr_handler(struct registers *r) {
             r->rsp, r->rbx, r->rdx, r->rcx, r->rax, r->rip, r->r8, r->r9,
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,
             r->rflags);
+
+    struct stackframe {
+        struct stackframe *rbp;
+        uint64_t rip;
+    };
+    struct stackframe *frame_ptr = __builtin_frame_address(0);
+
+    char s[256];
+    for (int i = 0; i < 8 && frame_ptr->rbp; i++) {
+        elf_symbol_name(s, ksymtab, kstrtab, ksym_count, frame_ptr->rip);
+        dprintf("#%d  0x%lx in %s\n", i, frame_ptr->rip, s);
+        frame_ptr = frame_ptr->rbp;
+    }
 
     generic_fatal();
 }

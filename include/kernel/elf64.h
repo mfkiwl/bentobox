@@ -99,11 +99,9 @@ typedef struct {
 	Elf64_Xword p_align;
 } Elf64_Phdr;
 
-typedef struct {
-	Elf64_Sym *symtab;
-	char *strtab;
-	int  symbol_count;
-} Elf64;
+extern Elf64_Sym *ksymtab;
+extern char *kstrtab;
+extern int ksym_count;
 
-Elf64 *elf_load_ksym(struct multiboot_tag_elf_sections *mboot_elf);
-Elf64 *elf_module(struct multiboot_tag_module *mod);
+int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int sym_count, Elf64_Addr addr);
+int elf_module(struct multiboot_tag_module *mod);

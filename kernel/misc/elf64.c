@@ -5,30 +5,53 @@
 #include <kernel/string.h>
 #include <kernel/multiboot.h>
 
-void elf_get_symbol_name(char *str, Elf64 *elf, Elf64_Addr addr) {
-    for (int i = 0; i < elf->symbol_count; i++) {
-        if (addr >= elf->symtab[i].st_value &&
-            addr < elf->symtab[i].st_value + elf->symtab[i].st_size) {
-            sprintf(str, "%s+%lu", &elf->strtab[elf->symtab[i].st_name], addr - elf->symtab[i].st_value);
-            return;
+Elf64_Sym *ksymtab = NULL;
+char *kstrtab = NULL;
+int ksym_count = 0;
+
+int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int sym_count, Elf64_Addr addr) {
+    Elf64_Sym *sym = NULL;
+    Elf64_Addr best = (Elf64_Addr)-1;
+    
+    for (int i = 0; i < sym_count; i++) {
+        if (symtab[i].st_value == 0) {
+            continue;
+        }
+        if (symtab[i].st_value <= addr) {
+            if (symtab[i].st_size > 0 && addr < symtab[i].st_value + symtab[i].st_size) {
+                sym = &symtab[i];
+            }
+            
+            Elf64_Addr distance = addr - symtab[i].st_value;
+            if (distance < best) {
+                best = distance;
+                sym = &symtab[i];
+            }
         }
     }
-    strcpy(str, "(none)");
+
+    if (!sym) {
+        strcpy(s, "(none)");
+        return 1;
+    }
+
+    sprintf(s, "%s+%lu", &strtab[sym->st_name], addr - sym->st_value);
+    return 0;
 }
 
-Elf64 *elf_module(struct multiboot_tag_module *mod) {
-    printf("elf: loading module \"%s\"\n", mod->string);
+int elf_module(struct multiboot_tag_module *mod) {
+    dprintf("%s:%d: loading module \"%s\"\n", __FILE__, __LINE__, mod->string);
 
     Elf64_Ehdr *ehdr = (Elf64_Ehdr *)(uintptr_t)mod->mod_start;
 
     if (memcmp(ehdr->e_ident, "\x7f""ELF", 4)) {
         printf("elf: invalid elf file\n");
-        return NULL;
+        return -EINVAL;
     }
 
     if (ehdr->e_ident[EI_CLASS] != ELFCLASS64) {
         printf("elf: unsupported elf class\n");
-        return NULL;
+        return -EINVAL;
     }
 
     Elf64_Shdr *shdr = (Elf64_Shdr *)(mod->mod_start + ehdr->e_shoff);
@@ -45,10 +68,6 @@ Elf64 *elf_module(struct multiboot_tag_module *mod) {
         }
     }
 
-    for (i = 0; i < symbol_count; i++) {
-        printf("elf: addr=0x%lx, symbol=%s\n", symtab[i].st_value, &strtab[symtab[i].st_name]);
-    }
-
     Elf64_Phdr *phdr = (Elf64_Phdr *)(mod->mod_start + ehdr->e_phoff);
 
     for (i = 0; i < ehdr->e_phnum; i++) {
@@ -57,15 +76,10 @@ Elf64 *elf_module(struct multiboot_tag_module *mod) {
         }
     }
 
-    Elf64 *elf = kmalloc(sizeof(Elf64));
-    elf->symtab = symtab;
-    elf->strtab = strtab;
-    elf->symbol_count = symbol_count;
-
-    char str[256];
-    elf_get_symbol_name(str, elf, 0x401004);
-
-    printf("elf: %s\n", str);
-
-    return NULL;
+    if (!strcmp(mod->string, "ksym")) {
+        ksymtab = symtab;
+        kstrtab = strtab;
+        ksym_count = symbol_count;
+    }
+    return 0;
 }

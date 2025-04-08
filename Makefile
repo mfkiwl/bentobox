@@ -77,6 +77,7 @@ kernel: $(KERNEL_OBJS)
 	@echo " LD kernel/*"
 	@rm kernel/target_arch.c
 	@$(LD) $(LDFLAGS) $^ -o bin/$(IMAGE_NAME).elf
+	@objcopy -g bin/$(IMAGE_NAME).elf bin/ksym.elf
 
 modules: $(MODULE_OBJS) $(MODULE_BINARIES)
 
@@ -91,7 +92,7 @@ iso:
 	@mkdir -p iso_root/modules/
 	@find bin/modules/ -type f -name '*.elf' -exec cp {} iso_root/modules/ \;
 	@cp bin/$(IMAGE_NAME).elf iso_root/boot/$(IMAGE_NAME).elf
-#	@cp bin/modules/* iso_root/modules/
+	@cp bin/ksym.elf iso_root/boot/ksym.elf
 	@cp boot/grub.cfg iso_root/boot/grub/grub.cfg
 	@grub-mkrescue -o bin/$(IMAGE_NAME).iso iso_root/ -quiet 2>&1 >/dev/null | grep -v libburnia | cat
 	@rm -rf iso_root/

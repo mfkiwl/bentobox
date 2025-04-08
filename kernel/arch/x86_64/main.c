@@ -45,6 +45,14 @@ void *mboot2_find_tag(void *base, uint32_t type) {
 	return mboot2_find_next(header, type);
 }
 
+void mboot2_load_modules(void *base) {
+	struct multiboot_tag_module *mod = mboot2_find_tag(base, MULTIBOOT_TAG_TYPE_MODULE);
+    while (mod) {
+    	elf_module(mod);
+        mod = mboot2_find_tag(mod, MULTIBOOT_TAG_TYPE_MODULE);
+    }
+}
+
 void puts(char *s) {
 	if (!ft_ctx) {
 		vga_puts(s);
@@ -91,7 +99,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	hpet_install();
 	lapic_calibrate_timer();
 	smp_initialize();
-    elf_module(mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_MODULE));
+	mboot2_load_modules(mboot_info);
 
 	generic_startup();
 	generic_main();
