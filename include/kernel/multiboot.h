@@ -94,4 +94,5 @@ struct multiboot_tag_framebuffer {
     };
 } __attribute__((packed));
 
+void *mboot2_find_next(char *current, uint32_t type);
 void *mboot2_find_tag(void *base, uint32_t type);

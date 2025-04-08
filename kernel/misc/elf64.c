@@ -67,18 +67,40 @@ int elf_module(struct multiboot_tag_module *mod) {
         }
     }
 
-    Elf64_Phdr *phdr = (Elf64_Phdr *)(mod->mod_start + ehdr->e_phoff);
-
-    for (i = 0; i < ehdr->e_phnum; i++) {
-        if (phdr[i].p_type == PT_LOAD) {
-            // TODO: load segment
-        }
-    }
-
     if (!strcmp(mod->string, "ksym")) {
         ksymtab = symtab;
         kstrtab = strtab;
         ksym_count = symbol_count;
+        return 0;
     }
+
+    Elf64_Phdr *phdr = (Elf64_Phdr *)(mod->mod_start + ehdr->e_phoff);
+
+    for (i = 0; i < ehdr->e_phnum; i++) {
+        if (phdr[i].p_type == PT_LOAD) {
+            printf("elf: loading segment: vaddr=0x%lx, size=0x%lx\n", phdr[i].p_vaddr, phdr[i].p_memsz);
+
+            size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
+            uintptr_t paddr = (uintptr_t)mmu_alloc(pages);
+            uintptr_t vaddr = phdr[i].p_vaddr;
+
+            mmu_map_pages(pages, paddr, vaddr, PTE_PRESENT | PTE_WRITABLE);
+
+            if (phdr[i].p_filesz > 0) {
+                uintptr_t src = (uintptr_t)mod->mod_start + phdr[i].p_offset;
+                uintptr_t dest = paddr;
+
+                memcpy((void *)dest, (void *)src, phdr[i].p_filesz);
+            }
+
+            if (phdr[i].p_memsz > phdr[i].p_filesz) {
+                memset((void *)(paddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
+            }
+        }
+    }
+
+    void (*entry_point)(void) = (void (*)(void))ehdr->e_entry;
+    entry_point();
+
     return 0;
 }

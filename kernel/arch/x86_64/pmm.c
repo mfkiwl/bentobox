@@ -60,7 +60,7 @@ void pmm_install(void *mboot_info) {
     struct multiboot_tag_module *mod = mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_MODULE);
     while (mod) {
         mmu_mark_used((void *)(uintptr_t)mod->mod_start, ALIGN_UP(mod->mod_end - mod->mod_start, PAGE_SIZE) / PAGE_SIZE);
-        mod = mboot2_find_tag(mod, MULTIBOOT_TAG_TYPE_MODULE);
+        mod = mboot2_find_next((char *)mod + ALIGN_UP(mod->size, 8), MULTIBOOT_TAG_TYPE_MODULE);
     }
 
 	mmu_mark_used(mboot_info, 2);

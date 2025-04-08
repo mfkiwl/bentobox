@@ -48,10 +48,11 @@ void *mboot2_find_tag(void *base, uint32_t type) {
 }
 
 void mboot2_load_modules(void *base) {
-	struct multiboot_tag_module *mod = mboot2_find_tag(mboot2_find_tag(base, MULTIBOOT_TAG_TYPE_MODULE), MULTIBOOT_TAG_TYPE_MODULE);
+	struct multiboot_tag_module *mod = mboot2_find_tag(base, MULTIBOOT_TAG_TYPE_MODULE);
     while (mod) {
-    	elf_module(mod);
-        mod = mboot2_find_tag(mod, MULTIBOOT_TAG_TYPE_MODULE);
+		if (strcmp(mod->string, "ksym")) 
+    		elf_module(mod); /* skip ksym module */
+        mod = mboot2_find_next((char *)mod + ALIGN_UP(mod->size, 8), MULTIBOOT_TAG_TYPE_MODULE);
     }
 }
 
@@ -97,7 +98,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 
 	printf("\n  \033[97mStarting up \033[94mbentobox (%s)\033[0m\n\n", __kernel_arch);
 
-    elf_module(mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_MODULE));
+	elf_module(mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_MODULE));
 	acpi_install(mboot_info);
 	lapic_install();
 	ioapic_install();
