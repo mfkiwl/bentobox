@@ -23,9 +23,13 @@ void parse_hex(char *s, int *ptr, uint64_t val, int i) {
 }
 
 void parse_string(char *s, int *ptr, char *str) {
-    while (*str) {
-        s[(*ptr)++] = *str++;
+    if (!str) {
+        memcpy(s + *ptr, "(null)", 6);
+        *ptr += 6;
+        return;
     }
+    strcpy(s + *ptr, str);
+    *ptr += strlen(str);
 }
 
 int vsprintf(char *s, const char *fmt, va_list args) {
