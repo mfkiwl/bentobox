@@ -1,8 +1,6 @@
-#include <kernel/arch/x86_64/io.h>
+#include <kernel/printf.h>
 
-void _start() {
-    outb(0x3f8, 'H');
-    outb(0x3f8, 'i');
-    outb(0x3f8, '!');
+void main() {
+    dprintf("Hello world!\n");
     for (;;);
 }

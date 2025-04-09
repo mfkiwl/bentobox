@@ -72,12 +72,13 @@ bin/modules/%.o: modules/%.c
 	@$(CC) $(CCFLAGS) -c $< -o $@
 
 bin/modules/%.elf: bin/modules/%.o
-	@$(LD) $< -o $@
+	@$(LD) $< bin/$(IMAGE_NAME)_ksym.elf -e main -o $@
 
 kernel: $(KERNEL_OBJS)
 	@echo " LD kernel/*"
 	@rm kernel/target_arch.c
 	@$(LD) $(LDFLAGS) $^ -o bin/$(IMAGE_NAME).elf
+	@$(LD) $(LDFLAGS) -r $^ -o bin/$(IMAGE_NAME)_ksym.elf
 
 modules: $(MODULE_OBJS) $(MODULE_BINARIES)
 
