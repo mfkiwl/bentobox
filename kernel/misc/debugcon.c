@@ -33,7 +33,12 @@ void debugger_task_entry(void) {
             continue;
         }
         if (!strncmp(input, "int3", 5)) {
-            //asm volatile ("int3");
+#ifdef __x86_64__
+            asm volatile ("int3");
+#else
+            dprintf("Not supported\n");
+            continue;
+#endif
         }
         if (!strncmp(input, "panic ", 6)) {
             panic(input + 6);

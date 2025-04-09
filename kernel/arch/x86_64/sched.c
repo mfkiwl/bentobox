@@ -55,6 +55,9 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->heap = heap_create();
     proc->fd_table[0] = vfs_open(vfs_root, "/dev/serial0");
     proc->fd_table[1] = vfs_open(vfs_root, "/dev/serial0");
+    proc->elf.symtab = NULL;
+    proc->elf.strtab = NULL;
+    proc->elf.symbol_count = 0;
 
     struct cpu *core = get_core(cpu == -1 ? next_cpu : cpu);
 

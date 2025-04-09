@@ -8,11 +8,11 @@ Elf64_Sym *ksymtab = NULL;
 char *kstrtab = NULL;
 int ksym_count = 0;
 
-int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int sym_count, Elf64_Addr addr) {
+int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_count, Elf64_Addr addr) {
     Elf64_Sym *sym = NULL;
     Elf64_Addr best = (Elf64_Addr)-1;
     
-    for (int i = 0; i < sym_count; i++) {
+    for (int i = 0; i < symbol_count; i++) {
         if (symtab[i].st_value == 0) {
             continue;
         }
@@ -99,8 +99,10 @@ int elf_module(struct multiboot_tag_module *mod) {
         }
     }
 
-    void (*entry_point)(void) = (void (*)(void))ehdr->e_entry;
-    entry_point();
+    struct task *proc = sched_new_task((void *)ehdr->e_entry, mod->string, -1);
+    proc->elf.symtab = symtab;
+    proc->elf.strtab = strtab;
+    proc->elf.symbol_count = symbol_count;
 
     return 0;
 }

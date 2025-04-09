@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/vfs.h>
+#include <kernel/elf64.h>
 #include <kernel/malloc.h>
 
 enum task_state {
@@ -19,6 +20,12 @@ struct task_time {
     uint64_t last;
 };
 
+struct task_elf {
+    Elf64_Sym *symtab;
+    const char *strtab;
+    int symbol_count;
+};
+
 struct task {
     struct registers ctx;
     struct task *next;
@@ -32,6 +39,7 @@ struct task {
     struct heap *heap;
     struct task_time time;
     struct vfs_node *fd_table[16];
+    struct task_elf elf;
 };
 
 void sched_install(void);
