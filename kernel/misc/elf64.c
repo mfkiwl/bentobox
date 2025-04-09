@@ -29,6 +29,11 @@ int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_c
         }
     }
 
+    if (symtab == ksymtab && !strcmp(&strtab[sym->st_name], "end")) {
+        strcpy(s, "(none)");
+        return 1;
+    }
+
     if (!sym) {
         strcpy(s, "(none)");
         return 1;
@@ -78,6 +83,9 @@ int elf_module(struct multiboot_tag_module *mod) {
 
     for (i = 0; i < ehdr->e_phnum; i++) {
         if (phdr[i].p_type == PT_LOAD) {
+            if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
+                continue;
+
             printf("elf: loading segment: vaddr=0x%lx, size=0x%lx\n", phdr[i].p_vaddr, phdr[i].p_memsz);
 
             size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;

@@ -62,23 +62,28 @@ bin/kernel/%.S.o: kernel/%.S
 	@mkdir -p "$$(dirname $@)"
 	@$(AS) $(ASFLAGS) -o $@ $<
 
-kernel/target_arch.c:
+kernel/target_arch.c: bin/.target
 	@echo "const char *__kernel_arch = \"$(ARCH)\";" > $@
 	@echo "const char *__kernel_commit_hash = \"$(shell git rev-parse --short HEAD)\";" >> $@
-	
-bin/modules/%.o: modules/%.c
+
+bin/.target: kernel/target_arch.c
+	@touch $@
+
+bin/modules/%.o: modules/%.c $(KERNEL_OBJS)
 	@echo " CC $<"
 	@mkdir -p "$$(dirname $@)"
 	@$(CC) $(CCFLAGS) -c $< -o $@
 
 bin/modules/%.elf: bin/modules/%.o
-	@$(LD) $< bin/$(IMAGE_NAME)_ksym.elf -e main -o $@
+	@echo " LD $<"
+	@cp $< bin/module.elf
+	@ld -Tmodules/linker.ld bin/ksym_rel.elf bin/module.elf -o $@
 
 kernel: $(KERNEL_OBJS)
 	@echo " LD kernel/*"
-	@rm kernel/target_arch.c
 	@$(LD) $(LDFLAGS) $^ -o bin/$(IMAGE_NAME).elf
-	@$(LD) $(LDFLAGS) -r $^ -o bin/$(IMAGE_NAME)_ksym.elf
+	@$(LD) $(LDFLAGS) -r $^ -o bin/ksym_rel.elf
+	@objcopy --only-keep-debug bin/$(IMAGE_NAME).elf bin/ksym.elf
 
 modules: $(MODULE_OBJS) $(MODULE_BINARIES)
 
@@ -93,7 +98,6 @@ iso:
 	@mkdir -p iso_root/modules/
 	@find bin/modules/ -type f -name '*.elf' -exec cp {} iso_root/modules/ \;
 	@cp bin/$(IMAGE_NAME).elf iso_root/boot/$(IMAGE_NAME).elf
-	@objcopy -g bin/$(IMAGE_NAME).elf bin/ksym.elf
 	@cp bin/ksym.elf iso_root/boot/ksym.elf
 	@cp boot/grub.cfg iso_root/boot/grub/grub.cfg
 	@grub-mkrescue -o bin/$(IMAGE_NAME).iso iso_root/ -quiet 2>&1 >/dev/null | grep -v libburnia | cat

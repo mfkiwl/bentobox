@@ -13,7 +13,7 @@ uint64_t hex_to_long(const char *str) {
     return result;
 }
 
-void debugger_task_entry(void) {
+void main(void) {
     char input[128];
     for (;;) {
         dprintf(">>> ");
