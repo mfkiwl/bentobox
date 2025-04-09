@@ -1,4 +1,5 @@
 bin/
+kernel/target_arch.c
 compile_commands.json
 .cache
 .vscode
