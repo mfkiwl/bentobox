@@ -32,40 +32,12 @@ void pci_write(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset, ui
 #endif
 }
 
-uint8_t pci_get_irq_line(uint8_t bus, uint8_t device, uint8_t function) {
-    return (uint8_t)pci_read(bus, device, function, 0x3C);
-}
-
 uint16_t pci_config_read_word(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset) {
     return pci_read(bus, device, function, offset) >> ((offset & 2) * 8);
 }
 
-uint16_t pci_get_vendor_id(uint8_t bus, uint8_t device, uint8_t function) {
-    return pci_config_read_word(bus, device, function, 0x02);
-}
-
-uint16_t pci_get_device_id(uint8_t bus, uint8_t device, uint8_t function) {
-    return pci_config_read_word(bus, device, function, 0x00);
-}
-
-uint8_t pci_get_class(uint8_t bus, uint8_t device, uint8_t function) {
-    return (uint8_t)(pci_config_read_word(bus, device, function, 0x0A) >> 8);
-}
-
-uint8_t pci_get_subclass(uint8_t bus, uint8_t device, uint8_t function) {
-    return (uint8_t)(pci_config_read_word(bus, device, function, 0x0A));
-}
-
-uint8_t pci_get_progif(uint8_t bus, uint8_t device, uint8_t function) {
-    return (uint8_t)(pci_config_read_word(bus, device, function, 0x08) >> 8);
-}
-
-uint8_t pci_get_header_type(uint8_t bus, uint8_t device, uint8_t function) {
-    return (uint8_t)(pci_config_read_word(bus, device, function, 0x0E));
-}
-
 uint8_t pci_get_secondary_bus(uint8_t bus, uint8_t device, uint8_t function) {
-    uint8_t header_type = pci_get_header_type(bus, device, function);
+    uint8_t header_type = (uint8_t)(pci_config_read_word(bus, device, function, 0x0E));
 
     if (header_type != 0x1) {
         return 0xFF;
@@ -89,19 +61,19 @@ int pci_find_capability(struct pci_device *dev, uint8_t cap_id) {
 
 void pci_check_device(uint8_t bus, uint8_t device) {
     uint8_t function = 0;
-    uint16_t vendor_id = pci_get_vendor_id(bus, device, 0);
-    uint16_t device_id = pci_get_device_id(bus, device, 0);
-    uint16_t class = pci_get_class(bus, device, 0);
-    uint16_t subclass = pci_get_subclass(bus, device, 0);
+    uint16_t vendor_id = pci_config_read_word(bus, device, 0, 0x02);
+    uint16_t device_id = pci_config_read_word(bus, device, 0, 0x00);
+    uint8_t class = (uint8_t)(pci_config_read_word(bus, device, function, 0x0A) >> 8);
+    uint8_t subclass = (uint8_t)(pci_config_read_word(bus, device, function, 0x0A));
 
     if (vendor_id == 0xFFFF) return;
 
     pci_check_function(bus, device, function);
-    uint16_t header_type = pci_get_header_type(bus, device, function);
+    uint16_t header_type = (uint8_t)(pci_config_read_word(bus, device, function, 0x0E));
     
     if ((header_type & 0x80) != 0) {
         for (function = 1; function < 8; function++) {
-            if (pci_get_vendor_id(bus, device, function) != 0xFFFF) {
+            if (pci_config_read_word(bus, device, function, 0x02) != 0xFFFF) {
                 pci_check_function(bus, device, function);
             }
         }
@@ -126,8 +98,8 @@ void pci_check_bus(uint8_t bus) {
 }
 
 void pci_check_function(uint8_t bus, uint8_t device, uint8_t function) {
-    uint8_t base_class = pci_get_class(bus, device, function);
-    uint8_t sub_class = pci_get_subclass(bus, device, function);
+    uint8_t base_class = (uint8_t)(pci_config_read_word(bus, device, function, 0x0A) >> 8);
+    uint8_t sub_class = (uint8_t)(pci_config_read_word(bus, device, function, 0x0A));
     uint8_t secondary_bus;
 
     if ((base_class == 0x6) && (sub_class == 0x4)) {
@@ -158,14 +130,14 @@ void pci_scan(void) {
     uint8_t function;
     uint8_t bus;
 
-    uint16_t header_type = pci_get_header_type(0, 0, 0);
+    uint16_t header_type = (uint8_t)(pci_config_read_word(0, 0, 0, 0x0E));
     if ((header_type & 0x80) == 0) {
         /* single PCI host controller */
         pci_check_bus(0);
     } else {
         /* multiple PCI host controllers */
         for (function = 0; function < 8; function++) {
-            if (pci_get_vendor_id(0, 0, function) != 0xFFFF) break;
+            if (pci_config_read_word(0, 0, function, 0x02) != 0xFFFF) break;
             bus = function;
             pci_check_bus(bus);
         }
