@@ -5,7 +5,8 @@
 #include <kernel/printf.h>
 
 extern void zero_initialize(void);
-extern void serial_tty_install(void);
+extern void ps2_dev_install(void);
+extern void serial_dev_install(void);
 
 struct vfs_node *vfs_root;
 struct vfs_node *vfs_dev;
@@ -127,7 +128,8 @@ void vfs_install(void) {
     vfs_add_node(vfs_root, vfs_dev);
 
     zero_initialize();
-    serial_tty_install();
+    ps2_dev_install();
+    serial_dev_install();
 
     printf("\033[92m * \033[97mInitialized virtual filesystem\033[0m\n");
 }

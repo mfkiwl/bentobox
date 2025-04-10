@@ -3,6 +3,7 @@
 #include <kernel/arch/x86_64/tss.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/smp.h>
+#include <kernel/arch/x86_64/ps2.h>
 #include <kernel/arch/x86_64/vga.h>
 #include <kernel/arch/x86_64/hpet.h>
 #include <kernel/arch/x86_64/lapic.h>
@@ -110,6 +111,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	acpi_install(mboot_info);
 	lapic_install();
 	ioapic_install();
+	ps2_install();
 	hpet_install();
 	lapic_calibrate_timer();
 	smp_initialize();

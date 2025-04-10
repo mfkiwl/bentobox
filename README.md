@@ -37,7 +37,7 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [ ] ext2fs support
 - [X] Framebuffer support
 - [ ] PS/2 drivers
-    - [ ] Keyboard
+    - [X] Keyboard
     - [ ] Mouse
 - [ ] Userspace support
     - [X] TSS

@@ -8,8 +8,6 @@
 
 #define COM1 0x3f8
 
-struct vfs_node *serial_dev = NULL;
-
 atomic_flag serial_lock = ATOMIC_FLAG_INIT;
 
 void serial_install(void) {
@@ -104,9 +102,9 @@ int32_t serial_read(struct vfs_node *node, void *buffer, uint32_t len) {
     return (int32_t)i;
 }
 
-void serial_tty_install(void) {
-    serial_dev = vfs_create_node("serial0", VFS_CHARDEVICE);
-    serial_dev->write = serial_write;
-    serial_dev->read = serial_read;
-    vfs_add_node(vfs_dev, serial_dev);
+void serial_dev_install(void) {
+    struct vfs_node *serial0 = vfs_create_node("serial0", VFS_CHARDEVICE);
+    serial0->write = serial_write;
+    serial0->read = serial_read;
+    vfs_add_node(vfs_dev, serial0);
 }
