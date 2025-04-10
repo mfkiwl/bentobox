@@ -78,6 +78,14 @@ void generic_load_modules(void) {
 	mboot2_load_modules(mboot);
 }
 
+void generic_map_kernel(uintptr_t *pml4) {
+	pml4[511] = kernel_pd[511];
+    mmu_map_pages(16383, 0x1000, 0x1000, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map((uintptr_t)VIRTUAL(hpet->address), hpet->address, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE);
+}
+
 void kmain(void *mboot_info, uint32_t mboot_magic) {
     serial_install();
     

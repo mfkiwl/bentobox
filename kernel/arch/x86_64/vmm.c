@@ -123,14 +123,9 @@ void vmm_install(void) {
     this_core()->pml4 = kernel_pd;
     memset(kernel_pd, 0, PAGE_SIZE);
 
-    /* TODO: use separate pagemaps for usermode processes */
-    
-    for (uintptr_t addr = 0x1000; addr < 64 * 1024 * 1024; addr += PAGE_SIZE)
-        mmu_map(addr, addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-
+    mmu_map_pages(16383, 0x1000, 0x1000, PTE_PRESENT | PTE_WRITABLE);
     dprintf("%s:%d: done mapping kernel regions\n", __FILE__, __LINE__);
 
     vmm_switch_pm(kernel_pd);
-    
     dprintf("%s:%d: successfully switched page tables\n", __FILE__, __LINE__);
 }

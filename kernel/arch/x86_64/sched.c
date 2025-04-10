@@ -86,6 +86,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
 void sched_schedule(struct registers *r) {
     sched_lock();
     lapic_stop_timer();
+    vmm_switch_pm(kernel_pd);
 
     struct cpu *this = this_core();
 
@@ -134,6 +135,8 @@ void sched_schedule(struct registers *r) {
     sched_unlock();
     lapic_eoi();
     lapic_oneshot(0x79, 5);
+
+    vmm_switch_pm(this->current_proc->page_dir);
 }
 
 void sched_yield(void) {
@@ -165,23 +168,6 @@ void sched_idle(void) {
     }
 }
 
-static void uptime_task(void) {
-    int hours = 0, minutes = 0, seconds = 0;
-    for (;;) {
-        if (seconds >= 60) {
-            seconds = 0;
-            minutes++;
-        }
-        if (minutes >= 60) {
-            minutes = 0;
-            hours++;
-        }
-
-        printf("\rUptime: %dh, %dmin, %ds", hours, minutes, seconds++);
-        sched_sleep(1000000);
-    }
-}
-
 void sched_start_all_cores(void) {
     irq_register(0x79 - 32, sched_schedule);
     for (uint32_t i = 1; i < madt_lapics; i++) {
@@ -193,7 +179,6 @@ void sched_start_all_cores(void) {
 
 void sched_install(void) {
     sched_new_task(sched_idle, "System Idle Process", -1);
-    sched_new_task(uptime_task, "Uptime Task", -1);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }

@@ -8,6 +8,8 @@ Elf64_Sym *ksymtab = NULL;
 char *kstrtab = NULL;
 int ksym_count = 0;
 
+extern void generic_map_kernel(uintptr_t *pml4);
+
 int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_count, Elf64_Addr addr) {
     Elf64_Sym *sym = NULL;
     Elf64_Addr best = (Elf64_Addr)-1;
@@ -79,6 +81,11 @@ int elf_module(struct multiboot_tag_module *mod) {
         return 0;
     }
 
+    uintptr_t *pml4 = mmu_alloc(1);
+    mmu_map((uintptr_t)VIRTUAL(pml4), (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE);
+    this_core()->pml4 = pml4;
+    generic_map_kernel(pml4);
+
     Elf64_Phdr *phdr = (Elf64_Phdr *)(mod->mod_start + ehdr->e_phoff);
 
     for (i = 0; i < ehdr->e_phnum; i++) {
@@ -111,6 +118,8 @@ int elf_module(struct multiboot_tag_module *mod) {
     proc->elf.symtab = symtab;
     proc->elf.strtab = strtab;
     proc->elf.symbol_count = symbol_count;
+    proc->page_dir = pml4;
 
+    this_core()->pml4 = kernel_pd;
     return 0;
 }
