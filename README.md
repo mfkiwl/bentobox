@@ -43,7 +43,7 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
     - [X] TSS
     - [ ] Ring 3 in the scheduler
     - [ ] Port a libc
-- [ ] ELF loading using the MMU
+- [X] ELF loading
 - [X] Symbol table
 - [ ] Initial filesystem
 - [X] `unimplemented` macro
