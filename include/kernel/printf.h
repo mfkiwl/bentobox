@@ -6,6 +6,7 @@
 #define stdin (this_core()->current_proc->fd_table[0])
 #define stdout (this_core()->current_proc->fd_table[1])
 
+void putchar(char c);
 void puts(char *s);
 
 int vsprintf(char *s, const char *fmt, va_list args);

@@ -57,6 +57,14 @@ void mboot2_load_modules(void *base) {
     }
 }
 
+void putchar(char c) {
+	if (!ft_ctx) {
+		vga_putchar(c);
+	} else {
+		flanterm_write(ft_ctx, &c, 1);
+	}
+}
+
 void puts(char *s) {
 	if (!ft_ctx) {
 		vga_puts(s);

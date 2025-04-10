@@ -7,6 +7,7 @@
 extern void zero_initialize(void);
 extern void ps2_dev_install(void);
 extern void serial_dev_install(void);
+extern void console_dev_install(void);
 
 struct vfs_node *vfs_root;
 struct vfs_node *vfs_dev;
@@ -130,6 +131,7 @@ void vfs_install(void) {
     zero_initialize();
     ps2_dev_install();
     serial_dev_install();
+    console_dev_install();
 
     printf("\033[92m * \033[97mInitialized virtual filesystem\033[0m\n");
 }
