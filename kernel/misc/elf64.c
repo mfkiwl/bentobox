@@ -93,8 +93,6 @@ int elf_module(struct multiboot_tag_module *mod) {
             if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
                 continue;
 
-            printf("elf: loading segment: vaddr=0x%lx, size=0x%lx\n", phdr[i].p_vaddr, phdr[i].p_memsz);
-
             size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
             uintptr_t paddr = (uintptr_t)mmu_alloc(pages);
             uintptr_t vaddr = phdr[i].p_vaddr;
