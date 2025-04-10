@@ -48,3 +48,4 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [ ] Initial filesystem
 - [X] `unimplemented` macro
 - [ ] Simplify the PCI driver
+- [X] FIFO queues
