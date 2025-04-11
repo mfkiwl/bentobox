@@ -2,17 +2,21 @@
 bentobox is a 64-bit SMP-enabled operating system targeting x86_64 and RISC-V
 
 ## Features on x86_64
-- Supports for multiboot2
-- 4-level paging with 48-bit addressing
+- Multiboot 2 boot & module support
+- 4-level paging
 - VGA text mode and serial driver
 - ACPI table parsing
 - LAPIC & IOAPIC support
 - HPET timer support
 - SMP-aware scheduler
 - Node Graph VFS
+- ELf64 loading
 
 ## Features on riscv
 - Virtio UART driver
+
+> [!NOTE]
+> bentobox on RISC-V is a stub
 
 ## Building (x86_64)
 To build, you need to install the following packages:

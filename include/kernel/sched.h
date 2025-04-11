@@ -32,8 +32,7 @@ struct task {
     struct task *prev;
     const char *name;
     uint64_t *stack;
-    uint64_t *page_dir;
-    uint8_t ring;
+    uint64_t *pml4;
     long pid;
     enum task_state state;
     struct heap *heap;

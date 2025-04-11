@@ -123,7 +123,7 @@ void vmm_install(void) {
     this_core()->pml4 = kernel_pd;
     memset(kernel_pd, 0, PAGE_SIZE);
 
-    mmu_map_pages(16383, 0x1000, 0x1000, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map_pages(16383, 0x1000, 0x1000, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     dprintf("%s:%d: done mapping kernel regions\n", __FILE__, __LINE__);
 
     vmm_switch_pm(kernel_pd);

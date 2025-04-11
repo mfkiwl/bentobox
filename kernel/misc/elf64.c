@@ -116,7 +116,7 @@ int elf_module(struct multiboot_tag_module *mod) {
     proc->elf.symtab = symtab;
     proc->elf.strtab = strtab;
     proc->elf.symbol_count = symbol_count;
-    proc->page_dir = pml4;
+    proc->pml4 = pml4;
 
     this_core()->pml4 = kernel_pd;
     return 0;

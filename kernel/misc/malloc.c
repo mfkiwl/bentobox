@@ -17,9 +17,9 @@ void kfree(void *ptr) {
 __attribute__((no_sanitize("undefined")))
 struct heap *heap_create(void) {
     struct heap *h = (struct heap *)VIRTUAL(mmu_alloc(1));
-    mmu_map((uintptr_t)h, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE);
+    mmu_map((uintptr_t)h, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     h->head = (struct heap_block *)VIRTUAL(mmu_alloc(1));
-    mmu_map((uintptr_t)h->head, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE);
+    mmu_map((uintptr_t)h->head, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     h->head->next = h->head;
     h->head->prev = h->head;
     h->head->size = 0;
@@ -55,7 +55,7 @@ void *heap_alloc(struct heap *h, uint64_t n) {
         printf("%s:%d: allocation failed\n", __FILE__, __LINE__);
         return NULL;
     }
-    mmu_map((uintptr_t)block, (uintptr_t)PHYSICAL(block), PTE_PRESENT | PTE_WRITABLE);
+    mmu_map((uintptr_t)block, (uintptr_t)PHYSICAL(block), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     block->next = h->head;
     block->prev = h->head->prev;
     block->size = n;
