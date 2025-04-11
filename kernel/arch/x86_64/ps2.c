@@ -81,16 +81,16 @@ int32_t ps2_keyboard_read(struct vfs_node *node, void *buffer, uint32_t len) {
         buf[i] = getc();
 
         if (buf[i] == '\n') {
-            vfs_write(stdout, "\n", 1);
+            fprintf(stdout, "\n");
             buf[i] = '\0';
             return (int32_t)i;
-        } else if (buf[i] == 127) {
+        } else if (buf[i] == '\b') {
             if (i > 0) {
-                vfs_write(stdout, "\b \b", 3);
+                fprintf(stdout, "\b \b");
                 i--;
             }
         } else {
-            vfs_write(stdout, &buf[i], 1);
+            fprintf(stdout, "%c", buf[i]);
             i++;
         }
     }

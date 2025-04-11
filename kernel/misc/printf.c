@@ -1,5 +1,6 @@
 #include <stdarg.h>
 #include <stdint.h>
+#include <kernel/vfs.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 
@@ -82,6 +83,18 @@ int sprintf(char *str, const char *fmt, ...) {
     int ret = vsprintf(buf, fmt, args);
     strcpy(str, buf);
     va_end(args);
+
+    return ret;
+}
+
+int fprintf(int stream, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    char buf[1024] = {0};
+    int ret = vsprintf(buf, fmt, args);
+    va_end(args);
+
+    vfs_write(this_core()->current_proc->fd_table[stream], buf, strlen(buf));
 
     return ret;
 }

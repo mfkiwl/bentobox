@@ -14,44 +14,40 @@ uint64_t hex_to_long(const char *str) {
 }
 
 void main(void) {
-    char input[128];
+    char input[128] = {0};
     for (;;) {
-        dprintf(">>> ");
-
+        fprintf(stdout, ">>> ");
         vfs_read(stdin, input, sizeof(input));
-        if (!strncmp(input, "list ", 5)) {
+
+        if (!input[0]) {}
+        else if (!strncmp(input, "list ", 5)) {
             uint64_t addr = hex_to_long(input + 5);
             int i, len = 16;
 
             for (i = 0; i < len; i++) {
-                dprintf("0x%x ", *(uint64_t *)(addr));
+                fprintf(stdout, "0x%x ", *(uint64_t *)(addr));
                 if ((i % 4) == 3) {
-                    dprintf("\n");
+                    fprintf(stdout, "\n");
                 }
                 addr += 4;
             }
-            continue;
-        }
-        if (!strncmp(input, "int3", 5)) {
+        } else if (!strncmp(input, "int3", 5)) {
 #ifdef __x86_64__
             asm volatile ("int3");
 #else
-            dprintf("Not supported\n");
-            continue;
+            fprintf(stdout, "Not supported\n");
 #endif
-        }
-        if (!strncmp(input, "panic ", 6)) {
+        } else if (!strncmp(input, "panic ", 6)) {
             panic(input + 6);
-            continue;
+        } else if (!strncmp(input, "cls", 4) || !strncmp(input, "clear", 6)) {
+            fprintf(stdout, "\033[2J\033[H");
+        } else if (!strncmp(input, "help", 5)) {
+            fprintf(stdout, "bentobox debugger (%s)\n", this_core()->current_proc->fd_table[1]->name);
+            fprintf(stdout, "Built-in commands: list, int3, cls/clear, help\n");
+        } else {
+            fprintf(stdout, "%s: command not found\n", input);
         }
-        if (!strncmp(input, "cls", 4) || !strncmp(input, "clear", 6)) {
-            dprintf("\033[2J\033[H");
-            continue;
-        }
-        if (!strncmp(input, "help", 5)) {
-            dprintf("bentobox debugger (%s)\n", stdout->name);
-            dprintf("Built-in commands: list, int3, cls/clear, help\n");
-            continue;
-        }
+
+        memset(input, 0, sizeof(input));
     }
 }
