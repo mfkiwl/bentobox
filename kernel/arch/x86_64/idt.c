@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <kernel/arch/x86_64/idt.h>
+#include <kernel/arch/x86_64/vmm.h>
 #include <kernel/arch/x86_64/ioapic.h>
 #include <kernel/ksym.h>
 #include <kernel/elf64.h>
@@ -97,6 +98,13 @@ void isr_handler(struct registers *r) {
     if (r->int_no == 0x02) {
         asm ("cli");
 	    for (;;) asm ("hlt");
+    }
+
+    vmm_switch_pm(kernel_pd);
+
+    if (r->cs & 3) {
+        dprintf("%s:%d: \033[91m%s\033[0m on \"%s\"\n", __FILE__, __LINE__, isr_errors[r->int_no], this_core()->current_proc->name);
+        sched_kill(this_core()->current_proc);
     }
 
     uint64_t cr2;
