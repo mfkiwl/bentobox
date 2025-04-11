@@ -95,6 +95,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     proc->pml4 = pml4;
 
     this_core()->pml4 = kernel_pd;
+    return proc;
 }
 
 void sched_schedule(struct registers *r) {

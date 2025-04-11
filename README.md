@@ -45,7 +45,7 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
     - [ ] Mouse
 - [ ] Userspace support
     - [X] TSS
-    - [ ] Ring 3 in the scheduler
+    - [X] Ring 3 in the scheduler
     - [ ] Port a libc
 - [X] ELF loading
 - [X] Symbol table
