@@ -6,9 +6,9 @@
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/sched.h>
+#include <kernel/mmu.h>
 
 extern void flush_tss();
-extern const char stack_top[];
 
 struct tss_entry tss;
 
@@ -26,7 +26,7 @@ void write_tss(int index, uint64_t rsp0) {
 }
 
 void tss_install(void) {
-    write_tss(5, (uint64_t)stack_top);
+    write_tss(5, (uint64_t)mmu_alloc(1));
     dprintf("%s:%d: initialized TSS on CPU #%d\n", __FILE__, __LINE__, this_core()->id);
 }
 

@@ -69,6 +69,7 @@ void puts(char *s) {
 	if (!ft_ctx) {
 		vga_puts(s);
 	} else {
+		// TODO: have a spinlock for flanterm
 		flanterm_write(ft_ctx, s, strlen(s));
 	}
 }
@@ -108,8 +109,8 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	mboot = mboot_info;
     gdt_install();
     idt_install();
-	tss_install();
 	pmm_install(mboot_info);
+	tss_install();
 	vmm_install();
 	kernel_heap = heap_create();
 
