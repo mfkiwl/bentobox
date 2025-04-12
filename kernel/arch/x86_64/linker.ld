@@ -5,7 +5,7 @@ SECTIONS
     . = 1M;
 
     text_start_ld = .;
-    .text BLOCK(4K) : ALIGN(4K)
+    .text :
     {
         *(.multiboot)
         *(.text.prologue)
@@ -13,22 +13,28 @@ SECTIONS
     }
     text_end_ld = .;
 
+    . = ALIGN(4K);
+
     rodata_start_ld = .;
-    .rodata BLOCK(4K) : ALIGN(4K)
+    .rodata :
     {
         *(.rodata)
     }
     rodata_end_ld = .;
 
+    . = ALIGN(4K);
+
     data_start_ld = .;
-    .data BLOCK(4K) : ALIGN(4K)
+    .data :
     {
         *(.data)
     }
     data_end_ld = .;
 
+    . = ALIGN(4K);
+
     bss_start_ld = .;
-    .bss BLOCK(4K) : ALIGN(4K)
+    .bss :
     {
         *(COMMON)
         *(.bss)

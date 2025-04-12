@@ -41,7 +41,7 @@ MODULE_OBJS := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.o))
 # Get module binaries
 MODULE_BINARIES := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.elf))
 
-all: kernel modules iso
+all: kernel symbols modules iso
 
 run: all
 	@qemu-system-$(ARCH) $(QEMUFLAGS)
@@ -77,7 +77,7 @@ bin/modules/%.o: modules/%.c $(KERNEL_OBJS)
 bin/modules/%.elf: bin/modules/%.o
 	@echo " LD $<"
 	@cp $< bin/module.elf
-	@ld -Tmodules/linker.ld bin/ksym_rel.elf bin/module.elf -o $@
+	@ld -Tbin/mod.ld bin/ksym_rel.elf bin/module.elf -o $@
 
 kernel: $(KERNEL_OBJS)
 	@echo " LD kernel/*"
@@ -86,6 +86,9 @@ kernel: $(KERNEL_OBJS)
 	@objcopy --only-keep-debug bin/$(IMAGE_NAME).elf bin/ksym.elf
 
 modules: $(MODULE_OBJS) $(MODULE_BINARIES)
+
+symbols:
+	@bash util/symbols.sh
 
 ifeq ($(ARCH),x86_64)
 iso:

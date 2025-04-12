@@ -1,8 +1,11 @@
 #include <kernel/vfs.h>
+#include <kernel/mmu.h>
 #include <kernel/panic.h>
 #include <kernel/ctype.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
+
+#include <kernel/arch/x86_64/vmm.h>
 
 uint64_t hex_to_long(const char *str) {
     uint64_t result = 0;
@@ -43,7 +46,10 @@ void main(void) {
             fprintf(stdout, "\033[2J\033[H");
         } else if (!strncmp(input, "help", 5)) {
             fprintf(stdout, "bentobox debugger (%s)\n", this_core()->current_proc->fd_table[1]->name);
-            fprintf(stdout, "Built-in commands: list, int3, cls/clear, help\n");
+            fprintf(stdout, "Built-in commands: list, int3, cls/clear, help, mem\n");
+        } else if (!strncmp(input, "mem", 4)) {
+            extern uint64_t pmm_usable_mem;
+            fprintf(stdout, "Usable memory: %luK\n", pmm_usable_mem / 1024);
         } else {
             fprintf(stdout, "%s: command not found\n", input);
         }
