@@ -46,6 +46,7 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [ ] Userspace support
     - [X] TSS
     - [X] Ring 3 in the scheduler
+    - [ ] Syscalls
     - [ ] Port a libc
 - [X] ELF loading
 - [X] Symbol table
@@ -54,3 +55,6 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [X] Simplify the PCI driver
 - [X] FIFO queues
 - [ ] Write a proper heap
+- [ ] Make an OS specific toolchain
+- [ ] VFS improvements
+- [ ] Module info headers
