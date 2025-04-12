@@ -41,14 +41,18 @@ MODULE_OBJS := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.o))
 # Get module binaries
 MODULE_BINARIES := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.elf))
 
-all: kernel symbols modules iso
+.PHONY: all
+all: kernel/target_arch.c kernel modules iso
 
+.PHONY: run
 run: all
 	@qemu-system-$(ARCH) $(QEMUFLAGS)
 
+.PHONY: run-kvm
 run-kvm: all
 	@qemu-system-$(ARCH) $(QEMUFLAGS) -accel kvm
 
+.PHONY: run-gdb
 run-gdb: all
 	@qemu-system-$(ARCH) $(QEMUFLAGS) -S -s
 
@@ -67,6 +71,7 @@ kernel/target_arch.c: bin/.target
 	@echo "const char *__kernel_commit_hash = \"$(shell git rev-parse --short HEAD)\";" >> $@
 
 bin/.target: kernel/target_arch.c
+	mkdir -p "$$(dirname $@)"
 	@touch $@
 
 bin/modules/%.o: modules/%.c $(KERNEL_OBJS)
@@ -74,24 +79,25 @@ bin/modules/%.o: modules/%.c $(KERNEL_OBJS)
 	@mkdir -p "$$(dirname $@)"
 	@$(CC) $(CCFLAGS) -c $< -o $@
 
-bin/modules/%.elf: bin/modules/%.o
-	@echo " LD $<"
-	@cp $< bin/module.elf
-	@ld -Tbin/mod.ld bin/ksym_rel.elf bin/module.elf -o $@
-
+.PHONY: kernel
 kernel: $(KERNEL_OBJS)
 	@echo " LD kernel/*"
 	@$(LD) $(LDFLAGS) $^ -o bin/$(IMAGE_NAME).elf
 	@$(LD) $(LDFLAGS) -r $^ -o bin/ksym_rel.elf
 	@objcopy --only-keep-debug bin/$(IMAGE_NAME).elf bin/ksym.elf
-
-modules: $(MODULE_OBJS) $(MODULE_BINARIES)
-
-symbols:
 	@bash util/symbols.sh
 
+.PHONY: modules
+modules: kernel $(MODULE_OBJS)
+	@for obj in $(MODULE_OBJS); do \
+		echo " LD $${obj}"; \
+		cp $${obj} bin/module.elf; \
+		ld -Tbin/mod.ld bin/ksym_rel.elf bin/module.elf -o $${obj%.o}.elf; \
+	done
+
+.PHONY: iso
 ifeq ($(ARCH),x86_64)
-iso:
+iso: kernel modules
 	@grub-file --is-x86-multiboot2 ./bin/$(IMAGE_NAME).elf; \
 	if [ $$? -eq 1 ]; then \
 		echo " error: $(IMAGE_NAME).elf is not a valid multiboot2 file"; \
@@ -111,6 +117,7 @@ else
     $(error Unsupported architecture: $(ARCH))
 endif
 
+.PHONY: clean
 clean:
 	@rm -f $(BOOT_OBJS) $(KERNEL_OBJS)
 	@rm -rf bin

@@ -27,7 +27,7 @@ To build, you need to install the following packages:
 - mtools
 - qemu-system-x86
 
-Then, you can simply run `make run` and the kernel will run in QEMU.
+Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 
 ## TODO
 - [X] `panic()` function
@@ -57,5 +57,5 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [ ] Write a better heap
 - [ ] Make an OS specific toolchain
 - [ ] General VFS improvemenst
-- [ ] Module info headers
+- [ ] Module metadata headers
 - [X] Allow use of symbols in debugcon.c

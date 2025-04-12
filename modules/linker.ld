@@ -19,4 +19,8 @@ SECTIONS
         bin/module.elf(.data)
         bin/module.elf(.bss)
     }
+
+    .modinfo : {
+        *(.modinfo)
+    }
 }
