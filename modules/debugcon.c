@@ -1,5 +1,6 @@
 #include <kernel/vfs.h>
 #include <kernel/mmu.h>
+#include <kernel/ksym.h>
 #include <kernel/panic.h>
 #include <kernel/ctype.h>
 #include <kernel/printf.h>
@@ -22,15 +23,19 @@ void main(void) {
 
         if (!input[0]) {}
         else if (!strncmp(input, "list ", 5)) {
-            uint64_t addr = hex_to_long(input + 5);
-            int i, len = 16;
+            uint64_t addr = !strncmp(input + 5, "0x", 2) ? hex_to_long(input + 7) : elf_symbol_addr(ksymtab, kstrtab, ksym_count, input + 5);
+            if (!addr) {
+                fprintf(stdout, "Symbol not found\n");
+            } else {
+                int i, len = 16;
 
-            for (i = 0; i < len; i++) {
-                fprintf(stdout, "0x%x ", *(uint64_t *)(addr));
-                if ((i % 4) == 3) {
-                    fprintf(stdout, "\n");
+                for (i = 0; i < len; i++) {
+                    fprintf(stdout, "0x%x ", *(uint64_t *)(addr));
+                    if ((i % 4) == 3) {
+                        fprintf(stdout, "\n");
+                    }
+                    addr += 4;
                 }
-                addr += 4;
             }
         } else if (!strncmp(input, "int3", 5)) {
 #ifdef __x86_64__

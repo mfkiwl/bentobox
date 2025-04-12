@@ -54,7 +54,8 @@ Then, you can simply run `make run` and the kernel will run in QEMU.
 - [X] `unimplemented` macro
 - [X] Simplify the PCI driver
 - [X] FIFO queues
-- [ ] Write a proper heap
+- [ ] Write a better heap
 - [ ] Make an OS specific toolchain
-- [ ] VFS improvements
+- [ ] General VFS improvemenst
 - [ ] Module info headers
+- [X] Allow use of symbols in debugcon.c

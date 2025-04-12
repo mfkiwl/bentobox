@@ -5,6 +5,8 @@
 #include <kernel/printf.h>
 #include <kernel/version.h>
 
+#include <kernel/ksym.h>
+
 extern void generic_load_modules(void);
 
 void generic_startup(void) {

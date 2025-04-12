@@ -10,6 +10,23 @@ int ksym_count = 0;
 
 extern void generic_map_kernel(uintptr_t *pml4);
 
+Elf64_Addr elf_symbol_addr(Elf64_Sym *symtab, const char *strtab, int symbol_count, char *str) {
+    Elf64_Addr offset = 0;
+
+    char *sign = strchr(str, '+');
+    if (sign) {
+        *sign = '\0';
+        offset = atoi(sign + 1);
+    }
+
+    for (int i = 0; i < symbol_count; i++) {
+        if (!strcmp(&strtab[symtab[i].st_name], str)) {
+            return *(Elf64_Addr *)(symtab[i].st_value) + offset;
+        }
+    }
+    return 0;
+}
+
 int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_count, Elf64_Addr addr) {
     Elf64_Sym *sym = NULL;
     Elf64_Addr best = (Elf64_Addr)-1;
@@ -31,12 +48,7 @@ int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_c
         }
     }
 
-    if (symtab == ksymtab && !strcmp(&strtab[sym->st_name], "end")) {
-        strcpy(s, "(none)");
-        return 1;
-    }
-
-    if (!sym) {
+    if (!sym || (symtab == ksymtab && !strcmp(&strtab[sym->st_name], "end"))) {
         strcpy(s, "(none)");
         return 1;
     }

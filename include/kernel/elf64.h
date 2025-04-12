@@ -105,5 +105,6 @@ typedef struct {
 	Elf64_Xword p_align;
 } Elf64_Phdr;
 
+Elf64_Addr elf_symbol_addr(Elf64_Sym *symtab, const char *strtab, int symbol_count, char *str);
 int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_count, Elf64_Addr addr);
 int elf_module(struct multiboot_tag_module *mod);
