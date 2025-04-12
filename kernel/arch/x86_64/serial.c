@@ -1,10 +1,11 @@
 #include <stddef.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/io.h>
-#include <kernel/sched.h>
-#include <kernel/spinlock.h>
 #include <kernel/vfs.h>
+#include <kernel/sched.h>
+#include <kernel/string.h>
 #include <kernel/printf.h>
+#include <kernel/spinlock.h>
 
 #define COM1 0x3f8
 
@@ -76,30 +77,9 @@ int32_t serial_write(struct vfs_node *node, void *buffer, uint32_t len) {
 }
 
 int32_t serial_read(struct vfs_node *node, void *buffer, uint32_t len) {
-    char *buf = (char *)buffer;
-    uint32_t i = 0;
-
-    while (i < len) {
-        buf[i] = serial_read_char();
-
-        if (buf[i] == '\r') {
-            serial_write_char('\n');
-            buf[i] = '\0';
-            return (int32_t)i;
-        } else if (buf[i] == 127) {
-            if (i > 0) {
-                serial_write_char('\b');
-                serial_write_char(' ');
-                serial_write_char('\b');
-                i--;
-            }
-        } else {
-            serial_write_char(buf[i]);
-            i++;
-        }
-    }
-
-    return (int32_t)i;
+    char c = serial_read_char();
+    memcpy(buffer, &c, 1);
+    return 1;
 }
 
 void serial_dev_install(void) {

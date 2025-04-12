@@ -3,7 +3,7 @@
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/sched.h>
 
-#define stdin (this_core()->current_proc->fd_table[0])
+#define stdin  0
 #define stdout 1
 
 void putchar(char c);
@@ -15,3 +15,4 @@ int sprintf(char *str, const char *fmt, ...);
 int dprintf(const char *fmt, ...);
 int fprintf(int stream, const char *fmt, ...);
 int printf(const char *fmt, ...);
+char *fgets(char *str, int n, int stream);

@@ -99,6 +99,34 @@ int fprintf(int stream, const char *fmt, ...) {
     return ret;
 }
 
+char *fgets(char *str, int n, int stream) {
+    uint32_t i = 0;
+    while (i < n) {
+        vfs_read(this_core()->current_proc->fd_table[stream], str + i, 1);
+
+        switch (str[i]) {
+            case '\n':
+            case '\r':
+                fprintf(stdout, "\n");
+                str[i] = '\0';
+                return str;
+            case '\b':
+            case 127:
+                if (i > 0) {
+                    fprintf(stdout, "\b \b");
+                    i--;
+                }
+                break;
+            default:
+                fprintf(stdout, "%c", str[i]);
+                i++;
+                break;
+        }
+    }
+
+    return str;
+}
+
 int printf(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);

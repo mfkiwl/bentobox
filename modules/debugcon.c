@@ -17,7 +17,7 @@ void main(void) {
     char input[128] = {0};
     for (;;) {
         fprintf(stdout, ">>> ");
-        vfs_read(stdin, input, sizeof(input));
+        fgets(input, sizeof(input), stdin);
 
         if (!input[0]) {}
         else if (!strncmp(input, "list ", 5)) {

@@ -57,45 +57,12 @@ void irq1_handler(struct registers *r) {
     lapic_eoi();
 }
 
-/*
 int32_t ps2_keyboard_read(struct vfs_node *node, void *buffer, uint32_t len) {
-    int c;
-    if (!len || !buffer || !fifo_dequeue(&kb_fifo, &c)) return 0;
+    int c = 0;
+    while (!fifo_dequeue(&kb_fifo, &c)) {}
 
     memcpy(buffer, &c, 1);
     return 1;
-}
-*/
-
-char getc(void) {
-    int c = 0;
-    while (!fifo_dequeue(&kb_fifo, &c)) {}
-    return (char)c;
-}
-
-int32_t ps2_keyboard_read(struct vfs_node *node, void *buffer, uint32_t len) {
-    char *buf = (char *)buffer;
-    uint32_t i = 0;
-
-    while (i < len) {
-        buf[i] = getc();
-
-        if (buf[i] == '\n') {
-            fprintf(stdout, "\n");
-            buf[i] = '\0';
-            return (int32_t)i;
-        } else if (buf[i] == '\b') {
-            if (i > 0) {
-                fprintf(stdout, "\b \b");
-                i--;
-            }
-        } else {
-            fprintf(stdout, "%c", buf[i]);
-            i++;
-        }
-    }
-
-    return (int32_t)i;
 }
 
 void ps2_dev_install(void) {
