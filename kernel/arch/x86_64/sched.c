@@ -54,7 +54,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->state = RUNNING;
     proc->pid = max_pid++;
     proc->heap = heap_create();
-    proc->fd_table[0] = vfs_open(vfs_root, "/dev/serial0");
+    proc->fd_table[0] = vfs_open(vfs_root, "/dev/keyboard");
     proc->fd_table[1] = vfs_open(vfs_root, "/dev/console");
     proc->elf.symtab = NULL;
     proc->elf.strtab = NULL;

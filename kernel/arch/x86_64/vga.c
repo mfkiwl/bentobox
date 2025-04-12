@@ -37,9 +37,6 @@ uint8_t ansi_to_vga(int ansi) {
 void vga_clear(void) {
     for (int i = 0; i < 80 * 25; i++)
         vga_buffer[i] = vga_color << 8;
-
-    vga_x = 0, vga_y = 0;
-    vga_update_cursor();
 }
 
 void vga_puts(const char *str) {
@@ -51,11 +48,28 @@ void vga_puts(const char *str) {
 }
 
 void vga_putchar(const char c) {
+    if (vga_ansi_index >= 16) {
+        vga_ansi_index = 0;
+        memset(vga_ansi_code, 0, sizeof(vga_ansi_code));
+    }
+
     if (vga_ansi_code[0] == '\033') {
         switch (c) {
             case '[':
                 vga_ansi_code[1] = '[';
                 vga_ansi_index = 2;
+                return;
+            case 'J':
+                if (vga_ansi_code[2] == '2') {
+                    vga_clear();
+                }
+                vga_ansi_index = 0;
+                memset(vga_ansi_code, 0, sizeof(vga_ansi_code));
+                return;
+            case 'H':
+                vga_x = 0, vga_y = 0, vga_ansi_index = 0;
+                vga_update_cursor();
+                memset(vga_ansi_code, 0, sizeof(vga_ansi_code));
                 return;
             case 'm':
                 vga_ansi_code[vga_ansi_index] = 0;
