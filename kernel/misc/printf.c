@@ -100,7 +100,7 @@ int fprintf(int stream, const char *fmt, ...) {
 }
 
 char *fgets(char *str, int n, int stream) {
-    uint32_t i = 0;
+    int i = 0;
     while (i < n) {
         vfs_read(this_core()->current_proc->fd_table[stream], str + i, 1);
 
