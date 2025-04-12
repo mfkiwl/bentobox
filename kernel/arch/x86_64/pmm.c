@@ -11,8 +11,9 @@
 
 uint8_t *pmm_bitmap = NULL;
 uint64_t pmm_last_page = 0;
-uint64_t pmm_page_count = 0;
-uint64_t pmm_usable_mem = 0;
+uint64_t mmu_page_count = 0;
+uint64_t mmu_usable_mem = 0;
+uint64_t mmu_used_pages = 0;
 
 atomic_flag pmm_lock = ATOMIC_FLAG_INIT;
 
@@ -42,8 +43,8 @@ void pmm_install(void *mboot_info) {
     }
 
     pmm_bitmap = (uint8_t *)PAGE_SIZE;
-    pmm_page_count = highest_address / PAGE_SIZE;
-    uint64_t bitmap_size = ALIGN_UP(pmm_page_count / 8, PAGE_SIZE);
+    mmu_page_count = highest_address / PAGE_SIZE;
+    uint64_t bitmap_size = ALIGN_UP(mmu_page_count / 8, PAGE_SIZE);
     memset(pmm_bitmap, 0xFF, bitmap_size);
 
     for (i = 0; i < (mmap->size - sizeof(struct multiboot_tag_mmap)) / mmap->entry_size; i++) {
@@ -53,7 +54,7 @@ void pmm_install(void *mboot_info) {
             for (uint64_t j = 0; j < mmmt->len; j += PAGE_SIZE) {
                 bitmap_clear(pmm_bitmap, (mmmt->addr + j) / PAGE_SIZE);
             }
-            pmm_usable_mem += mmmt->len;
+            mmu_usable_mem += mmmt->len;
         }
     }
 
@@ -66,22 +67,24 @@ void pmm_install(void *mboot_info) {
 	mmu_mark_used(mboot_info, 2);
 
     dprintf("%s:%d: initialized allocator at 0x%lx\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
-    dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, pmm_usable_mem / 1024);
+    dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, mmu_usable_mem / 1024 - mmu_used_pages * 4);
 }
 
 void mmu_mark_used(void *ptr, size_t page_count) {
     for (size_t i = 0; i < page_count * PAGE_SIZE; i += PAGE_SIZE) {
         bitmap_set(pmm_bitmap, ((uintptr_t)ptr + i) / PAGE_SIZE);
     }
-    pmm_usable_mem -= page_count * PAGE_SIZE;
+    mmu_used_pages += page_count;
 }
+
+// TODO: always search from the start of memory to avoid massive fragmentation
 
 uint64_t pmm_find_pages(uint64_t page_count) {
     uint64_t pages = 0;
     uint64_t first_page = pmm_last_page;
 
     while (pages < page_count) {
-        if (pmm_last_page >= pmm_page_count) {
+        if (pmm_last_page >= mmu_page_count) {
             return 0; /* out of memory */
         }
 
@@ -93,6 +96,7 @@ uint64_t pmm_find_pages(uint64_t page_count) {
                 }
 
                 pmm_last_page += pages;
+                mmu_used_pages += pages;
                 return first_page;
             }
         } else {
@@ -119,7 +123,7 @@ void *mmu_alloc(size_t page_count) {
     }
 
     uint64_t phys_addr = pages * PAGE_SIZE;
-
+    
     release(&pmm_lock);
     return (void*)(phys_addr);
 }
@@ -130,5 +134,6 @@ void mmu_free(void *ptr, size_t page_count) {
 
     for (uint64_t i = 0; i < page_count; i++)
         bitmap_clear(pmm_bitmap, page + i);
+    mmu_used_pages -= page_count;
     release(&pmm_lock);
 }

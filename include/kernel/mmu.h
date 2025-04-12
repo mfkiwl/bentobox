@@ -19,6 +19,10 @@
 
 extern uintptr_t *kernel_pd;
 
+extern uint64_t mmu_page_count;
+extern uint64_t mmu_usable_mem;
+extern uint64_t mmu_used_pages;
+
 void *mmu_alloc(size_t page_count);
 void  mmu_free(void *ptr, size_t page_count);
 void  mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags);
