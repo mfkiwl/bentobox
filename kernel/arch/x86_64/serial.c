@@ -86,5 +86,5 @@ void serial_initialize(void) {
     struct vfs_node *serial0 = vfs_create_node("serial0", VFS_CHARDEVICE);
     serial0->write = serial_write;
     serial0->read = serial_read;
-    vfs_add_node(vfs_dev, serial0);
+    vfs_add_device(serial0);
 }

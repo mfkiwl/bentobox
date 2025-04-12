@@ -68,7 +68,7 @@ int32_t ps2_keyboard_read(struct vfs_node *node, void *buffer, uint32_t len) {
 void ps2_initialize(void) {
     struct vfs_node *keyboard = vfs_create_node("keyboard", VFS_CHARDEVICE);
     keyboard->read = ps2_keyboard_read;
-    vfs_add_node(vfs_dev, keyboard);
+    vfs_add_device(keyboard);
 }
 
 void ps2_install(void) {

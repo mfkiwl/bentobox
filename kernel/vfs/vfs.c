@@ -9,8 +9,8 @@ extern void ps2_initialize(void);
 extern void serial_initialize(void);
 extern void console_initialize(void);
 
-struct vfs_node *vfs_root;
-struct vfs_node *vfs_dev;
+struct vfs_node *vfs_root = NULL;
+struct vfs_node *vfs_dev = NULL;
 
 const char *vfs_types[] = {
     "NONE",
@@ -47,6 +47,10 @@ void vfs_add_node(struct vfs_node *root, struct vfs_node *node) {
         }
         child->next = node;
     }
+}
+
+void vfs_add_device(struct vfs_node *node) {
+    vfs_add_node(vfs_dev, node);
 }
 
 struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
