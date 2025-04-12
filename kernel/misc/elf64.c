@@ -2,6 +2,7 @@
 #include <kernel/elf64.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
+#include <kernel/module.h>
 #include <kernel/multiboot.h>
 
 Elf64_Sym *ksymtab = NULL;
@@ -13,15 +14,20 @@ extern void generic_map_kernel(uintptr_t *pml4);
 Elf64_Addr elf_symbol_addr(Elf64_Sym *symtab, const char *strtab, int symbol_count, char *str) {
     Elf64_Addr offset = 0;
 
-    char *sign = strchr(str, '+');
-    if (sign) {
-        *sign = '\0';
-        offset = atoi(sign + 1);
+    char *off = strchr(str, '+');
+    if (off) {
+        *off = '\0';
+        offset = atoi(off + 1);
     }
 
     for (int i = 0; i < symbol_count; i++) {
         if (!strcmp(&strtab[symtab[i].st_name], str)) {
-            return *(Elf64_Addr *)(symtab[i].st_value) + offset;
+            uint8_t type = symtab[i].st_info & 0xf;
+            if (type == STT_OBJECT || type == STT_FUNC) {
+                return symtab[i].st_value + offset;
+            } else {
+                return *(Elf64_Addr *)(symtab[i].st_value) + offset;
+            }
         }
     }
     return 0;
@@ -63,12 +69,12 @@ int elf_module(struct multiboot_tag_module *mod) {
     Elf64_Ehdr *ehdr = (Elf64_Ehdr *)(uintptr_t)mod->mod_start;
 
     if (memcmp(ehdr->e_ident, "\x7f""ELF", 4)) {
-        printf("elf: invalid elf file\n");
+        printf("%s:%d: invalid elf file\n", __FILE__, __LINE__);
         return -1;
     }
 
     if (ehdr->e_ident[EI_CLASS] != ELFCLASS64) {
-        printf("elf: unsupported elf class\n");
+        printf("%s:%d: unsupported elf class\n", __FILE__, __LINE__);
         return -1;
     }
 
@@ -93,10 +99,16 @@ int elf_module(struct multiboot_tag_module *mod) {
         return 0;
     }
 
+    struct Module *metadata = (struct Module *)elf_symbol_addr(symtab, strtab, symbol_count, "metadata");
+    if (!metadata) {
+        printf("%s:%d: Module metadata not found\n", __FILE__, __LINE__);
+        return -1;
+    }
+
     uintptr_t *pml4 = mmu_alloc(1);
     mmu_map((uintptr_t)VIRTUAL(pml4), (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE);
-    this_core()->pml4 = pml4;
     generic_map_kernel(pml4);
+    vmm_switch_pm(pml4);
 
     Elf64_Phdr *phdr = (Elf64_Phdr *)(mod->mod_start + ehdr->e_phoff);
 
@@ -106,30 +118,33 @@ int elf_module(struct multiboot_tag_module *mod) {
                 continue;
 
             size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
-            uintptr_t paddr = (uintptr_t)mmu_alloc(pages); // TODO: no need for this to be continuous
-            uintptr_t vaddr = phdr[i].p_vaddr;
 
-            mmu_map_pages(pages, paddr, vaddr, PTE_PRESENT | PTE_WRITABLE);
+            for (size_t page = 0; page < pages; page++) {
+                uintptr_t paddr = (uintptr_t)mmu_alloc(1);
+                uintptr_t vaddr = phdr[i].p_vaddr + page * PAGE_SIZE;
+
+                mmu_map_pages(1, paddr, vaddr, PTE_PRESENT | PTE_WRITABLE);
+            }
 
             if (phdr[i].p_filesz > 0) {
                 uintptr_t src = (uintptr_t)mod->mod_start + phdr[i].p_offset;
-                uintptr_t dest = paddr;
+                uintptr_t dest = phdr[i].p_vaddr;
 
                 memcpy((void *)dest, (void *)src, phdr[i].p_filesz);
             }
 
             if (phdr[i].p_memsz > phdr[i].p_filesz) {
-                memset((void *)(paddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
+                memset((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
             }
         }
     }
 
-    struct task *proc = sched_new_task((void *)ehdr->e_entry, mod->string, -1);
+    struct task *proc = sched_new_task(metadata->init, metadata->name, -1);
     proc->elf.symtab = symtab;
     proc->elf.strtab = strtab;
     proc->elf.symbol_count = symbol_count;
     proc->pml4 = pml4;
 
-    this_core()->pml4 = kernel_pd;
+    vmm_switch_pm(kernel_pd);
     return 0;
 }

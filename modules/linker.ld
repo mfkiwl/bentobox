@@ -1,5 +1,3 @@
-ENTRY(main)
-
 SECTIONS
 {
     . = text_ld;
@@ -12,15 +10,8 @@ SECTIONS
     . (NOLOAD) : { bin/ksym_rel.elf(.bss) }
 
     . = 0x400000;
-    . :
-    {
-        bin/module.elf(.text)
-        bin/module.elf(.rodata)
-        bin/module.elf(.data)
-        bin/module.elf(.bss)
-    }
-
-    .modinfo : {
-        *(.modinfo)
-    }
+    . : { bin/module.elf(.text) }
+    . : { bin/module.elf(.rodata) }
+    . : { bin/module.elf(.data) }
+    . : { bin/module.elf(.bss) }
 }

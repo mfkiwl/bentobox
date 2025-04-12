@@ -88,6 +88,7 @@ void generic_load_modules(void) {
 }
 
 void generic_map_kernel(uintptr_t *pml4) {
+    this_core()->pml4 = pml4;
 	pml4[511] = kernel_pd[511];
     mmu_map_pages(16383, 0x1000, 0x1000, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE | PTE_USER);

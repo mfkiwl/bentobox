@@ -5,6 +5,7 @@
 #include <kernel/ctype.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
+#include <kernel/module.h>
 
 uint64_t hex_to_long(const char *str) {
     uint64_t result = 0;
@@ -15,7 +16,7 @@ uint64_t hex_to_long(const char *str) {
     return result;
 }
 
-void main(void) {
+int init() {
     char input[128] = {0};
     for (;;) {
         fprintf(stdout, ">>> ");
@@ -61,3 +62,8 @@ void main(void) {
         memset(input, 0, sizeof(input));
     }
 }
+
+struct Module metadata = {
+    .name = "bentobox debug shell",
+    .init = init
+};

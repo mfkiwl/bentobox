@@ -71,6 +71,16 @@ typedef struct {
 	Elf64_Xword sh_entsize;
 } Elf64_Shdr;
 
+#define STT_NOTYPE   0
+#define STT_OBJECT   1
+#define STT_FUNC     2
+#define STT_SECTION  3
+#define STT_FILE     4
+#define STT_LOOS    10
+#define STT_HIOS    12
+#define STT_LOPROC  13
+#define STT_HIPROC  15
+
 typedef struct {
 	Elf64_Word    st_name;
 	unsigned char st_info;

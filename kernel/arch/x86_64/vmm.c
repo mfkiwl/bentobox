@@ -32,7 +32,7 @@ void vmm_switch_pm(uintptr_t *pm) {
         panic("Attempted to load a NULL pagemap!");
     acquire(&vmm_lock);
     asm volatile("mov %0, %%cr3" ::"r"((uint64_t)pm) : "memory");
-    this_core()->pml4 = kernel_pd;
+    this_core()->pml4 = pm;
     release(&vmm_lock);
 }
 
