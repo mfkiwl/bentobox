@@ -192,15 +192,8 @@ void sched_start_all_cores(void) {
     lapic_ipi(0, 0x79);
 }
 
-void test_user_function(void) {
-    printf("About to crash the system!\n");
-    asm volatile ("cli");
-    for (;;);
-}
-
 void sched_install(void) {
     sched_new_task(sched_idle, "System Idle Process", -1);
-    sched_new_user_task(test_user_function, "Test User Function", -1);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }

@@ -95,6 +95,7 @@ void generic_map_kernel(uintptr_t *pml4) {
 	pml4[511] = kernel_pd[511];
     mmu_map_pages(16383, 0x1000, 0x1000, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map((uintptr_t)madt_ioapic_list[0]->address, (uintptr_t)madt_ioapic_list[0]->address, PTE_PRESENT | PTE_WRITABLE);
     mmu_map((uintptr_t)VIRTUAL(hpet->address), hpet->address, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr, (uintptr_t)lfb.addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
