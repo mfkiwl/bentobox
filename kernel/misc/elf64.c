@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <kernel/mmu.h>
 #include <kernel/elf64.h>
 #include <kernel/printf.h>
@@ -11,7 +12,7 @@ int ksym_count = 0;
 
 extern void generic_map_kernel(uintptr_t *pml4);
 
-Elf64_Addr elf_symbol_addr(Elf64_Sym *symtab, const char *strtab, int symbol_count, char *str) {
+Elf64_Addr elf_symbol_addr(Elf64_Sym *symtab, const char *strtab, int symbol_count, char *str, bool cast) {
     Elf64_Addr offset = 0;
 
     char *off = strchr(str, '+');
@@ -23,11 +24,8 @@ Elf64_Addr elf_symbol_addr(Elf64_Sym *symtab, const char *strtab, int symbol_cou
     for (int i = 0; i < symbol_count; i++) {
         if (!strcmp(&strtab[symtab[i].st_name], str)) {
             uint8_t type = symtab[i].st_info & 0xf;
-            if (type == STT_OBJECT || type == STT_FUNC) {
-                return symtab[i].st_value + offset;
-            } else {
-                return *(Elf64_Addr *)(symtab[i].st_value) + offset;
-            }
+            if (cast) return *(Elf64_Addr *)(symtab[i].st_value) + offset;
+            else return symtab[i].st_value + offset;
         }
     }
     return 0;
@@ -99,7 +97,7 @@ int elf_module(struct multiboot_tag_module *mod) {
         return 0;
     }
 
-    struct Module *metadata = (struct Module *)elf_symbol_addr(symtab, strtab, symbol_count, "metadata");
+    struct Module *metadata = (struct Module *)elf_symbol_addr(symtab, strtab, symbol_count, "metadata", false);
     if (!metadata) {
         printf("%s:%d: Module metadata not found\n", __FILE__, __LINE__);
         return -1;

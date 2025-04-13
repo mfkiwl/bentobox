@@ -24,7 +24,7 @@ int init() {
 
         if (!input[0]) {}
         else if (!strncmp(input, "list ", 5)) {
-            uint64_t addr = !strncmp(input + 5, "0x", 2) ? hex_to_long(input + 7) : elf_symbol_addr(ksymtab, kstrtab, ksym_count, input + 5);
+            uint64_t addr = !strncmp(input + 5, "0x", 2) ? hex_to_long(input + 7) : elf_symbol_addr(ksymtab, kstrtab, ksym_count, input + 5, true);
             if (!addr) {
                 fprintf(stdout, "Symbol not found\n");
             } else {
