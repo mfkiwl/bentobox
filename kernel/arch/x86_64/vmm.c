@@ -29,10 +29,8 @@ __attribute__((no_sanitize("undefined")))
 void vmm_switch_pm(uintptr_t *pm) {
     if (pm == NULL)
         panic("Attempted to load a NULL pagemap!");
-    acquire(&this_core()->vmm_lock);
     asm volatile("mov %0, %%cr3" ::"r"((uint64_t)pm) : "memory");
     this_core()->pml4 = pm;
-    release(&this_core()->vmm_lock);
 }
 
 uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, bool alloc) {
