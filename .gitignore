@@ -1,4 +1,6 @@
 bin/
+limine/
+include/limine.h
 kernel/target_arch.c
 compile_commands.json
 .cache

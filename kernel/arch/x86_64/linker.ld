@@ -1,52 +1,60 @@
-ENTRY(_start)
+OUTPUT_FORMAT(elf64-x86-64)
+OUTPUT_ARCH(i386:x86-64)
+
+ENTRY(kmain)
+
+PHDRS
+{
+    text    PT_LOAD    FLAGS((1 << 0) | (1 << 2));
+    rodata  PT_LOAD    FLAGS((1 << 2));
+    data    PT_LOAD    FLAGS((1 << 1) | (1 << 2));
+    dynamic PT_DYNAMIC FLAGS((1 << 1) | (1 << 2));
+}
 
 SECTIONS
 {
-    . = 1M;
+    . = 0xffffffff80000000;
 
     text_start_ld = .;
-    .text :
-    {
-        *(.multiboot)
-        *(.text.prologue)
-        *(.text)
-    }
+
+    .text : {
+        *(.text .text.*)
+    } :text
+
     text_end_ld = .;
 
-    . = ALIGN(4K);
+    . += CONSTANT(MAXPAGESIZE);
 
     rodata_start_ld = .;
-    .rodata :
-    {
-        *(.rodata)
-    }
+
+    .rodata : {
+        *(.rodata .rodata.*)
+    } :rodata
+
     rodata_end_ld = .;
 
-    . = ALIGN(4K);
+    . += CONSTANT(MAXPAGESIZE);
 
     data_start_ld = .;
-    .data :
-    {
-        *(.data)
-    }
-    data_end_ld = .;
 
-    . = ALIGN(4K);
+    .data : {
+        *(.data .data.*)
+    } :data
 
-    bss_start_ld = .;
-    .bss :
-    {
+    .dynamic : {
+        *(.dynamic)
+    } :data :dynamic
+
+    .bss : {
+        *(.bss .bss.*)
         *(COMMON)
-        *(.bss)
-    }
-    bss_end_ld = .;
+    } :data
 
     end = ALIGN(4K);
 
-    /DISCARD/ :
-	{
-		*(.comment)
-		*(.eh_frame)
-		*(.note.gnu.build-id)
-	}
+    data_end_ld = .;
+    /DISCARD/ : {
+        *(.eh_frame)
+        *(.note .note.*)
+    }
 }

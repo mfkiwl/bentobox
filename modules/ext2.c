@@ -121,6 +121,7 @@ int init() {
     } else {
         dprintf("ext2: found ext2 partition\n");
     }
+    return 0;
 }
 
 struct Module metadata = {

@@ -11,8 +11,8 @@ ifeq ($(ARCH),x86_64)
 	LD = ld
     ARCH_DIR := kernel/arch/x86_64
     ASFLAGS = -f elf64 -g -F dwarf
-    CCFLAGS := -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone #-fsanitize=undefined
-    LDFLAGS := -m elf_x86_64 -Tkernel/arch/x86_64/linker.ld -z noexecstack
+    CCFLAGS := -m64 -march=x86-64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone #-fsanitize=undefined
+    LDFLAGS := -m elf_x86_64 -nostdlib -static -pie --no-dynamic-linker -z text -z max-page-size=0x1000 -T kernel/arch/x86_64/linker.ld
     QEMUFLAGS := -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -drive file=bin/$(IMAGE_NAME).hdd,format=raw
 else ifeq ($(ARCH),riscv64)
 	AS = riscv64-elf-as
@@ -22,7 +22,7 @@ else ifeq ($(ARCH),riscv64)
     ASFLAGS :=
     CCFLAGS := -mcmodel=medany -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto
     LDFLAGS := -m elf64lriscv -Tkernel/arch/riscv/linker.ld -z noexecstack
-    QEMUFLAGS := -machine virt -bios none -kernel bin/$(IMAGE_NAME).elf -mon chardev=mon0,mode=readline,id=mon0 -chardev null,id=mon0 -display gtk
+    QEMUFLAGS := -machine virt -bios none -kernel bin/kernel.elf -mon chardev=mon0,mode=readline,id=mon0 -chardev null,id=mon0 -display gtk
 else
     $(error Unsupported architecture: $(ARCH))
 endif
@@ -42,7 +42,7 @@ MODULE_OBJS := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.o))
 MODULE_BINARIES := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.elf))
 
 .PHONY: all
-all: kernel/target_arch.c kernel modules iso hdd
+all: kernel/target_arch.c kernel iso hdd
 
 .PHONY: run
 run: all
@@ -82,9 +82,8 @@ bin/modules/%.o: modules/%.c $(KERNEL_OBJS)
 .PHONY: kernel
 kernel: $(KERNEL_OBJS)
 	@echo " LD kernel/*"
-	@$(LD) $(LDFLAGS) $^ -o bin/$(IMAGE_NAME).elf
-	@$(LD) $(LDFLAGS) -r $^ -o bin/ksym_rel.elf
-	@objcopy --only-keep-debug bin/$(IMAGE_NAME).elf bin/ksym.elf
+	@$(LD) $(LDFLAGS) $^ -o bin/kernel.elf
+	@objcopy --only-keep-debug bin/kernel.elf bin/ksym.elf
 	@bash util/symbols.sh
 
 .PHONY: modules
@@ -92,25 +91,37 @@ modules: kernel $(MODULE_OBJS)
 	@for obj in $(MODULE_OBJS); do \
 		echo " LD $${obj}"; \
 		cp $${obj} bin/module.elf; \
-		ld -Tbin/mod.ld bin/ksym_rel.elf bin/module.elf -o $${obj%.o}.elf; \
+		ld -Tbin/mod.ld bin/ksym.elf bin/module.elf -o $${obj%.o}.elf; \
 	done
+
+include/limine.h:
+	@echo " GET https://github.com/limine-bootloader/limine/raw/v9.x/limine.h"
+	@curl -Lo include/limine.h https://github.com/limine-bootloader/limine/raw/v9.x/limine.h
+
+limine:
+	git clone https://github.com/limine-bootloader/limine.git --branch=v9.x-binary --depth=1
+	make -C limine CC="cc" CFLAGS="-g -O2 -pipe" CPPFLAGS="" LDFLAGS="" LIBS=""
 
 .PHONY: iso
 ifeq ($(ARCH),x86_64)
-iso: kernel modules
-	@grub-file --is-x86-multiboot2 ./bin/$(IMAGE_NAME).elf; \
-	if [ $$? -eq 1 ]; then \
-		echo " error: $(IMAGE_NAME).elf is not a valid multiboot2 file"; \
-		exit 1; \
-	fi
-	@mkdir -p iso_root/boot/grub/
-	@mkdir -p iso_root/modules/
-	@find bin/modules/ -type f -name '*.elf' -exec cp {} iso_root/modules/ \;
-	@cp bin/$(IMAGE_NAME).elf iso_root/boot/$(IMAGE_NAME).elf
-	@cp bin/ksym.elf iso_root/boot/ksym.elf
-	@cp boot/grub.cfg iso_root/boot/grub/grub.cfg
-	@grub-mkrescue -o bin/$(IMAGE_NAME).iso iso_root/ -quiet 2>&1 >/dev/null | grep -v libburnia | cat
-	@rm -rf iso_root/
+iso: kernel limine
+	@rm -rf iso_root
+	@mkdir -p iso_root/boot
+	@cp -a bin/kernel.elf iso_root/boot/kernel.elf
+	@mkdir -p iso_root/boot/limine
+	@cp boot/limine.conf limine/limine-bios.sys limine/limine-bios-cd.bin limine/limine-uefi-cd.bin iso_root/boot/limine/
+	@mkdir -p iso_root/EFI/BOOT
+	@cp limine/BOOTX64.EFI iso_root/EFI/BOOT/
+	@cp limine/BOOTIA32.EFI iso_root/EFI/BOOT/
+	@xorriso -as mkisofs -b boot/limine/limine-bios-cd.bin \
+		-no-emul-boot -boot-load-size 4 -boot-info-table \
+		--efi-boot boot/limine/limine-uefi-cd.bin \
+		-efi-boot-part --efi-boot-image --protective-msdos-label \
+		iso_root -o bin/$(IMAGE_NAME).iso -quiet 2>&1 >/dev/null \
+		| grep -v libburnia | cat
+	@./limine/limine bios-install bin/$(IMAGE_NAME).iso 2>&1 >/dev/null | grep -Ev \
+		"Physical|Installing|Secondary|partition|Stage|Reminder|Limine|directories" | cat
+	@rm -rf iso_root
 else ifeq ($(ARCH),riscv64)
 iso:
 else

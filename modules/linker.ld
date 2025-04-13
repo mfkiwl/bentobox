@@ -1,13 +1,13 @@
 SECTIONS
 {
     . = text_ld;
-    . (NOLOAD) : { bin/ksym_rel.elf(.text) }
+    . (NOLOAD) : { bin/ksym.elf(.text) }
     . = rodata_ld;
-    . (NOLOAD) : { bin/ksym_rel.elf(.rodata) }
+    . (NOLOAD) : { bin/ksym.elf(.rodata) }
     . = data_ld;
-    . (NOLOAD) : { bin/ksym_rel.elf(.data) }
+    . (NOLOAD) : { bin/ksym.elf(.data) }
     . = bss_ld;
-    . (NOLOAD) : { bin/ksym_rel.elf(.bss) }
+    . (NOLOAD) : { bin/ksym.elf(.bss) }
 
     . = 0x400000;
     . : { bin/module.elf(.text) }
