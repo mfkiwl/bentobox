@@ -4,12 +4,13 @@
 #include <stdatomic.h>
 #include <kernel/mmu.h>
 #include <kernel/panic.h>
+#include <kernel/sched.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
 uintptr_t initial_pml[3][512] __attribute__((aligned(PAGE_SIZE)));
-uintptr_t *kernel_pd = NULL;
+uintptr_t *kernel_pd = initial_pml[0];
 
 extern char text_start_ld[];
 extern char text_end_ld[];
@@ -20,8 +21,6 @@ extern char data_end_ld[];
 extern char bss_start_ld[];
 extern char bss_end_ld[];
 
-atomic_flag vmm_lock = ATOMIC_FLAG_INIT;
-
 void vmm_flush_tlb(uintptr_t virt) {
     __asm__ volatile ("invlpg (%0)" ::"r"(virt) : "memory");
 }
@@ -30,10 +29,10 @@ __attribute__((no_sanitize("undefined")))
 void vmm_switch_pm(uintptr_t *pm) {
     if (pm == NULL)
         panic("Attempted to load a NULL pagemap!");
-    acquire(&vmm_lock);
+    acquire(&this_core()->vmm_lock);
     asm volatile("mov %0, %%cr3" ::"r"((uint64_t)pm) : "memory");
     this_core()->pml4 = pm;
-    release(&vmm_lock);
+    release(&this_core()->vmm_lock);
 }
 
 uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, bool alloc) {
@@ -52,7 +51,7 @@ uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, boo
 }
 
 void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
-    acquire(&vmm_lock);
+    acquire(&this_core()->vmm_lock);
 
     struct cpu *this = this_core();
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
@@ -69,11 +68,11 @@ void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     pt[pt_index] = phys | flags; /* map the page */
     
     vmm_flush_tlb(virt); /* flush the tlb entry */
-    release(&vmm_lock);
+    release(&this_core()->vmm_lock);
 }
 
 void mmu_unmap(uintptr_t virt) {
-    acquire(&vmm_lock);
+    acquire(&this_core()->vmm_lock);
 
     struct cpu *this = this_core();
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
@@ -103,7 +102,7 @@ void mmu_unmap(uintptr_t virt) {
     }
 
     vmm_flush_tlb(virt); /* flush the tlb entry */
-    release(&vmm_lock);
+    release(&this_core()->vmm_lock);
 }
 
 void mmu_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint32_t flags) {

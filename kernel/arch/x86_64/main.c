@@ -1,4 +1,3 @@
-#include <stddef.h>
 #include <kernel/arch/x86_64/gdt.h>
 #include <kernel/arch/x86_64/tss.h>
 #include <kernel/arch/x86_64/idt.h>
@@ -21,12 +20,15 @@
 #include <kernel/assert.h>
 #include <kernel/version.h>
 #include <kernel/flanterm.h>
+#include <kernel/spinlock.h>
 #include <kernel/multiboot.h>
 
 extern void generic_startup(void);
 extern void generic_main(void);
 
 static void *mboot = NULL;
+
+atomic_flag flanterm_lock = ATOMIC_FLAG_INIT;
 
 void *mboot2_find_next(char *current, uint32_t type) {
 	char *header = current;
@@ -51,8 +53,7 @@ void *mboot2_find_tag(void *base, uint32_t type) {
 void mboot2_load_modules(void *base) {
 	struct multiboot_tag_module *mod = mboot2_find_tag(base, MULTIBOOT_TAG_TYPE_MODULE);
     while (mod) {
-		if (strcmp(mod->string, "ksym")) 
-    		elf_module(mod); /* skip ksym module */
+		if (strcmp(mod->string, "ksym")) elf_module(mod);
         mod = mboot2_find_next((char *)mod + ALIGN_UP(mod->size, 8), MULTIBOOT_TAG_TYPE_MODULE);
     }
 }
@@ -69,8 +70,9 @@ void puts(char *s) {
 	if (!ft_ctx) {
 		vga_puts(s);
 	} else {
-		// TODO: have a spinlock for flanterm
+		acquire(&flanterm_lock);
 		flanterm_write(ft_ctx, s, strlen(s));
+		release(&flanterm_lock);
 	}
 }
 

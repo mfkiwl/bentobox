@@ -12,6 +12,7 @@ struct cpu {
     struct task *processes;
     struct task *current_proc;
     atomic_flag sched_lock;
+    atomic_flag vmm_lock;
 };
 
 void smp_initialize(void);
