@@ -133,23 +133,18 @@ uint8_t ata_identify(uint16_t base, uint8_t type, char *name) {
     return ATA_OK;
 }
 
-int32_t hda_write(struct vfs_node *node, void *buffer, uint32_t len) {
-    uint8_t ret = 0;
+int32_t hda_write(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
     if (len == 0) return 0;
-    else ret = ata_write(len - 1, buffer, 1);
-    if (ret == 0) return 512;
-    else return 0;
+    return ata_write(offset / 512, buffer, len / 512) ? 0 : len;
 }
 
-int32_t hda_read(struct vfs_node *node, void *buffer, uint32_t len) {
-    uint8_t ret = 0;
-    if (len == 0) memcpy(buffer, ata_ident, 512);
-    else ret = ata_read(len - 1, buffer, 1);
-    if (ret == 0) return 512;
-    return 1;
+int32_t hda_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
+    if (len == 0) return 0;
+    return ata_read(offset / 512, buffer, len / 512) ? 0 : len;
 }
 
 int init() {
+    sched_stop_timer();
     dprintf("%s:%d: bentobox ATA driver v1.0\n", __FILE__, __LINE__);
 
     char name[40];
@@ -161,7 +156,9 @@ int init() {
     hda->read = hda_read;
     hda->write = hda_write;
     vfs_add_device(hda);
-    for (;;);
+
+    sched_start_timer();
+    return 0;
 }
 
 struct Module metadata = {

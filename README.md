@@ -37,7 +37,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] FADT cleanup
 - [X] PCI
 - [X] SMP
-- [ ] AHCI driver
+- [X] ATA driver
 - [ ] ext2fs support
 - [X] Framebuffer support
 - [ ] PS/2 drivers
@@ -56,7 +56,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] FIFO queues
 - [ ] Write a better heap
 - [ ] Make an OS specific toolchain
-- [ ] General VFS improvemenst
+- [ ] General VFS improvements
 - [X] Module metadata headers
 - [X] Allow use of symbols in debugcon.c
 - [ ] Use mutexes in FIFO queues

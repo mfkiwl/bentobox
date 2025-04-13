@@ -106,15 +106,15 @@ char *vfs_get_path(struct vfs_node *node) {
     return result;
 }
 
-int32_t vfs_read(struct vfs_node *node, void *buffer, uint32_t len) {
+int32_t vfs_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
     if (!node) return -1;
-    if (node->read) return node->read(node, buffer, len);
+    if (node->read) return node->read(node, buffer, offset, len);
     return -1;
 }
 
-int32_t vfs_write(struct vfs_node *node, void *buffer, uint32_t len) {
+int32_t vfs_write(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
     if (!node) return -1;
-    if (node->write) return node->write(node, buffer, len);
+    if (node->write) return node->write(node, buffer, offset, len);
     return -1;
 }
 

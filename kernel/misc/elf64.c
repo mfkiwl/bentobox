@@ -23,7 +23,6 @@ Elf64_Addr elf_symbol_addr(Elf64_Sym *symtab, const char *strtab, int symbol_cou
 
     for (int i = 0; i < symbol_count; i++) {
         if (!strcmp(&strtab[symtab[i].st_name], str)) {
-            uint8_t type = symtab[i].st_info & 0xf;
             if (cast) return *(Elf64_Addr *)(symtab[i].st_value) + offset;
             else return symtab[i].st_value + offset;
         }
@@ -99,7 +98,7 @@ int elf_module(struct multiboot_tag_module *mod) {
 
     struct Module *metadata = (struct Module *)elf_symbol_addr(symtab, strtab, symbol_count, "metadata", false);
     if (!metadata) {
-        printf("%s:%d: Module metadata not found\n", __FILE__, __LINE__);
+        printf("%s:%d: Module metadata not found for \"%s\"\n", __FILE__, __LINE__, mod->string);
         return -1;
     }
 

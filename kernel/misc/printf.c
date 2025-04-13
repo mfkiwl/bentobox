@@ -94,7 +94,7 @@ int fprintf(int stream, const char *fmt, ...) {
     int ret = vsprintf(buf, fmt, args);
     va_end(args);
 
-    vfs_write(this_core()->current_proc->fd_table[stream], buf, strlen(buf));
+    vfs_write(this_core()->current_proc->fd_table[stream], buf, 0, strlen(buf));
 
     return ret;
 }
@@ -102,7 +102,7 @@ int fprintf(int stream, const char *fmt, ...) {
 char *fgets(char *str, int n, int stream) {
     int i = 0;
     while (i < n) {
-        vfs_read(this_core()->current_proc->fd_table[stream], str + i, 1);
+        vfs_read(this_core()->current_proc->fd_table[stream], str + i, 0, 1);
 
         switch (str[i]) {
             case '\n':

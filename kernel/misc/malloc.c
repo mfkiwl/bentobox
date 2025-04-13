@@ -39,6 +39,7 @@ void heap_delete(struct heap *h) {
         current = next;
     }
 
+
     mmu_free(PHYSICAL(h->head), 1);
     mmu_unmap((uintptr_t)h->head);
     mmu_free(PHYSICAL(h), 1);

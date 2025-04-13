@@ -14,7 +14,8 @@
 
 long max_pid = 0, next_cpu = 0;
 
-static void sched_stack_exit(void) {
+static void sched_task_entry(int (*entry)(void)) {
+    entry();
     sched_kill(this_core()->current_proc);
 }
 
@@ -26,6 +27,17 @@ void sched_unlock(void) {
     release(&(this_core()->sched_lock));
 }
 
+void sched_start_timer(void) {
+    sched_unlock();
+    lapic_eoi();
+    lapic_oneshot(0x79, 5);
+}
+
+void sched_stop_timer(void) {
+    sched_lock();
+    lapic_stop_timer();
+}
+
 struct task *sched_new_task(void *entry, const char *name, int cpu) {
     struct cpu *core = get_core(cpu == -1 ? next_cpu : cpu);
 
@@ -35,9 +47,8 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     uint64_t *stack = VIRTUAL(mmu_alloc(4));
     mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     memset(stack, 0, 4 * PAGE_SIZE);
-    stack[2047] = (uint64_t)sched_stack_exit;
 
-    proc->ctx.rdi = 0;
+    proc->ctx.rdi = (uint64_t)entry;
     proc->ctx.rsi = 0;
     proc->ctx.rbp = 0;
     proc->ctx.rsp = (uint64_t)stack + (4 * PAGE_SIZE) - 8;
@@ -45,7 +56,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->ctx.rdx = 0;
     proc->ctx.rcx = 0;
     proc->ctx.rax = 0;
-    proc->ctx.rip = (uint64_t)entry;
+    proc->ctx.rip = (uint64_t)sched_task_entry;
     proc->ctx.cs = 0x8;
     proc->ctx.ss = 0x10;
     proc->ctx.rflags = 0x202;
@@ -99,8 +110,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
 }
 
 void sched_schedule(struct registers *r) {
-    sched_lock();
-    lapic_stop_timer();
+    sched_stop_timer();
     vmm_switch_pm(kernel_pd);
 
     struct cpu *this = this_core();
@@ -147,15 +157,12 @@ void sched_schedule(struct registers *r) {
 
     memcpy(r, &(this->current_proc->ctx), sizeof(struct registers));
 
-    sched_unlock();
-    lapic_eoi();
-    lapic_oneshot(0x79, 5);
-
+    sched_start_timer();
     vmm_switch_pm(this->current_proc->pml4);
 }
 
 void sched_yield(void) {
-    asm ("int $0x79");
+    lapic_ipi(this_core()->lapic_id, 0x79);
 }
 
 void sched_block(enum task_state reason) {

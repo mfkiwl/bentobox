@@ -12,8 +12,8 @@ extern void generic_load_modules(void);
 void generic_startup(void) {
     vfs_install();
 	pci_scan();
-    generic_load_modules();
 	sched_install();
+    generic_load_modules();
 }
 
 void generic_main(void) {

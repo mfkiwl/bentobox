@@ -68,15 +68,15 @@ int dprintf(const char *fmt, ...) {
     return ret;
 }
 
-int32_t serial_write(struct vfs_node *node, void *buffer, uint32_t len) {
+int32_t serial_write(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
     char *buf = (char *)buffer;
-    for (uint32_t i = 0; i < len; i++) {
+    for (uint32_t i = offset; i < len; i++) {
         serial_write_char(buf[i]);
     }
     return (int32_t)len;
 }
 
-int32_t serial_read(struct vfs_node *node, void *buffer, uint32_t len) {
+int32_t serial_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
     char c = serial_read_char();
     memcpy(buffer, &c, 1);
     return 1;
