@@ -15,8 +15,7 @@
 long max_pid = 0, next_cpu = 0;
 
 static void sched_task_entry(int (*entry)(void)) {
-    entry();
-    sched_kill(this_core()->current_proc);
+    sched_kill(this_core()->current_proc, entry());
 }
 
 void sched_lock(void) {
@@ -179,7 +178,8 @@ void sched_sleep(int us) {
     sched_block(PAUSED);
 }
 
-void sched_kill(struct task *proc) {
+void sched_kill(struct task *proc, int status) {
+    dprintf("%s:%d: %s exited with status %d\n", __FILE__, __LINE__, proc->name, status);
     proc->state = KILLED;
     sched_yield();
 }

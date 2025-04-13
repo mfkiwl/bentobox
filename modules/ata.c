@@ -134,17 +134,30 @@ uint8_t ata_identify(uint16_t base, uint8_t type, char *name) {
 }
 
 int32_t hda_write(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
-    if (len == 0) return 0;
-    return ata_write(offset / 512, buffer, len / 512) ? 0 : len;
+    if (len == 0 || offset % 512 != 0 || len % 512 != 0) {
+        return -1;
+    }
+
+    uint32_t sector = offset / 512;
+    uint32_t num_sectors = len / 512;
+
+    printf("ata: reading %d sectors at offset %d\n", num_sectors, sector);
+
+    return ata_write(sector, buffer, num_sectors) ? -1 : len;
 }
 
 int32_t hda_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
-    if (len == 0) return 0;
-    return ata_read(offset / 512, buffer, len / 512) ? 0 : len;
+    if (len == 0 || offset % 512 != 0 || len % 512 != 0) {
+        return -1;
+    }
+
+    uint32_t sector = offset / 512;
+    uint32_t num_sectors = len / 512;
+
+    return ata_read(sector, buffer, num_sectors) ? -1 : len;
 }
 
 int init() {
-    sched_stop_timer();
     dprintf("%s:%d: bentobox ATA driver v1.0\n", __FILE__, __LINE__);
 
     char name[40];
@@ -156,8 +169,6 @@ int init() {
     hda->read = hda_read;
     hda->write = hda_write;
     vfs_add_device(hda);
-
-    sched_start_timer();
     return 0;
 }
 

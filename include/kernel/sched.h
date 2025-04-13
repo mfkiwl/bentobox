@@ -51,6 +51,6 @@ void sched_unlock(void);
 void sched_block(enum task_state reason);
 void sched_unblock(struct task *proc);
 void sched_sleep(int ms);
-void sched_kill(struct task *proc);
+void sched_kill(struct task *proc, int status);
 void sched_idle(void);
 struct task *sched_new_task(void *entry, const char *name, int cpu);
