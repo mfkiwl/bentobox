@@ -1,3 +1,4 @@
+#include <limine.h>
 #include <kernel/arch/x86_64/gdt.h>
 #include <kernel/arch/x86_64/tss.h>
 #include <kernel/arch/x86_64/idt.h>
@@ -21,7 +22,8 @@
 #include <kernel/version.h>
 #include <kernel/flanterm.h>
 #include <kernel/spinlock.h>
-#include <kernel/multiboot.h>
+
+LIMINE_BASE_REVISION(1)
 
 extern void generic_startup(void);
 extern void generic_main(void);
@@ -60,7 +62,7 @@ void mboot2_load_modules(void *base) {
 
 void putchar(char c) {
 	if (!ft_ctx) {
-		vga_putchar(c);
+		serial_write_char(c);
 	} else {
 		flanterm_write(ft_ctx, &c, 1);
 	}
@@ -68,7 +70,7 @@ void putchar(char c) {
 
 void puts(char *s) {
 	if (!ft_ctx) {
-		vga_puts(s);
+		serial_puts(s);
 	} else {
 		acquire(&flanterm_lock);
 		flanterm_write(ft_ctx, s, strlen(s));
@@ -101,28 +103,26 @@ void generic_map_kernel(uintptr_t *pml4) {
     mmu_map_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr, (uintptr_t)lfb.addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
 }
 
-void kmain(void *mboot_info, uint32_t mboot_magic) {
+void kmain(void) {
     serial_install();
     
     dprintf("%s %d.%d-%s %s %s %s\n",
         __kernel_name, __kernel_version_major, __kernel_version_minor,
 		__kernel_commit_hash, __kernel_build_date, __kernel_build_time, __kernel_arch);
 
-    assert(mboot_magic == 0x36d76289);
-	mboot = mboot_info;
+	mboot = NULL;
+	lfb_initialize(mboot);
     gdt_install();
     idt_install();
-	pmm_install(mboot_info);
+	pmm_install();
 	tss_install();
 	vmm_install();
 	kernel_heap = heap_create();
 
-	lfb_initialize(mboot_info);
-
 	printf("\n  \033[97mStarting up \033[94mbentobox (%s)\033[0m\n\n", __kernel_arch);
 
-	elf_module(mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_MODULE));
-	acpi_install(mboot_info);
+	elf_module(mboot2_find_tag(mboot, MULTIBOOT_TAG_TYPE_MODULE));
+	acpi_install(mboot);
 	lapic_install();
 	ioapic_install();
 	ps2_install();

@@ -40,7 +40,15 @@ void gdt_install(void) {
         .size = sizeof(gdt_table) - 1,
         .offset = (uint64_t)&gdt_table
     };
-    gdt_flush();
+
+    asm volatile (
+		"lgdt %0\n"
+		"mov $0x10, %%ax\n"
+		"mov %%ax, %%ds\n"
+		"mov %%ax, %%es\n"
+		"mov %%ax, %%ss\n"
+		: : "m"(gdt_descriptor) : "rax", "memory"
+	);
 
     dprintf("%s:%d: GDT address: 0x%lx\n", __FILE__, __LINE__, (uint64_t)&gdt_descriptor);
 }

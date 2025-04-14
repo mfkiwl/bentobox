@@ -9,8 +9,8 @@
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
-uintptr_t initial_pml[3][512] __attribute__((aligned(PAGE_SIZE)));
-uintptr_t *kernel_pd = initial_pml[0];
+uint64_t hhdm_offset = 0;
+uintptr_t *kernel_pd = NULL;
 
 extern char text_start_ld[];
 extern char text_end_ld[];
