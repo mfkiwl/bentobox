@@ -13,7 +13,7 @@ ifeq ($(ARCH),x86_64)
     ASFLAGS = -f elf64 -g -F dwarf
     CCFLAGS := -m64 -march=x86-64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone #-fsanitize=undefined
     LDFLAGS := -m elf_x86_64 -nostdlib -static -pie --no-dynamic-linker -z text -z max-page-size=0x1000 -T kernel/arch/x86_64/linker.ld
-    QEMUFLAGS := -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -drive file=bin/$(IMAGE_NAME).hdd,format=raw
+    QEMUFLAGS := -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -drive file=bin/$(IMAGE_NAME).hdd,format=raw -d int -M smm=off -no-reboot -no-shutdown
 else ifeq ($(ARCH),riscv64)
 	AS = riscv64-elf-as
 	CC = riscv64-elf-gcc

@@ -13,7 +13,7 @@ extern struct framebuffer lfb;
 extern struct flanterm_context *ft_ctx;
 
 void fb_draw_char(struct framebuffer *fb, uint32_t x, uint32_t y, uint8_t c, uint32_t fore, uint32_t back);
-void lfb_initialize(void *mboot_info);
+void lfb_initialize(void);
 
 static const uint8_t builtin_font[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 

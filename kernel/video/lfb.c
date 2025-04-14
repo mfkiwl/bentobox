@@ -28,7 +28,7 @@ void fb_draw_char(struct framebuffer *fb, uint32_t x, uint32_t y, uint8_t c, uin
     }
 }
 
-void lfb_initialize() {
+void lfb_initialize(void) {
 #ifdef __x86_64__
     if (fb.response == NULL || fb.response->framebuffer_count < 1) {
         dprintf("%s:%d: No framebuffers!\n");

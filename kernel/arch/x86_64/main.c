@@ -88,6 +88,8 @@ void generic_fatal(void) {
 }
 
 void generic_load_modules(void) {
+	return;
+
 	assert(mboot);
 	mboot2_load_modules(mboot);
 }
@@ -111,7 +113,7 @@ void kmain(void) {
 		__kernel_commit_hash, __kernel_build_date, __kernel_build_time, __kernel_arch);
 
 	mboot = NULL;
-	lfb_initialize(mboot);
+	lfb_initialize();
     gdt_install();
     idt_install();
 	pmm_install();
@@ -121,7 +123,7 @@ void kmain(void) {
 
 	printf("\n  \033[97mStarting up \033[94mbentobox (%s)\033[0m\n\n", __kernel_arch);
 
-	elf_module(mboot2_find_tag(mboot, MULTIBOOT_TAG_TYPE_MODULE));
+	//elf_module(mboot2_find_tag(mboot, MULTIBOOT_TAG_TYPE_MODULE));
 	acpi_install(mboot);
 	lapic_install();
 	ioapic_install();
