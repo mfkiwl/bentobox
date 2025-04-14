@@ -36,4 +36,4 @@ extern struct gdt_table gdt_table;
 
 void gdt_install(void);
 void gdt_set_entry(uint8_t index, uint16_t limit, uint64_t base, uint8_t access, uint8_t gran);
-extern void gdt_flush(void);
+void gdt_flush(void);

@@ -7,8 +7,6 @@
 struct gdt_table gdt_table;
 struct gdtr gdt_descriptor;
 
-extern void gdt_flush(void);
-
 void gdt_set_entry(uint8_t index, uint16_t limit, uint64_t base, uint8_t access, uint8_t gran) {
     if (index == 5) {
         gdt_table.tss.limit = limit;
@@ -29,6 +27,17 @@ void gdt_set_entry(uint8_t index, uint16_t limit, uint64_t base, uint8_t access,
     gdt_table.gdt_entries[index].base_high = (base >> 24) & 0xFF;
 }
 
+void gdt_flush(void) {
+    asm volatile (
+		"lgdt %0\n"
+		"mov $0x10, %%ax\n"
+		"mov %%ax, %%ds\n"
+		"mov %%ax, %%es\n"
+		"mov %%ax, %%ss\n"
+		: : "m"(gdt_descriptor) : "rax", "memory"
+	);
+}
+
 void gdt_install(void) {
     gdt_set_entry(0, 0x0000, 0x00000000, 0x00, 0x00);
     gdt_set_entry(1, 0x0000, 0x00000000, 0x9A, 0x20);
@@ -40,15 +49,7 @@ void gdt_install(void) {
         .size = sizeof(gdt_table) - 1,
         .offset = (uint64_t)&gdt_table
     };
-
-    asm volatile (
-		"lgdt %0\n"
-		"mov $0x10, %%ax\n"
-		"mov %%ax, %%ds\n"
-		"mov %%ax, %%es\n"
-		"mov %%ax, %%ss\n"
-		: : "m"(gdt_descriptor) : "rax", "memory"
-	);
+    gdt_flush();
 
     dprintf("%s:%d: GDT address: 0x%lx\n", __FILE__, __LINE__, (uint64_t)&gdt_descriptor);
 }

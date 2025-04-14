@@ -100,12 +100,12 @@ void isr_handler(struct registers *r) {
 	    for (;;) asm ("hlt");
     }
 
-    //vmm_switch_pm(kernel_pd);
+    vmm_switch_pm(kernel_pd);
 
-    //if (r->cs & 3) {
-    //    dprintf("%s:%d: \033[91m%s\033[0m on \"%s\"\n", __FILE__, __LINE__, isr_errors[r->int_no], this_core()->current_proc->name);
-    //    sched_kill(this_core()->current_proc, -1);
-    //}
+    if (r->cs & 3) {
+        dprintf("%s:%d: \033[91m%s\033[0m on \"%s\"\n", __FILE__, __LINE__, isr_errors[r->int_no], this_core()->current_proc->name);
+        sched_kill(this_core()->current_proc, -1);
+    }
 
     uint64_t cr2;
     asm volatile("mov %%cr2, %0" : "=r" (cr2));
@@ -125,8 +125,8 @@ void isr_handler(struct registers *r) {
             r->rsp, r->rbx, r->rdx, r->rcx, r->rax, r->rip, r->r8, r->r9,
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,
             r->rflags);
-    for (;;) asm ("hlt");
 
+#if 0
     struct stackframe *frame_ptr = __builtin_frame_address(0);
 
     printf("%s:%d: traceback:\n", __FILE__, __LINE__);
@@ -143,6 +143,7 @@ void isr_handler(struct registers *r) {
         printf("#%d  0x%lx in %s\n", i, frame_ptr->rip, symbol);
         frame_ptr = frame_ptr->rbp;
     }
+#endif
 
     generic_fatal();
 }

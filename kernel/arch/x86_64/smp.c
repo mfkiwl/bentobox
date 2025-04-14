@@ -1,3 +1,4 @@
+#include <limine.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/gdt.h>
 #include <kernel/arch/x86_64/tss.h>
@@ -15,7 +16,12 @@
 #include <kernel/assert.h>
 #include <kernel/spinlock.h>
 
-extern void _L8000_ap_trampoline();
+struct limine_smp_request smp_request = {
+    .id = LIMINE_SMP_REQUEST,
+    .revision = 0
+};
+
+void ap_startup(void);
 
 volatile uint8_t smp_running_cpus = 1;
 static atomic_flag smp_init_lock = ATOMIC_FLAG_INIT;
@@ -42,8 +48,6 @@ void smp_initialize(void) {
     uint8_t bspid;
     asm volatile ("mov $1, %%eax; cpuid; shrl $24, %%ebx;": "=b"(bspid) : :); /* get the BSP's LAPIC ID */
 
-    memcpy((void*)0x8000, &_L8000_ap_trampoline, PAGE_SIZE);
-
     for (uint32_t i = 0; i < madt_lapics; i++) {
         if (madt_lapic_list[i]->id == bspid)
             continue; /* skip BSP, that's already running this code */
@@ -58,31 +62,7 @@ void smp_initialize(void) {
         release(&core->sched_lock);
         smp_cpu_list[i] = core;
 
-        /* send INIT IPI */
-        lapic_write(LAPIC_ESR, 0);                                                        /* clear APIC errors */
-        lapic_write(LAPIC_ICRHI, i << LAPIC_ICDESTSHIFT);                                 /* select AP */
-        lapic_write(LAPIC_ICRLO, (lapic_read(LAPIC_ICRLO) & 0xfff00000) | 0x00C500); /* trigger INIT IPI */
-        do {
-            asm volatile ("pause" : : : "memory");                                                   /* wait for delivery */
-        } while (lapic_read(LAPIC_ICRLO) & (1 << 12));
-        lapic_write(LAPIC_ICRHI, i << LAPIC_ICDESTSHIFT);                                 /* select AP */
-        lapic_write(LAPIC_ICRLO, (lapic_read(LAPIC_ICRLO) & 0xfff00000) | 0x008500); /* deassert */
-        do {
-            asm volatile ("pause" : : : "memory");                                                   /* wait for delivery */
-        } while (lapic_read(LAPIC_ICRLO) & (1 << 12));
-
-        hpet_sleep(10000);
-
-        /* send STARTUP IPI (twice) */
-        for(int j = 0; j < 2; j++) {
-            lapic_write(LAPIC_ESR, 0);                                                        /* clear APIC errors */
-            lapic_write(LAPIC_ICRHI, i << LAPIC_ICDESTSHIFT);                                 /* select AP */
-            lapic_write(LAPIC_ICRLO, (lapic_read(LAPIC_ICRLO) & 0xfff0f800) | 0x000608); /* trigger STARTUP IPI for 0x0800:0x0000 */
-            hpet_sleep(200);
-            do {
-                asm volatile ("pause" : : : "memory");                                                   /* wait for delivery */
-            } while (lapic_read(LAPIC_ICRLO) & (1 << 12));
-        }
+        smp_request.response->cpus[i]->goto_address = (struct limine_goto_address *)ap_startup;
 
         acquire(&smp_init_lock);
         release(&smp_init_lock);
@@ -112,9 +92,6 @@ void ap_startup(void) {
     lapic_install();
     lapic_calibrate_timer();
     lapic_eoi();
-
-    //uint64_t id = this_core()->id;
-    //printf("Hello from CPU %d!\n", id);
     
     smp_running_cpus++;
     release(&smp_init_lock);
