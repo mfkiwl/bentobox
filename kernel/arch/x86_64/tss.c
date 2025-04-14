@@ -12,16 +12,6 @@ struct tss_entry tss;
 
 atomic_flag tss_lock = ATOMIC_FLAG_INIT;
 
-static inline void flush_tss(void) {
-    __asm__ __volatile__ (
-        "mov $0x28, %%ax\n\t"
-        "ltr %%ax\n\t"
-        :
-        :
-        : "ax"
-    );
-}
-
 void write_tss(int index, uint64_t rsp0) {
     acquire(&tss_lock);
     gdt_set_entry(index, sizeof(struct tss_entry), (uint64_t)&tss, 0x89, 0x20);
@@ -29,7 +19,11 @@ void write_tss(int index, uint64_t rsp0) {
     memset(&tss, 0, sizeof(struct tss_entry));
     tss.rsp0 = rsp0;
 
-    flush_tss();
+    asm volatile (
+        "mov $0x28, %%ax\n\t"
+        "ltr %%ax\n\t"
+        : : : "ax"
+    );
     release(&tss_lock);
 }
 

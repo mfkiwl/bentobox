@@ -13,7 +13,7 @@ ifeq ($(ARCH),x86_64)
     ASFLAGS = -f elf64 -g -F dwarf
     CCFLAGS := -m64 -march=x86-64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone #-fsanitize=undefined
     LDFLAGS := -m elf_x86_64 -nostdlib -static -pie --no-dynamic-linker -z text -z max-page-size=0x1000 -T kernel/arch/x86_64/linker.ld
-    QEMUFLAGS := -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -drive file=bin/$(IMAGE_NAME).hdd,format=raw -d int -M smm=off -no-reboot -no-shutdown
+    QEMUFLAGS := -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -drive file=bin/$(IMAGE_NAME).hdd,format=raw
 else ifeq ($(ARCH),riscv64)
 	AS = riscv64-elf-as
 	CC = riscv64-elf-gcc
@@ -30,7 +30,6 @@ endif
 # Automatically find sources
 KERNEL_S_SOURCES := $(shell find kernel -type f -name '*.S' ! -path "kernel/arch/*")
 KERNEL_C_SOURCES := $(shell find kernel -type f -name '*.c' ! -path "kernel/arch/*")
-MODULE_C_SOURCES := $(shell find modules -type f -name '*.c')
 ARCH_S_SOURCES   := $(shell find $(ARCH_DIR) -type f -name '*.S' | sed 's|^\./||')
 ARCH_C_SOURCES   := $(shell find $(ARCH_DIR) -type f -name '*.c' | sed 's|^\./||') kernel/target_arch.c
 
@@ -74,25 +73,12 @@ bin/.target: kernel/target_arch.c
 	mkdir -p "$$(dirname $@)"
 	@touch $@
 
-bin/modules/%.o: modules/%.c $(KERNEL_OBJS)
-	@echo " CC $<"
-	@mkdir -p "$$(dirname $@)"
-	@$(CC) $(CCFLAGS) -c $< -o $@
-
 .PHONY: kernel
 kernel: $(KERNEL_OBJS)
 	@echo " LD kernel/*"
 	@$(LD) $(LDFLAGS) $^ -o bin/kernel.elf
 	@objcopy --only-keep-debug bin/kernel.elf bin/ksym.elf
-	@bash util/symbols.sh
-
-.PHONY: modules
-modules: kernel $(MODULE_OBJS)
-	@for obj in $(MODULE_OBJS); do \
-		echo " LD $${obj}"; \
-		cp $${obj} bin/module.elf; \
-		ld -Tbin/mod.ld bin/ksym.elf bin/module.elf -o $${obj%.o}.elf; \
-	done
+#	@bash util/symbols.sh
 
 include/limine.h:
 	@echo " GET https://github.com/limine-bootloader/limine/raw/v9.x/limine.h"
@@ -108,6 +94,7 @@ iso: kernel limine
 	@rm -rf iso_root
 	@mkdir -p iso_root/boot
 	@cp -a bin/kernel.elf iso_root/boot/kernel.elf
+	@cp -a bin/ksym.elf iso_root/ksym.elf
 	@mkdir -p iso_root/boot/limine
 	@cp boot/limine.conf limine/limine-bios.sys limine/limine-bios-cd.bin limine/limine-uefi-cd.bin iso_root/boot/limine/
 	@mkdir -p iso_root/EFI/BOOT

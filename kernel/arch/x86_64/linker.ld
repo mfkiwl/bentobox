@@ -50,9 +50,10 @@ SECTIONS
         *(COMMON)
     } :data
 
+    data_end_ld = .;
+
     end = ALIGN(4K);
 
-    data_end_ld = .;
     /DISCARD/ : {
         *(.eh_frame)
         *(.note .note.*)

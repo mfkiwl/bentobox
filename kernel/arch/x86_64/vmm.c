@@ -113,6 +113,18 @@ void mmu_unmap(uintptr_t virt) {
     release(&this_core()->vmm_lock);
 }
 
+void mmu_map_huge(uintptr_t virt, uintptr_t phys, uint64_t flags) {
+    struct cpu *this = this_core();
+    uintptr_t pml4_index = (virt >> 39) & 0x1ff;
+    uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
+    uintptr_t pd_index = (virt >> 21) & 0x1ff;
+
+    uintptr_t *pdpt = vmm_get_next_lvl(this->pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
+    uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
+
+    pd[pd_index] = phys | flags | (1 << 7);
+}
+
 void mmu_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint32_t flags) {
     for (uint32_t i = 0; i < count * PAGE_SIZE; i += PAGE_SIZE) {
         mmu_map(virt + i, phys + i, flags);
@@ -146,8 +158,8 @@ void vmm_install(void) {
         mmu_map(rodata, rodata - virt_base + phys_base, PTE_PRESENT | PTE_NX);
     for (uintptr_t data = data_start; data < data_end; data += PAGE_SIZE)
         mmu_map(data, data - virt_base + phys_base, PTE_PRESENT | PTE_WRITABLE | PTE_NX);
-    for (uintptr_t addr = 0; addr < 0x100000000; addr += PAGE_SIZE)
-        mmu_map((uintptr_t)VIRTUAL(addr), addr, PTE_PRESENT | PTE_WRITABLE);
+    for (uintptr_t addr = 0; addr < 0x100000000; addr += 0x200000)
+        mmu_map_huge((uintptr_t)VIRTUAL(addr), addr, PTE_PRESENT | PTE_WRITABLE);
 
     dprintf("%s:%d: done mapping kernel regions\n", __FILE__, __LINE__);
 

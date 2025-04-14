@@ -28,6 +28,7 @@ void gdt_set_entry(uint8_t index, uint16_t limit, uint64_t base, uint8_t access,
 }
 
 void gdt_flush(void) {
+    // FIXME do a far jump to update cs
     asm volatile (
 		"lgdt %0\n"
 		"mov $0x10, %%ax\n"

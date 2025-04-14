@@ -54,7 +54,7 @@ void *acpi_find_table(const char *signature) {
 }
 
 __attribute__((no_sanitize("undefined")))
-void acpi_install(void *mboot_info) {
+void acpi_install(void) {
     struct acpi_rsdp *rsdp = (struct acpi_rsdp *)rsdp_request.response->address;
 
     if (!rsdp)
