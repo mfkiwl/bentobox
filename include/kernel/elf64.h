@@ -1,7 +1,7 @@
 #pragma once
+#include <limine.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <kernel/multiboot.h>
 
 typedef uint64_t Elf64_Addr;
 typedef uint64_t Elf64_Off;
@@ -118,4 +118,4 @@ typedef struct {
 
 Elf64_Addr elf_symbol_addr(Elf64_Sym *symtab, const char *strtab, int symbol_count, char *str, bool cast);
 int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_count, Elf64_Addr addr);
-int elf_module(struct multiboot_tag_module *mod);
+int elf_module(struct limine_file *file);

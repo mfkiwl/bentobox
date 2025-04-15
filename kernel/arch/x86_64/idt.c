@@ -126,7 +126,6 @@ void isr_handler(struct registers *r) {
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,
             r->rflags);
 
-#if 0
     struct stackframe *frame_ptr = __builtin_frame_address(0);
 
     printf("%s:%d: traceback:\n", __FILE__, __LINE__);
@@ -134,7 +133,7 @@ void isr_handler(struct registers *r) {
     char symbol[256];
     struct cpu *this = this_core();
     for (int i = 0; i < 8 && frame_ptr->rbp; i++) {
-        if (elf_symbol_name(symbol, ksymtab, kstrtab, ksym_count, frame_ptr->rip)) {
+        if (elf_symbol_name(symbol, ksymtab, kstrtab, ksym_count, frame_ptr->rip) && this->current_proc) {
             elf_symbol_name(symbol,
                 this->current_proc->elf.symtab, this->current_proc->elf.strtab,
                 this->current_proc->elf.symbol_count, frame_ptr->rip
@@ -143,7 +142,6 @@ void isr_handler(struct registers *r) {
         printf("#%d  0x%lx in %s\n", i, frame_ptr->rip, symbol);
         frame_ptr = frame_ptr->rbp;
     }
-#endif
 
     generic_fatal();
 }

@@ -3,6 +3,9 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdatomic.h>
+#include <kernel/arch/x86_64/hpet.h>
+#include <kernel/arch/x86_64/lapic.h>
+#include <kernel/lfb.h>
 #include <kernel/mmu.h>
 #include <kernel/panic.h>
 #include <kernel/sched.h>
@@ -24,8 +27,6 @@ extern char rodata_start_ld[];
 extern char rodata_end_ld[];
 extern char data_start_ld[];
 extern char data_end_ld[];
-extern char bss_start_ld[];
-extern char bss_end_ld[];
 
 void vmm_flush_tlb(uintptr_t virt) {
     __asm__ volatile ("invlpg (%0)" ::"r"(virt) : "memory");
@@ -137,11 +138,7 @@ void mmu_unmap_pages(uint32_t count, uintptr_t virt) {
     }
 }
 
-void vmm_install(void) {
-    kernel_pd = (uintptr_t *)VIRTUAL(mmu_alloc(1));
-    memset(kernel_pd, 0, PAGE_SIZE);
-    this_core()->pml4 = kernel_pd;
-
+void vmm_map_kernel(void) {
     uintptr_t phys_base = kernel_address_request.response->physical_base;
     uintptr_t virt_base = kernel_address_request.response->virtual_base;
 
@@ -160,7 +157,26 @@ void vmm_install(void) {
         mmu_map(data, data - virt_base + phys_base, PTE_PRESENT | PTE_WRITABLE | PTE_NX);
     for (uintptr_t addr = 0; addr < 0x100000000; addr += 0x200000)
         mmu_map_huge((uintptr_t)VIRTUAL(addr), addr, PTE_PRESENT | PTE_WRITABLE);
+}
 
+void mmu_create_user_pm(uintptr_t *pml4) {
+    this_core()->pml4 = pml4;
+
+    vmm_map_kernel();
+    mmu_map((uintptr_t)madt_ioapic_list[0]->address, (uintptr_t)madt_ioapic_list[0]->address, PTE_PRESENT | PTE_WRITABLE);
+
+    mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map((uintptr_t)VIRTUAL(hpet->address), hpet->address, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr, (uintptr_t)lfb.addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+}
+
+void vmm_install(void) {
+    kernel_pd = (uintptr_t *)VIRTUAL(mmu_alloc(1));
+    memset(kernel_pd, 0, PAGE_SIZE);
+    this_core()->pml4 = kernel_pd;
+
+    vmm_map_kernel();
     dprintf("%s:%d: done mapping kernel regions\n", __FILE__, __LINE__);
 
     vmm_switch_pm(kernel_pd);

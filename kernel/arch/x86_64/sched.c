@@ -96,8 +96,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     uintptr_t *pml4 = mmu_alloc(1);
     mmu_map((uintptr_t)VIRTUAL(pml4), (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     this_core()->pml4 = pml4;
-    extern void generic_map_kernel(uintptr_t *pml4);
-    generic_map_kernel(pml4);
+    mmu_create_user_pm(pml4);
 
     struct task *proc = sched_new_task(entry, name, cpu);
     proc->ctx.cs = 0x1b;

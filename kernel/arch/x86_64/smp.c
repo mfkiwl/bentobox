@@ -21,7 +21,7 @@ struct limine_smp_request smp_request = {
     .revision = 0
 };
 
-void ap_startup(void);
+void ap_startup(struct limine_smp_info *info);
 
 volatile uint8_t smp_running_cpus = 1;
 static atomic_flag smp_init_lock = ATOMIC_FLAG_INIT;
@@ -62,7 +62,7 @@ void smp_initialize(void) {
         release(&core->sched_lock);
         smp_cpu_list[i] = core;
 
-        smp_request.response->cpus[i]->goto_address = (struct limine_goto_address *)ap_startup;
+        smp_request.response->cpus[i]->goto_address = (limine_goto_address)ap_startup;
 
         acquire(&smp_init_lock);
         release(&smp_init_lock);
@@ -84,7 +84,7 @@ struct cpu *this_core(void) {
     return smp_cpu_list[bspid];
 }
 
-void ap_startup(void) {
+void ap_startup(struct limine_smp_info *info) {
     idt_reinstall();
     vmm_switch_pm(kernel_pd);
     gdt_flush();

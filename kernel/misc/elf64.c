@@ -1,10 +1,10 @@
+#include <limine.h>
 #include <stdbool.h>
 #include <kernel/mmu.h>
 #include <kernel/elf64.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/module.h>
-#include <kernel/multiboot.h>
 
 Elf64_Sym *ksymtab = NULL;
 char *kstrtab = NULL;
@@ -31,6 +31,11 @@ Elf64_Addr elf_symbol_addr(Elf64_Sym *symtab, const char *strtab, int symbol_cou
 }
 
 int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_count, Elf64_Addr addr) {
+    if (!symtab || !strtab || !symbol_count) {
+        strcpy(s, "(none)");
+        return 1;
+    }
+
     Elf64_Sym *sym = NULL;
     Elf64_Addr best = (Elf64_Addr)-1;
     
@@ -60,10 +65,10 @@ int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_c
     return 0;
 }
 
-int elf_module(struct multiboot_tag_module *mod) {
-    dprintf("%s:%d: loading module \"%s\"\n", __FILE__, __LINE__, mod->string);
+int elf_module(struct limine_file *file) {
+    dprintf("%s:%d: loading module \"%s\"\n", __FILE__, __LINE__, file->cmdline);
 
-    Elf64_Ehdr *ehdr = (Elf64_Ehdr *)(uintptr_t)mod->mod_start;
+    Elf64_Ehdr *ehdr = (Elf64_Ehdr *)(uintptr_t)file->address;
 
     if (memcmp(ehdr->e_ident, "\x7f""ELF", 4)) {
         printf("%s:%d: invalid elf file\n", __FILE__, __LINE__);
@@ -75,21 +80,21 @@ int elf_module(struct multiboot_tag_module *mod) {
         return -1;
     }
 
-    Elf64_Shdr *shdr = (Elf64_Shdr *)(mod->mod_start + ehdr->e_shoff);
+    Elf64_Shdr *shdr = (Elf64_Shdr *)(file->address + ehdr->e_shoff);
     Elf64_Sym *symtab = NULL;
     char *strtab = NULL;
 
     int i, symbol_count = 0;
     for (i = 0; i < ehdr->e_shnum; i++) {
         if (shdr[i].sh_type == SHT_STRTAB && ehdr->e_shstrndx != i) {
-            strtab = (char *)(mod->mod_start + shdr[i].sh_offset);
+            strtab = (char *)(file->address + shdr[i].sh_offset);
         } else if (shdr[i].sh_type == SHT_SYMTAB) {
-            symtab = (Elf64_Sym *)(mod->mod_start + shdr[i].sh_offset);
+            symtab = (Elf64_Sym *)(file->address + shdr[i].sh_offset);
             symbol_count = shdr[i].sh_size / shdr[i].sh_entsize;
         }
     }
 
-    if (!strcmp(mod->string, "ksym")) {
+    if (!strcmp(file->cmdline, "ksym.elf")) {
         ksymtab = symtab;
         kstrtab = strtab;
         ksym_count = symbol_count;
@@ -98,16 +103,16 @@ int elf_module(struct multiboot_tag_module *mod) {
 
     struct Module *metadata = (struct Module *)elf_symbol_addr(symtab, strtab, symbol_count, "metadata", false);
     if (!metadata) {
-        printf("%s:%d: Module metadata not found for \"%s\"\n", __FILE__, __LINE__, mod->string);
+        printf("%s:%d: Module metadata not found for \"%s\"\n", __FILE__, __LINE__, file->cmdline);
         return -1;
     }
 
-    uintptr_t *pml4 = mmu_alloc(1);
-    mmu_map((uintptr_t)VIRTUAL(pml4), (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE);
-    generic_map_kernel(pml4);
-    vmm_switch_pm(pml4);
+    //uintptr_t *pml4 = mmu_alloc(1);
+    //mmu_map((uintptr_t)VIRTUAL(pml4), (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE);
+    //generic_map_kernel(pml4);
+    //vmm_switch_pm(pml4);
 
-    Elf64_Phdr *phdr = (Elf64_Phdr *)(mod->mod_start + ehdr->e_phoff);
+    Elf64_Phdr *phdr = (Elf64_Phdr *)(file->address + ehdr->e_phoff);
 
     for (i = 0; i < ehdr->e_phnum; i++) {
         if (phdr[i].p_type == PT_LOAD) {
@@ -124,7 +129,7 @@ int elf_module(struct multiboot_tag_module *mod) {
             }
 
             if (phdr[i].p_filesz > 0) {
-                uintptr_t src = (uintptr_t)mod->mod_start + phdr[i].p_offset;
+                uintptr_t src = (uintptr_t)file->address + phdr[i].p_offset;
                 uintptr_t dest = phdr[i].p_vaddr;
 
                 memcpy((void *)dest, (void *)src, phdr[i].p_filesz);
@@ -136,6 +141,8 @@ int elf_module(struct multiboot_tag_module *mod) {
         }
     }
 
+    // TODO: think of a better way to do this
+#if 0
     struct task *proc = sched_new_task(metadata->init, metadata->name, -1);
     proc->elf.symtab = symtab;
     proc->elf.strtab = strtab;
@@ -143,5 +150,7 @@ int elf_module(struct multiboot_tag_module *mod) {
     proc->pml4 = pml4;
 
     vmm_switch_pm(kernel_pd);
+#endif
+
     return 0;
 }

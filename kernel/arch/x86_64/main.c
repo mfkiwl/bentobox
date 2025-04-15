@@ -25,6 +25,11 @@
 
 LIMINE_BASE_REVISION(1)
 
+struct limine_module_request module_request = {
+    .id = LIMINE_MODULE_REQUEST,
+    .revision = 1
+};
+
 extern void generic_startup(void);
 extern void generic_main(void);
 
@@ -58,18 +63,17 @@ void generic_fatal(void) {
 }
 
 void generic_load_modules(void) {
-	return;
-}
+	if (module_request.response == NULL) {
+        printf("Modules not passed\n");
+        return;
+    }
+    struct limine_module_response *module_response = module_request.response;
+    printf("Modules feature, revision %d\n", module_response->revision);
+    printf("%d module(s)\n", module_response->module_count);
 
-void generic_map_kernel(uintptr_t *pml4) {
-    this_core()->pml4 = pml4;
-	pml4[511] = kernel_pd[511];
-    mmu_map_pages(16383, 0x1000, 0x1000, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_map((uintptr_t)madt_ioapic_list[0]->address, (uintptr_t)madt_ioapic_list[0]->address, PTE_PRESENT | PTE_WRITABLE);
-    mmu_map((uintptr_t)VIRTUAL(hpet->address), hpet->address, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_map_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr, (uintptr_t)lfb.addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+	for (size_t i = 1; i < module_request.response->module_count; i++) {
+		elf_module(module_request.response->modules[i]);
+	}
 }
 
 void kmain(void) {
@@ -89,7 +93,7 @@ void kmain(void) {
 
 	printf("\n  \033[97mStarting up \033[94mbentobox (%s)\033[0m\n\n", __kernel_arch);
 
-	//elf_module(mboot2_find_tag(mboot, MULTIBOOT_TAG_TYPE_MODULE));
+	elf_module(module_request.response->modules[0]);
 	acpi_install();
 	lapic_install();
 	ioapic_install();
