@@ -28,13 +28,17 @@ void gdt_set_entry(uint8_t index, uint16_t limit, uint64_t base, uint8_t access,
 }
 
 void gdt_flush(void) {
-    // FIXME do a far jump to update cs
     asm volatile (
 		"lgdt %0\n"
 		"mov $0x10, %%ax\n"
 		"mov %%ax, %%ds\n"
 		"mov %%ax, %%es\n"
 		"mov %%ax, %%ss\n"
+        "pushq $0x08\n"
+        "lea 1f(%%rip), %%rax\n"
+        "pushq %%rax\n"
+        "lretq\n"
+        "1:\n"
 		: : "m"(gdt_descriptor) : "rax", "memory"
 	);
 }
