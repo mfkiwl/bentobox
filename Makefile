@@ -111,7 +111,7 @@ limine:
 
 .PHONY: iso
 ifeq ($(ARCH),x86_64)
-iso: kernel limine
+iso: kernel modules limine
 	@rm -rf iso_root
 	@mkdir -p iso_root/boot
 	@cp -a bin/kernel.elf iso_root/boot/kernel.elf

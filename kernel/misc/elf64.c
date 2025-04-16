@@ -66,7 +66,7 @@ int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_c
 }
 
 int elf_module(struct limine_file *file) {
-    dprintf("%s:%d: loading module \"%s\"\n", __FILE__, __LINE__, file->cmdline);
+    //dprintf("%s:%d: loading module \"%s\"\n", __FILE__, __LINE__, file->cmdline);
 
     Elf64_Ehdr *ehdr = (Elf64_Ehdr *)(uintptr_t)file->address;
 

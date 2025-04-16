@@ -64,16 +64,16 @@ void generic_fatal(void) {
 
 void generic_load_modules(void) {
 	if (module_request.response == NULL) {
-        printf("Modules not passed\n");
+    	printf("\033[91m * \033[97mModules not passed by bootloader\033[0m\n");
         return;
     }
-    struct limine_module_response *module_response = module_request.response;
-    printf("Modules feature, revision %d\n", module_response->revision);
-    printf("%d module(s)\n", module_response->module_count);
 
+	int total = 0;
 	for (size_t i = 1; i < module_request.response->module_count; i++) {
-		elf_module(module_request.response->modules[i]);
+		if (!elf_module(module_request.response->modules[i]))
+			total++;
 	}
+    printf("\033[92m * \033[97mInitialized %d module%s\033[0m\n", total, total == 1 ? "" : "s");
 }
 
 void kmain(void) {

@@ -4,6 +4,7 @@
 #include <kernel/malloc.h>
 #include <kernel/module.h>
 #include <kernel/printf.h>
+#include <kernel/string.h>
 
 typedef struct ext2_sb {
     uint32_t inodes;
@@ -104,22 +105,49 @@ typedef struct ext2_fs {
 } ext2_fs;
 
 ext2_fs ext2fs;
+ext2_inode *root;
 struct vfs_node *hda = NULL;
+
+int read_block(struct ext2_fs *fs, size_t block, void *buffer, size_t count) {
+    return vfs_read(hda, buffer, block * fs->block_size, count);
+}
+
+void read_inode(ext2_fs* fs, size_t inode_no, ext2_inode *inode) {
+    size_t bg = (inode_no - 1) / fs->sb->inodes_per_group;
+    size_t idx = (inode_no - 1) % fs->sb->inodes_per_group;
+    size_t bg_idx = (idx * fs->inode_size) / fs->block_size;
+
+    uint8_t buffer[fs->block_size];
+    read_block(fs, fs->bgd_table[bg].inode_table + bg_idx, buffer, fs->block_size);
+    memcpy(inode, (buffer + (idx % (fs->block_size / fs->inode_size)) * fs->inode_size), fs->inode_size);
+}
 
 int init() {
     dprintf("%s:%d: ext2 driver v1.0\n", __FILE__, __LINE__);
 
     hda = vfs_open(NULL, "/dev/hda");
 
-    ext2_sb *superblock = (ext2_sb *)kmalloc(512);
-    vfs_read(hda, (void *)superblock, 1024, 512);
+    ext2_sb *sb = (ext2_sb *)kmalloc(512);
+    vfs_read(hda, (void *)sb, 1024, 512);
 
-    if (superblock->signature != 0xef53) {
+    if (sb->signature != 0xef53) {
         dprintf("%s:%d: not an ext2 partition\n", __FILE__, __LINE__);
         return -EINVAL;
     }
+    dprintf("%s:%d: partition name: %s\n", __FILE__, __LINE__, sb->vol_name);
 
-    dprintf("%s:%d: partition name: %s\n", __FILE__, __LINE__, superblock->vol_name);
+    ext2fs.sb = sb;
+    ext2fs.block_size = (1024 << sb->log2_block);
+    ext2fs.bgd_count = sb->blocks / sb->blocks_per_group;
+    ext2fs.bgd_block = sb->block_num + 1;
+    ext2fs.bgd_table = (struct ext2_bgd *)kmalloc(sizeof(struct ext2_bgd) * ext2fs.bgd_count);
+    ext2fs.inode_size = sb->major_ver == 1 ? sb->inode_size : 128;
+
+    dprintf("Reading root inode...\n");
+    
+    root = (ext2_inode *)kmalloc(ext2fs.inode_size);
+    read_inode(&ext2fs, 2, root);
+
     return 0;
 }
 

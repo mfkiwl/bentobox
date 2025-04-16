@@ -3,4 +3,5 @@
 struct Module {
     const char *name;
     int (*init)();
+    // TODO: add fini
 };
