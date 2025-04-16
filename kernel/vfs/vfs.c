@@ -54,7 +54,8 @@ void vfs_add_device(struct vfs_node *node) {
 }
 
 struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
-    if (!current || !path) return NULL;
+    if (!path) return NULL;
+    if (!current) current = vfs_root;
 
     if (!strcmp(path, ".")) {
         return current;

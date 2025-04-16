@@ -2,7 +2,7 @@
 bentobox is a 64-bit SMP-enabled operating system targeting x86_64 and RISC-V
 
 ## Features on x86_64
-- Multiboot 2 boot & module support
+- Limine boot protocol & module support
 - 4-level paging
 - VGA text mode and serial driver
 - ACPI table parsing
@@ -60,4 +60,5 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] Module metadata headers
 - [X] Allow use of symbols in debugcon.c
 - [ ] Use mutexes in FIFO queues
-- [ ] Port to limine
+- [X] Port to limine
+- [ ] %p in printf

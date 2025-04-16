@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <kernel/mmu.h>
 #include <kernel/vfs.h>
 #include <kernel/malloc.h>
@@ -108,19 +109,17 @@ struct vfs_node *hda = NULL;
 int init() {
     dprintf("%s:%d: ext2 driver v1.0\n", __FILE__, __LINE__);
 
-    while (!hda) {
-        sched_yield();
-        hda = vfs_open(vfs_root, "/dev/hda");
-    }
+    hda = vfs_open(NULL, "/dev/hda");
 
-    ext2_sb *superblock = (ext2_sb *)mmu_alloc(1);
-    vfs_read(hda, (void *)superblock, 0, 512);
+    ext2_sb *superblock = (ext2_sb *)kmalloc(512);
+    vfs_read(hda, (void *)superblock, 1024, 512);
 
     if (superblock->signature != 0xef53) {
-        dprintf("ext2: not an ext2 partition\n");
-    } else {
-        dprintf("ext2: found ext2 partition\n");
+        dprintf("%s:%d: not an ext2 partition\n", __FILE__, __LINE__);
+        return -EINVAL;
     }
+
+    dprintf("%s:%d: partition name: %s\n", __FILE__, __LINE__, superblock->vol_name);
     return 0;
 }
 

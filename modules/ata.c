@@ -51,7 +51,7 @@ uint8_t ata_poll() {
 }
 
 __attribute__((no_sanitize("undefined")))
-uint8_t ata_read(uint32_t lba, uint8_t *buffer, uint32_t sectors) {
+uint8_t ata_read(uint32_t lba, void *buffer, uint32_t sectors) {
     outb(ata_base + 6, (ata_type == ATA_MASTER ? 0xE0 : 0xF0) | ((lba >> 24) & 0x0F));
     outb(ata_base + 1, ATA_WAIT);
     outb(ata_base + 2, sectors);
@@ -73,7 +73,7 @@ uint8_t ata_read(uint32_t lba, uint8_t *buffer, uint32_t sectors) {
 }
 
 __attribute__((no_sanitize("undefined")))
-uint8_t ata_write(uint32_t lba, uint8_t *buffer, uint32_t sectors) {
+uint8_t ata_write(uint32_t lba, void *buffer, uint32_t sectors) {
     outb(ata_base + 6, (ata_type == ATA_MASTER ? 0xE0 : 0xF0) | ((lba >> 24) & 0x0F));
     outb(ata_base + 1, ATA_WAIT);
     outb(ata_base + 2, sectors);
@@ -112,10 +112,8 @@ uint8_t ata_identify(uint16_t base, uint8_t type, char *name) {
         return ATA_DISK_ERR;
     }
 
-    ata_ident = mmu_alloc(1);
-    mmu_map((uintptr_t)VIRTUAL(ata_ident), (uintptr_t)ata_ident, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    ata_ident = kmalloc(512);
     ata_read(0, ata_ident, 1);
-    mmu_map((uintptr_t)VIRTUAL(ata_ident), (uintptr_t)ata_ident, PTE_PRESENT | PTE_USER);
 
     uint8_t i = 0;
     for (i = 0; i < 40; i += 2) {
@@ -140,8 +138,6 @@ int32_t hda_write(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t
 
     uint32_t sector = offset / 512;
     uint32_t num_sectors = len / 512;
-
-    printf("ata: reading %d sectors at offset %d\n", num_sectors, sector);
 
     return ata_write(sector, buffer, num_sectors) ? -1 : len;
 }

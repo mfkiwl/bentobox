@@ -107,17 +107,14 @@ int elf_module(struct limine_file *file) {
         return -1;
     }
 
-    //uintptr_t *pml4 = mmu_alloc(1);
-    //mmu_map((uintptr_t)VIRTUAL(pml4), (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE);
-    //generic_map_kernel(pml4);
-    //vmm_switch_pm(pml4);
-
     Elf64_Phdr *phdr = (Elf64_Phdr *)(file->address + ehdr->e_phoff);
 
     for (i = 0; i < ehdr->e_phnum; i++) {
         if (phdr[i].p_type == PT_LOAD) {
-            if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
+            if (phdr[i].p_vaddr >= KERNEL_VIRT_BASE)
                 continue;
+
+            //dprintf("elf: p_vaddr=0x%lx, p_filesz=0x%lx, p_memsz=0x%lx\n", phdr[i].p_vaddr, phdr[i].p_filesz, phdr[i].p_memsz);
 
             size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
 
@@ -125,7 +122,7 @@ int elf_module(struct limine_file *file) {
                 uintptr_t paddr = (uintptr_t)mmu_alloc(1);
                 uintptr_t vaddr = phdr[i].p_vaddr + page * PAGE_SIZE;
 
-                mmu_map_pages(1, paddr, vaddr, PTE_PRESENT | PTE_WRITABLE);
+                mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE);
             }
 
             if (phdr[i].p_filesz > 0) {
@@ -141,16 +138,5 @@ int elf_module(struct limine_file *file) {
         }
     }
 
-    // TODO: think of a better way to do this
-#if 0
-    struct task *proc = sched_new_task(metadata->init, metadata->name, -1);
-    proc->elf.symtab = symtab;
-    proc->elf.strtab = strtab;
-    proc->elf.symbol_count = symbol_count;
-    proc->pml4 = pml4;
-
-    vmm_switch_pm(kernel_pd);
-#endif
-
-    return 0;
+    return metadata->init();
 }

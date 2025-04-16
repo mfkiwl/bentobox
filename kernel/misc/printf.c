@@ -43,6 +43,7 @@ int vsprintf(char *s, const char *fmt, va_list args) {
             bool is_long = (*fmt == 'l') ? (fmt++, true) : false;
 
             switch (*fmt) {
+                // TODO: %p
                 case 'u':
                     parse_num(s, &ptr, is_long ? va_arg(args, long) : va_arg(args, int), 10, false);
                     break;
