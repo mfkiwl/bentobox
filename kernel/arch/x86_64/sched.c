@@ -14,7 +14,7 @@
 
 long max_pid = 0, next_cpu = 0;
 
-static void sched_task_entry(int (*entry)(void)) {
+static void sched_task_entry(int (*entry)()) {
     sched_kill(this_core()->current_proc, entry());
 }
 
@@ -47,6 +47,10 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     memset(stack, 0, 4 * PAGE_SIZE);
 
+    uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
+    mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    memset(stack, 0, 4 * PAGE_SIZE);
+
     proc->ctx.rdi = (uint64_t)entry;
     proc->ctx.rsi = 0;
     proc->ctx.rbp = 0;
@@ -60,7 +64,8 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->ctx.ss = 0x10;
     proc->ctx.rflags = 0x202;
     proc->name = name;
-    proc->stack = stack;
+    proc->stack = (uint64_t)stack;
+    proc->kernel_stack = (uint64_t)kernel_stack;
     proc->state = RUNNING;
     proc->pid = max_pid++;
     proc->heap = heap_create();
@@ -95,9 +100,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
 struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     uintptr_t *pml4 = mmu_alloc(1);
     mmu_map((uintptr_t)VIRTUAL(pml4), (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    this_core()->pml4 = pml4;
-    extern void generic_map_kernel(uintptr_t *pml4);
-    generic_map_kernel(pml4);
+    mmu_create_user_pm(pml4);
 
     struct task *proc = sched_new_task(entry, name, cpu);
     proc->ctx.cs = 0x1b;
@@ -146,6 +149,10 @@ void sched_schedule(struct registers *r) {
             heap_delete(proc->heap);
             mmu_free(PHYSICAL(proc->stack), 4);
             mmu_unmap_pages(4, (uintptr_t)proc->stack);
+            if (proc->pml4 != kernel_pd) {
+                mmu_free(PHYSICAL(proc->pml4), 1);
+                mmu_unmap((uintptr_t)proc->pml4);
+            }
             kfree(proc);
             break;
         }
@@ -194,13 +201,20 @@ void sched_start_all_cores(void) {
     irq_register(0x79 - 32, sched_schedule);
     for (uint32_t i = 1; i < madt_lapics; i++) {
         sched_new_task(sched_idle, "System Idle Process", i);
+    }
+    for (uint32_t i = madt_lapics - 1; i >= 0; i--) {
         lapic_ipi(i, 0x79);
     }
-    lapic_ipi(0, 0x79);
+}
+
+int test_user_task(void) {
+    printf("Hello from userspace!\n");
+    return 0;
 }
 
 void sched_install(void) {
     sched_new_task(sched_idle, "System Idle Process", -1);
+    sched_new_user_task(test_user_task, "Test user task", -1);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }

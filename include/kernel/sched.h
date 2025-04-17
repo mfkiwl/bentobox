@@ -27,11 +27,12 @@ struct task_elf {
 };
 
 struct task {
+    uint64_t stack;
+    uint64_t kernel_stack;
     struct registers ctx;
     struct task *next;
     struct task *prev;
     const char *name;
-    uint64_t *stack;
     uint64_t *pml4;
     long pid;
     enum task_state state;

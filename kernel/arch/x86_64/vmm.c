@@ -2,7 +2,11 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdatomic.h>
+#include <kernel/arch/x86_64/hpet.h>
+#include <kernel/arch/x86_64/lapic.h>
+#include <kernel/lfb.h>
 #include <kernel/mmu.h>
+#include <kernel/acpi.h>
 #include <kernel/panic.h>
 #include <kernel/sched.h>
 #include <kernel/printf.h>
@@ -69,8 +73,6 @@ void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
     uintptr_t pt_index = (virt >> 12) & 0x1ff;
-
-    /* TODO: use separate pagemaps for usermode processes */
     
     uintptr_t *pdpt = vmm_get_next_lvl(this->pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
     uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
@@ -126,6 +128,21 @@ void mmu_unmap_pages(uint32_t count, uintptr_t virt) {
     for (uint32_t i = 0; i < count * PAGE_SIZE; i += PAGE_SIZE) {
         mmu_unmap(virt + i);
     }
+}
+
+void mmu_create_user_pm(uintptr_t *pml4) {
+    this_core()->pml4 = pml4;
+
+    for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
+        mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_unmap(0x0);
+    pml4[511] = kernel_pd[511];
+
+    mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map((uintptr_t)madt_ioapic_list[0]->address, (uintptr_t)madt_ioapic_list[0]->address, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map((uintptr_t)VIRTUAL(hpet->address), hpet->address, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr, (uintptr_t)lfb.addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
 }
 
 void vmm_install(void) {

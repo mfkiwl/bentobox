@@ -121,28 +121,6 @@ gdt_base:
     db 0
 gdt_end:
 
-section .text
-    extern gdt_descriptor
-    global gdt_flush
-    global arch_fatal
-
-gdt_flush:
-    lgdt [gdt_descriptor]
-
-    mov ax, 0x10
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    mov ss, ax
-    ret
-
-global flush_tss
-flush_tss:
-    mov ax, (5 * 8) | 0
-    ltr ax
-    ret
-
 section .bss
 align 16
 stack_bottom:

@@ -25,8 +25,10 @@ extern uint64_t mmu_used_pages;
 
 void *mmu_alloc(size_t page_count);
 void  mmu_free(void *ptr, size_t page_count);
+void  mmu_map_huge(uintptr_t virt, uintptr_t phys, uint64_t flags);
 void  mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags);
 void  mmu_unmap(uintptr_t virt);
 void  mmu_mark_used(void *ptr, size_t page_size);
 void  mmu_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint32_t flags);
 void  mmu_unmap_pages(uint32_t count, uintptr_t virt);
+void  mmu_create_user_pm(uintptr_t *pml4);
