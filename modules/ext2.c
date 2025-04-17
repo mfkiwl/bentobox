@@ -88,10 +88,10 @@ typedef struct ext2_inode {
 
 typedef struct ext2_dir_entry {
     uint32_t inode;
-    uint16_t size;
-    uint8_t  name_length;
-    uint8_t  type_indicator;
-    uint8_t *name;
+    uint16_t rec_len;
+    uint8_t  name_len;
+    uint8_t  file_type;
+    char     name[];
 } ext2_dir_entry;
 
 typedef struct ext2_fs {
@@ -122,6 +122,29 @@ void read_inode(ext2_fs* fs, size_t inode_no, ext2_inode *inode) {
     memcpy(inode, (buffer + (idx % (fs->block_size / fs->inode_size)) * fs->inode_size), fs->inode_size);
 }
 
+void read_singly_blocks(ext2_fs* fs, uint32_t singly_block_id, uint8_t* buf) {
+    uint32_t* blocks = (uint32_t*)kmalloc(fs->block_size);
+    uint32_t block_count = fs->block_size / 4; // on 1KB Blocks, 13 - 268 (or 256 blocks)
+    read_block(fs, singly_block_id, blocks, fs->block_size);
+    for (int i = 0; i < block_count; i++) {
+        if (blocks[i] == 0) break;
+        read_block(fs, blocks[i], buf + (i * fs->block_size), fs->block_size);
+    }
+    kfree(blocks);
+}
+
+void read_inode_blocks(ext2_fs* fs, ext2_inode* in, uint8_t* buf) {
+    // TODO: Read singly, doubly and triply linked blocks
+    for (int i = 0; i < 12; i++) {
+        uint32_t block = in->direct_block_ptr[i];
+        if (block == 0) break;
+        read_block(fs, block, buf + (i * fs->block_size), fs->block_size);
+    }
+    if (in->singly_block_ptr != 0) {
+        read_singly_blocks(fs, in->singly_block_ptr, buf + (12 * fs->block_size));
+    }
+}
+
 int init() {
     dprintf("%s:%d: ext2 driver v1.0\n", __FILE__, __LINE__);
 
@@ -142,8 +165,6 @@ int init() {
     ext2fs.bgd_block = sb->block_num + 1;
     ext2fs.bgd_table = (struct ext2_bgd *)kmalloc(sizeof(struct ext2_bgd) * ext2fs.bgd_count);
     ext2fs.inode_size = sb->major_ver == 1 ? sb->inode_size : 128;
-
-    dprintf("Reading root inode...\n");
     
     root = (ext2_inode *)kmalloc(ext2fs.inode_size);
     read_inode(&ext2fs, 2, root);

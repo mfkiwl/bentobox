@@ -126,6 +126,8 @@ void isr_handler(struct registers *r) {
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,
             r->rflags);
 
+    // FIXME handle page faults in here
+#if 0
     struct stackframe *frame_ptr = __builtin_frame_address(0);
 
     printf("%s:%d: traceback:\n", __FILE__, __LINE__);
@@ -142,6 +144,7 @@ void isr_handler(struct registers *r) {
         printf("#%d  0x%lx in %s\n", i, frame_ptr->rip, symbol);
         frame_ptr = frame_ptr->rbp;
     }
+#endif
 
     generic_fatal();
 }
