@@ -115,7 +115,7 @@ typedef struct {
     ext2_sb    *sb;
     ext2_bgd   *bgd_table;
     ext2_cache *block_cache;
-    ext2_inode *root_ino;
+    ext2_inode *root_inode;
     uint32_t block_size;
     uint32_t bgd_count;
     uint32_t bgd_block;
@@ -124,7 +124,6 @@ typedef struct {
 } ext2_fs;
 
 ext2_fs ext2fs;
-ext2_inode *root;
 struct vfs_node *hda = NULL;
 
 int ext2_get_cache(ext2_fs* fs, uint32_t block) {
@@ -145,12 +144,14 @@ void ext2_read_block(ext2_fs* fs, uint32_t block, void* buf, uint32_t count) {
         vfs_read(hda, buffer, block * fs->block_size, fs->block_size);
         memcpy(buf, buffer, count);
 
+#if 0
         if (fs->block_cache_idx < 0x1024) {
             fs->block_cache[fs->block_cache_idx].block = block;
             fs->block_cache[fs->block_cache_idx].data = (uint8_t *)kmalloc(fs->block_size);
             memcpy(fs->block_cache[fs->block_cache_idx].data, buf, count);
             fs->block_cache_idx++;
         }
+#endif
         return;
     }
     memcpy(buf, fs->block_cache[cache_num].data, count);
@@ -163,9 +164,53 @@ void ext2_read_inode(ext2_fs* fs, uint32_t inode, ext2_inode* in) {
 
     char buf[fs->block_size];
     ext2_read_block(fs, fs->bgd_table[bg].inode_table_block + bg_idx, buf, fs->block_size);
-    // now we have a "list" of inodes, we need to index our inode
     memcpy(in, (buf + (idx % (fs->block_size / fs->inode_size)) * fs->inode_size), fs->inode_size);
 }
+
+void ext2_mount_root_directory(ext2_fs *fs, struct vfs_node *parent) {
+    ext2_inode *inode = fs->root_inode;
+    uint32_t block_size = fs->block_size;
+
+    for (int i = 0; i < 12; i++) {
+        if (inode->direct_block_ptr[i] == 0)
+            continue;
+
+        char block[block_size];
+        ext2_read_block(fs, inode->direct_block_ptr[i], block, block_size);
+
+        uint32_t offset = 0;
+        while (offset < block_size) {
+            ext2_dirent *entry = (ext2_dirent *)(block + offset);
+            if (entry->inode == 0)
+                break;
+
+            char name[256];
+            memcpy(name, entry->name, entry->name_len);
+            name[entry->name_len] = '\0';
+
+            ext2_inode *child_inode = (ext2_inode *)kmalloc(fs->inode_size);
+            ext2_read_inode(fs, entry->inode, child_inode);
+
+            uint16_t type = child_inode->type_perms & 0xF000;
+            uint32_t vfs_type = VFS_FILE;
+
+            if (type == EXT_DIRECTORY) {
+                vfs_type = VFS_DIRECTORY;
+            } else if (type == EXT_SYM_LINK) {
+                vfs_type = NONE; // VFS_SYMLINK
+            }
+
+            struct vfs_node *node = vfs_create_node(name, vfs_type);
+            node->size = child_inode->size;
+
+            vfs_add_node(parent, node);
+
+            offset += entry->total_size;
+            kfree(child_inode);
+        }
+    }
+}
+
 
 int init() {
     dprintf("%s:%d: ext2 driver v1.0\n", __FILE__, __LINE__);
@@ -193,6 +238,15 @@ int init() {
     ext2fs.bgd_table = (ext2_bgd *)kmalloc(ext2fs.bgd_count * sizeof(ext2_bgd));
     ext2_read_block(&ext2fs, ext2fs.bgd_block, ext2fs.bgd_table, ext2fs.bgd_count * sizeof(ext2_bgd));
     ext2fs.inode_size = sb->inode_size;
+
+    ext2fs.root_inode = (ext2_inode *)kmalloc(ext2fs.inode_size);
+    ext2_read_inode(&ext2fs, 2, ext2fs.root_inode);
+
+    printf("root inode creation time: %u\n", ext2fs.root_inode->creation_time);
+
+    struct vfs_node *mnt = vfs_create_node("mnt", VFS_DIRECTORY);
+    vfs_add_node(NULL, mnt);
+    ext2_mount_root_directory(&ext2fs, mnt);
     
     return 0;
 }

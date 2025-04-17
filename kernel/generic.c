@@ -8,12 +8,14 @@
 #include <kernel/ksym.h>
 
 extern void generic_load_modules(void);
+extern void debugcon_entry(void);
 
 void generic_startup(void) {
     vfs_install();
 	pci_scan();
     generic_load_modules();
 	sched_install();
+    sched_new_task(debugcon_entry, "bentobox debug shell", -1);
 }
 
 void generic_main(void) {

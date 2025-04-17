@@ -37,6 +37,8 @@ struct vfs_node *vfs_create_node(const char *name, enum vfs_node_type type) {
 }
 
 void vfs_add_node(struct vfs_node *root, struct vfs_node *node) {
+    if (!root) root = vfs_root;
+
     node->parent = root;
     if (root->children == NULL) {
         root->children = node;
@@ -91,8 +93,8 @@ struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
     return node;
 }
 
-char *vfs_get_path(struct vfs_node *node) {
-    if (!node) return NULL;
+void vfs_get_path(char *s, struct vfs_node *node) {
+    if (!node) return;
 
     char path[MAX_PATH] = "";
     struct vfs_node *current = node;
@@ -102,9 +104,7 @@ char *vfs_get_path(struct vfs_node *node) {
         current = current->parent;
     }
 
-    char *result = kmalloc(strlen(path) + 1);
-    strcpy(result, path);
-    return result;
+    strcpy(s, path);
 }
 
 int32_t vfs_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
