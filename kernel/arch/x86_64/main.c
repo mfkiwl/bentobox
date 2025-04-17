@@ -5,6 +5,7 @@
 #include <kernel/arch/x86_64/ps2.h>
 #include <kernel/arch/x86_64/vga.h>
 #include <kernel/arch/x86_64/hpet.h>
+#include <kernel/arch/x86_64/user.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/arch/x86_64/ioapic.h>
 #include <kernel/arch/x86_64/serial.h>
@@ -119,6 +120,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	hpet_install();
 	lapic_calibrate_timer();
 	smp_initialize();
+	user_initialize();
 
 	generic_startup();
 	generic_main();

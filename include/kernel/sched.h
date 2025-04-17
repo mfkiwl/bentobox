@@ -29,6 +29,7 @@ struct task_elf {
 struct task {
     uint64_t stack;
     uint64_t kernel_stack;
+    uint64_t gs;
     struct registers ctx;
     struct task *next;
     struct task *prev;

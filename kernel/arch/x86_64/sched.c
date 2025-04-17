@@ -2,6 +2,7 @@
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/hpet.h>
+#include <kernel/arch/x86_64/user.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
 #include <kernel/vfs.h>
@@ -66,6 +67,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->name = name;
     proc->stack = (uint64_t)stack;
     proc->kernel_stack = (uint64_t)kernel_stack;
+    proc->gs = 0;
     proc->state = RUNNING;
     proc->pid = max_pid++;
     proc->heap = heap_create();
@@ -119,6 +121,7 @@ void sched_schedule(struct registers *r) {
 
     if (this->current_proc) {
         memcpy(&(this->current_proc->ctx), r, sizeof(struct registers));
+        this->current_proc->gs = read_kernel_gs();
     } else {
         this->current_proc = this->processes;
     }
@@ -162,9 +165,10 @@ void sched_schedule(struct registers *r) {
     this->current_proc->time.start = hpet_ticks;
 
     memcpy(r, &(this->current_proc->ctx), sizeof(struct registers));
+    vmm_switch_pm(this->current_proc->pml4);
+    write_kernel_gs((uint64_t)this->current_proc);
 
     sched_start_timer();
-    vmm_switch_pm(this->current_proc->pml4);
 }
 
 void sched_yield(void) {
@@ -207,9 +211,12 @@ void sched_start_all_cores(void) {
     }
 }
 
-int test_user_task(void) {
+void test_user_task(void) {
     printf("Hello from userspace!\n");
-    return 0;
+    asm volatile ("syscall");
+    for (;;) {
+        sched_yield();
+    }
 }
 
 void sched_install(void) {

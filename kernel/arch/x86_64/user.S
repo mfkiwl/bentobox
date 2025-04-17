@@ -1,10 +1,10 @@
 [BITS 64]
 
 section .text
-    global syscall_irq_stub
+    global syscall_entry
     extern syscall_handler
 
-syscall_irq_stub:
+syscall_entry:
     swapgs
     mov [gs:0], rsp
     mov rsp, [gs:8]

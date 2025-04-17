@@ -125,6 +125,7 @@ void isr_handler(struct registers *r) {
             r->rsp, r->rbx, r->rdx, r->rcx, r->rax, r->rip, r->r8, r->r9,
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,
             r->rflags);
+    printf("Error code: 0x%p\n", r->error_code);
 
     struct stackframe *frame_ptr = __builtin_frame_address(0);
 
