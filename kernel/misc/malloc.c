@@ -55,7 +55,7 @@ void *heap_alloc(struct heap *h, uint64_t n) {
         printf("%s:%d: allocation failed\n", __FILE__, __LINE__);
         return NULL;
     }
-    mmu_map((uintptr_t)block, (uintptr_t)PHYSICAL(block), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map_pages(pages, (uintptr_t)PHYSICAL(block), (uintptr_t)block, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     block->next = h->head;
     block->prev = h->head->prev;
     block->size = n;
@@ -78,5 +78,5 @@ void heap_free(void *ptr) {
     uint64_t pages = DIV_CEILING(sizeof(struct heap_block) + block->size, PAGE_SIZE);
 
     mmu_free(PHYSICAL(block), pages);
-    mmu_unmap((uintptr_t)block);
+    mmu_unmap_pages(pages, (uintptr_t)block);
 }

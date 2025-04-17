@@ -67,6 +67,9 @@ void debugcon_entry(void) {
             printf("%s", buf);
             kfree(buf);
             continue;
+        } else if (!strncmp(input, ".", 1)) {
+            elf_exec(input + 1);
+            continue;
         } else if (!strncmp(input, "exit", 5)) {
             break;
         } else {

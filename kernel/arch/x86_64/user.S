@@ -27,6 +27,9 @@ syscall_entry:
     push r14
     push r15
 
+    push qword [gs:176]
+    popf
+
     mov rdi, rsp
     call syscall_handler
 

@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <kernel/arch/x86_64/idt.h>
 #include <kernel/vfs.h>
 #include <kernel/printf.h>
 
@@ -9,6 +10,17 @@ int32_t console_write(struct vfs_node *node, void *buffer, uint32_t offset, uint
     }
     return (int32_t)len;
 }
+
+int sys_write(struct registers *r) {
+    struct vfs_node *file = this_core()->current_proc->fd_table[r->rdi];
+    if (!file) {
+        return -1;
+    }
+    if (file->write) {
+        return file->write(file, (void *)r->rsi, 0, r->rdx);
+    }
+    return 0;
+}    
 
 void console_initialize(void) {
     struct vfs_node *console = vfs_create_node("console", VFS_CHARDEVICE);

@@ -1,3 +1,4 @@
+#include "kernel/arch/x86_64/smp.h"
 #include <stdbool.h>
 #include <kernel/mmu.h>
 #include <kernel/elf64.h>
@@ -132,4 +133,82 @@ int elf_module(struct multiboot_tag_module *mod) {
     }
 
     return metadata->init();
+}
+
+int elf_exec(const char *file) {
+    dprintf("%s:%d: loading file \"%s\"\n", __FILE__, __LINE__, file);
+    
+    struct vfs_node *fptr = vfs_open(NULL, file);
+    if (!fptr) {
+        printf("%s:%d: cannot open file \"%s\"\n", __FILE__, __LINE__, file);
+        return -1;
+    }
+
+    void *buffer = kmalloc(fptr->size);
+    vfs_read(fptr, buffer, 0, fptr->size);
+    
+    Elf64_Ehdr *ehdr = (Elf64_Ehdr *)buffer;
+
+    if (memcmp(ehdr->e_ident, "\x7f""ELF", 4)) {
+        printf("%s:%d: invalid elf file\n", __FILE__, __LINE__);
+        return -1;
+    }
+
+    if (ehdr->e_ident[EI_CLASS] != ELFCLASS64) {
+        printf("%s:%d: unsupported elf class\n", __FILE__, __LINE__);
+        return -1;
+    }
+
+    Elf64_Shdr *shdr = (Elf64_Shdr *)((uintptr_t)buffer + ehdr->e_shoff);
+    Elf64_Sym *symtab = NULL;
+    char *strtab = NULL;
+
+    int i, symbol_count = 0;
+    for (i = 0; i < ehdr->e_shnum; i++) {
+        if (shdr[i].sh_type == SHT_STRTAB && ehdr->e_shstrndx != i) {
+            strtab = (char *)((uintptr_t)buffer + shdr[i].sh_offset);
+        } else if (shdr[i].sh_type == SHT_SYMTAB) {
+            symtab = (Elf64_Sym *)((uintptr_t)buffer + shdr[i].sh_offset);
+            symbol_count = shdr[i].sh_size / shdr[i].sh_entsize;
+        }
+    }
+
+    struct task *proc = sched_new_user_task(NULL, file, -1);
+    uintptr_t *pml4 = this_core()->pml4;
+    this_core()->pml4 = proc->pml4;
+
+    Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
+
+    for (i = 0; i < ehdr->e_phnum; i++) {
+        if (phdr[i].p_type == PT_LOAD) {
+            if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
+                continue;
+
+            size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
+
+            for (size_t page = 0; page < pages; page++) {
+                uintptr_t paddr = (uintptr_t)mmu_alloc(1);
+                uintptr_t vaddr = phdr[i].p_vaddr + page * PAGE_SIZE;
+
+                mmu_map_pages(1, paddr, vaddr, PTE_PRESENT | PTE_WRITABLE);
+            }
+
+            if (phdr[i].p_filesz > 0) {
+                uintptr_t src = (uintptr_t)(uintptr_t)buffer + phdr[i].p_offset;
+                uintptr_t dest = phdr[i].p_vaddr;
+
+                memcpy((void *)dest, (void *)src, phdr[i].p_filesz);
+            }
+
+            if (phdr[i].p_memsz > phdr[i].p_filesz) {
+                memset((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
+            }
+        }
+    }
+
+    this_core()->pml4 = pml4;
+    proc->ctx.rdi = ehdr->e_entry;
+
+    return 0;
+    //return metadata->init();
 }

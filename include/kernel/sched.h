@@ -56,3 +56,4 @@ void sched_sleep(int ms);
 void sched_kill(struct task *proc, int status);
 void sched_idle(void);
 struct task *sched_new_task(void *entry, const char *name, int cpu);
+struct task *sched_new_user_task(void *entry, const char *name, int cpu);

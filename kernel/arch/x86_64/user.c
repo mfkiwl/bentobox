@@ -1,6 +1,8 @@
+#include "kernel/arch/x86_64/smp.h"
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/user.h>
 #include <kernel/printf.h>
+#include <kernel/syscall.h>
 
 extern void syscall_entry(void);
 
@@ -31,18 +33,29 @@ void user_initialize(void) {
 }
 
 // [x ... y] = NULL,
-void *syscalls[256] = {
+int (*syscalls[256])(struct registers *) = {
     NULL,
-     
+    //sys_write
 };
 
 void syscall_handler(struct registers *r) {
-    if (!syscalls[r->rax]) {
+    this_core()->current_proc->ctx.cs = 0x08;
+    this_core()->current_proc->ctx.ss = 0x10;
+
+    int(*handler)(struct registers *);
+    handler = syscalls[r->rax];
+
+    if (!handler) {
         dprintf("%s:%d: invalid syscall %lu\n", __FILE__, __LINE__, r->rax);
         return;
     }
+
+    r->rax = handler(r);
+
+    this_core()->current_proc->ctx.cs = 0x23;
+    this_core()->current_proc->ctx.ss = 0x1b;
 }
 
-void syscall_bind(uint64_t eax, void *handler) {
-    syscalls[eax] = handler;
+void syscall_bind(uint64_t rax, void *handler) {
+    syscalls[rax] = handler;
 }

@@ -213,14 +213,6 @@ void sched_start_all_cores(void) {
 
 void test_user_task(void) {
     printf("Hello from userspace!\n");
-    asm volatile (
-        "mov $1, %%rax;"
-        "syscall;"
-        :
-        :
-        : "%rax"
-    );
-    printf("syscall called!\n");
     for (;;);
 }
 
