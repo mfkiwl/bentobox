@@ -4,6 +4,7 @@
 #include <kernel/arch/x86_64/hpet.h>
 #include <kernel/arch/x86_64/user.h>
 #include <kernel/arch/x86_64/lapic.h>
+#include <kernel/fd.h>
 #include <kernel/mmu.h>
 #include <kernel/vfs.h>
 #include <kernel/acpi.h>
@@ -71,8 +72,9 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->state = RUNNING;
     proc->pid = max_pid++;
     proc->heap = heap_create();
-    proc->fd_table[0] = vfs_open(vfs_root, "/dev/keyboard");
-    proc->fd_table[1] = vfs_open(vfs_root, "/dev/console");
+    proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
+    proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
+    proc->fd_table[2] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
     proc->elf.symtab = NULL;
     proc->elf.strtab = NULL;
     proc->elf.symbol_count = 0;

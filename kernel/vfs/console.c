@@ -12,12 +12,12 @@ int32_t console_write(struct vfs_node *node, void *buffer, uint32_t offset, uint
 }
 
 int sys_write(struct registers *r) {
-    struct vfs_node *file = this_core()->current_proc->fd_table[r->rdi];
-    if (!file) {
+    struct fd fd = this_core()->current_proc->fd_table[r->rdi];
+    if (!fd.node) {
         return -1;
     }
-    if (file->write) {
-        return file->write(file, (void *)r->rsi, 0, r->rdx);
+    if (fd.node->write) {
+        return fd.node->write(fd.node, (void *)r->rsi, 0, r->rdx);
     }
     return 0;
 }    

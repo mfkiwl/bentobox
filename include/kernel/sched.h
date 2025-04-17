@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <kernel/arch/x86_64/idt.h>
+#include <kernel/fd.h>
 #include <kernel/vfs.h>
 #include <kernel/elf64.h>
 #include <kernel/malloc.h>
@@ -39,7 +40,7 @@ struct task {
     enum task_state state;
     struct heap *heap;
     struct task_time time;
-    struct vfs_node *fd_table[16];
+    struct fd fd_table[16];
     struct task_elf elf;
 };
 

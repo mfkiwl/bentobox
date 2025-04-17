@@ -1,3 +1,4 @@
+#include <kernel/fd.h>
 #include <kernel/vfs.h>
 #include <kernel/mmu.h>
 #include <kernel/ksym.h>

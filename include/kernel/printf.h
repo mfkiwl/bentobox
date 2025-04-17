@@ -3,9 +3,6 @@
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/sched.h>
 
-#define stdin  0
-#define stdout 1
-
 void putchar(char c);
 void puts(char *s);
 

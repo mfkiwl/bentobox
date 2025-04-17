@@ -52,7 +52,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [ ] Userspace support
     - [X] TSS
     - [X] Ring 3 in the scheduler
-    - [ ] Syscall handler
+    - [X] Syscall handler
     - [ ] Port a libc
 - [X] ELF loading
 - [X] Symbol table
@@ -67,5 +67,5 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] Allow use of symbols in debugcon.c
 - [ ] Use mutexes in FIFO queues and ATA driver
 - [X] %p in printf
-- [ ] Implement file descriptors
-- [ ] Elf execution from the filesystem
+- [X] Implement file descriptors
+- [X] Elf execution from the filesystem
