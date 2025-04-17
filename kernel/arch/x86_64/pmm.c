@@ -10,7 +10,6 @@
 #include <kernel/multiboot.h>
 
 uint8_t *pmm_bitmap = NULL;
-uint64_t pmm_last_page = 0;
 uint64_t mmu_page_count = 0;
 uint64_t mmu_usable_mem = 0;
 uint64_t mmu_used_pages = 0;
@@ -77,31 +76,25 @@ void mmu_mark_used(void *ptr, size_t page_count) {
     mmu_used_pages += page_count;
 }
 
-// TODO: always search from the start of memory to avoid massive fragmentation
-
 uint64_t pmm_find_pages(uint64_t page_count) {
     uint64_t pages = 0;
-    uint64_t first_page = pmm_last_page;
+    uint64_t first_page = 0;
 
-    while (pages < page_count) {
-        if (pmm_last_page >= mmu_page_count) {
-            return 0; /* out of memory */
-        }
-
-        if (!bitmap_get(pmm_bitmap, pmm_last_page + pages)) {
+    for (uint64_t i = 0; i < mmu_page_count; i++) {
+        if (!bitmap_get(pmm_bitmap, i)) {
+            if (pages == 0) {
+                first_page = i;
+            }
             pages++;
             if (pages == page_count) {
-                for (uint64_t i = 0; i < pages; i++) {
-                    bitmap_set(pmm_bitmap, first_page + i);
+                for (uint64_t j = 0; j < page_count; j++) {
+                    bitmap_set(pmm_bitmap, first_page + j);
                 }
 
-                pmm_last_page += pages;
-                mmu_used_pages += pages;
+                mmu_used_pages += page_count;
                 return first_page;
             }
         } else {
-            pmm_last_page += !pages ? 1 : pages;
-            first_page = pmm_last_page;
             pages = 0;
         }
     }
@@ -113,13 +106,7 @@ void *mmu_alloc(size_t page_count) {
     uint64_t pages = pmm_find_pages(page_count);
     
     if (!pages) {
-        pmm_last_page = 0;
-        pages = pmm_find_pages(page_count);
-
-        if (!pages) {
-            printf("%s:%d: allocation failed: out of memory\n", __FILE__, __LINE__);
-            return NULL;
-        }
+        printf("%s:%d: allocation failed: out of memory\n", __FILE__, __LINE__);
     }
 
     uint64_t phys_addr = pages * PAGE_SIZE;

@@ -50,6 +50,8 @@ uint8_t ata_poll() {
     return ATA_OK;
 }
 
+// TODO: use a mutex here
+
 __attribute__((no_sanitize("undefined")))
 uint8_t ata_read(uint32_t lba, void *buffer, uint32_t sectors) {
     outb(ata_base + 6, (ata_type == ATA_MASTER ? 0xE0 : 0xF0) | ((lba >> 24) & 0x0F));

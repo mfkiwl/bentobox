@@ -11,6 +11,7 @@ bentobox is a 64-bit SMP-enabled operating system targeting x86_64 and RISC-V
 - SMP-aware scheduler
 - Node Graph VFS
 - ELf64 loading
+- ATA driver and ext2fs support
 
 ## Features on riscv
 - Virtio UART driver
@@ -42,6 +43,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [ ] ext2fs support
     - [ ] Doubly and triply linked blocks
     - [X] Reading
+    - [ ] Writing
     - [X] Mounting
 - [X] Framebuffer support
 - [ ] PS/2 drivers
@@ -63,6 +65,6 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [ ] General VFS improvements
 - [X] Module metadata headers
 - [X] Allow use of symbols in debugcon.c
-- [ ] Use mutexes in FIFO queues
+- [ ] Use mutexes in FIFO queues and ATA driver
 - [X] %p in printf
 - [ ] Implement file descriptors
