@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <stdint.h>
 #include <kernel/mmu.h>
 #include <kernel/vfs.h>
 #include <kernel/malloc.h>
@@ -146,9 +147,29 @@ void ext2_read_inode_blocks(ext2_fs* fs, ext2_inode* in, uint8_t* buf, uint32_t 
     }
 }
 
-void ext2_mount_root_directory(ext2_fs *fs, struct vfs_node *parent, uint32_t dir_inode_num) {
+int32_t ext2_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
+    ext2_inode *inode = (ext2_inode *)kmalloc(ext2fs.inode_size);
+    ext2_read_inode(&ext2fs, node->inode, inode);
+    if (!inode) {
+        return -ENOENT;
+    }
+
+    if (offset + len > inode->size) {
+        len = inode->size - offset;
+    }
+
+    uint8_t *buf = (uint8_t *)kmalloc(inode->size);
+    ext2_read_inode_blocks(&ext2fs, inode, buf, offset + len);
+    memcpy(buffer, buf + offset, len);
+
+    kfree(buf);
+    kfree(inode);
+    return len;
+}
+
+void ext2_mount(ext2_fs *fs, struct vfs_node *parent, uint32_t inode_num) {
     ext2_inode *inode = (ext2_inode *)kmalloc(fs->inode_size);
-    ext2_read_inode(fs, dir_inode_num, inode);
+    ext2_read_inode(fs, inode_num, inode);
     
     uint32_t block_size = fs->block_size;
 
@@ -192,10 +213,12 @@ void ext2_mount_root_directory(ext2_fs *fs, struct vfs_node *parent, uint32_t di
 
             struct vfs_node *node = vfs_create_node(name, vfs_type);
             node->size = child->size;
+            node->inode = entry->inode;
+            node->read = ext2_read;
             vfs_add_node(parent, node);
 
             if (type == EXT_DIRECTORY && strcmp(name, "lost+found") != 0 && !(strcmp(name, ".") == 0 || strcmp(name, "..") == 0)) {
-                ext2_mount_root_directory(fs, node, entry->inode);
+                ext2_mount(fs, node, entry->inode);
             }
 
             offset += entry->total_size;
@@ -234,8 +257,7 @@ int init() {
     ext2fs.root_inode = (ext2_inode *)kmalloc(ext2fs.inode_size);
     ext2_read_inode(&ext2fs, 2, ext2fs.root_inode);
 
-    ext2_mount_root_directory(&ext2fs, vfs_root, 2);
-    
+    ext2_mount(&ext2fs, vfs_root, 2);
     return 0;
 }
 

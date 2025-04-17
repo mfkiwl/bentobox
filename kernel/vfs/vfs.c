@@ -33,7 +33,7 @@ struct vfs_node *vfs_create_node(const char *name, enum vfs_node_type type) {
     node->read = NULL;
     node->write = NULL;
 
-    dprintf("%s:%d: created node '%s' with type %s\n", __FILE__, __LINE__, name, vfs_types[type]);
+    //dprintf("%s:%d: created node '%s' with type %s\n", __FILE__, __LINE__, name, vfs_types[type]);
     return node;
 }
 
@@ -125,6 +125,7 @@ void vfs_install(void) {
     vfs_root->type = VFS_DIRECTORY;
     vfs_root->size = 0;
     vfs_root->perms = 0;
+    vfs_root->inode = 2;
     vfs_root->parent = NULL;
     vfs_root->children = NULL;
     vfs_root->next = NULL;

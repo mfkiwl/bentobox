@@ -54,6 +54,23 @@ void debugcon_entry(void) {
             }
             printf("\033[0m\n");
             continue;
+        } else if (!strncmp(input, "cat ", 4)) {
+            struct vfs_node *file = vfs_open(NULL, input + 4);
+            if (!file) {
+                printf("cat: cannot access '%s': No such file or directory\n", input + 4);
+                continue;
+            }
+
+            char *buf = kmalloc(file->size + 1);
+            memset(buf, 0, file->size + 1);
+            vfs_read(file, buf, 0, file->size);
+            printf("%s", buf);
+            kfree(buf);
+            continue;
+        } else if (!strncmp(input, "exit", 5)) {
+            break;
+        } else {
+            printf("Unknown command: %s\n", input);
         }
     }
 }
