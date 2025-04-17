@@ -105,8 +105,8 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     mmu_create_user_pm(pml4);
 
     struct task *proc = sched_new_task(entry, name, cpu);
-    proc->ctx.cs = 0x1b;
-    proc->ctx.ss = 0x23;
+    proc->ctx.cs = 0x23;
+    proc->ctx.ss = 0x1b;
     proc->pml4 = pml4;
 
     this_core()->pml4 = kernel_pd;
@@ -212,11 +212,18 @@ void sched_start_all_cores(void) {
 }
 
 void test_user_task(void) {
-    printf("Hello from userspace!\n");
+    unsigned short cs, ss;
+    asm volatile ("mov %%cs, %0" : "=r" (cs));
+    asm volatile ("mov %%ss, %0" : "=r" (ss));
+
+    printf("Hello from userspace! cs=%x, ss=%x\n", cs, ss);
     asm volatile ("syscall");
-    for (;;) {
-        sched_yield();
-    }
+
+    asm volatile ("mov %%cs, %0" : "=r" (cs));
+    asm volatile ("mov %%ss, %0" : "=r" (ss));
+
+    printf("User task: cs=%x, ss=%x\n", cs, ss);
+    for (;;);
 }
 
 void sched_install(void) {

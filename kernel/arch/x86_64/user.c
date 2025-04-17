@@ -35,7 +35,10 @@ void write_kernel_gs(uint64_t value) {
 }
 
 void syscall_handler(struct registers *r) {
-    printf("System call handler invoked!\n");
+    unsigned short cs;
+    asm volatile ("mov %%cs, %0" : "=r" (cs));
+
+    printf("System call handler invoked! cs=%x\n", cs);
 }
 
 extern void syscall_entry(void);
@@ -46,7 +49,7 @@ void user_initialize(void) {
     wrmsr(IA32_EFER, efer);
     uint64_t star = 0;
     star |= ((uint64_t)0x08 << 32);
-    star |= ((uint64_t)0x0b << 48);
+    star |= ((uint64_t)0x13 << 48);
     wrmsr(IA32_STAR, star);
     wrmsr(IA32_LSTAR, (uint64_t)syscall_entry);
     wrmsr(IA32_CSTAR, 0);
