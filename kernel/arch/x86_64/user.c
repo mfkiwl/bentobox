@@ -1,6 +1,8 @@
-#include "kernel/arch/x86_64/smp.h"
+#include "kernel/arch/x86_64/vmm.h"
 #include <kernel/arch/x86_64/idt.h>
+#include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/user.h>
+#include <kernel/mmu.h>
 #include <kernel/printf.h>
 #include <kernel/syscall.h>
 
@@ -32,15 +34,21 @@ void user_initialize(void) {
     wrmsr(IA32_CSTAR + 1, 0x200);
 }
 
+int sys_exit(struct registers *r) {
+    sched_kill(this_core()->current_proc, r->rdi);
+    return 0;
+}
+
 // [x ... y] = NULL,
 int (*syscalls[256])(struct registers *) = {
     NULL,
-    //sys_write
+    sys_write,
+    [2 ... 59] = NULL,
+    sys_exit
 };
 
 void syscall_handler(struct registers *r) {
-    this_core()->current_proc->ctx.cs = 0x08;
-    this_core()->current_proc->ctx.ss = 0x10;
+    vmm_switch_pm(kernel_pd);
 
     int(*handler)(struct registers *);
     handler = syscalls[r->rax];
@@ -51,9 +59,7 @@ void syscall_handler(struct registers *r) {
     }
 
     r->rax = handler(r);
-
-    this_core()->current_proc->ctx.cs = 0x23;
-    this_core()->current_proc->ctx.ss = 0x1b;
+    vmm_switch_pm(this_core()->current_proc->pml4);
 }
 
 void syscall_bind(uint64_t rax, void *handler) {

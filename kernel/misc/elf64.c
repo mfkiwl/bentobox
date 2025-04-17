@@ -62,8 +62,6 @@ int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_c
 }
 
 int elf_module(struct multiboot_tag_module *mod) {
-    dprintf("%s:%d: loading module \"%s\"\n", __FILE__, __LINE__, mod->string);
-
     Elf64_Ehdr *ehdr = (Elf64_Ehdr *)(uintptr_t)mod->mod_start;
 
     if (memcmp(ehdr->e_ident, "\x7f""ELF", 4)) {
@@ -136,8 +134,6 @@ int elf_module(struct multiboot_tag_module *mod) {
 }
 
 int elf_exec(const char *file) {
-    dprintf("%s:%d: loading file \"%s\"\n", __FILE__, __LINE__, file);
-    
     struct vfs_node *fptr = vfs_open(NULL, file);
     if (!fptr) {
         printf("%s:%d: cannot open file \"%s\"\n", __FILE__, __LINE__, file);
@@ -159,27 +155,13 @@ int elf_exec(const char *file) {
         return -1;
     }
 
-    Elf64_Shdr *shdr = (Elf64_Shdr *)((uintptr_t)buffer + ehdr->e_shoff);
-    Elf64_Sym *symtab = NULL;
-    char *strtab = NULL;
-
-    int i, symbol_count = 0;
-    for (i = 0; i < ehdr->e_shnum; i++) {
-        if (shdr[i].sh_type == SHT_STRTAB && ehdr->e_shstrndx != i) {
-            strtab = (char *)((uintptr_t)buffer + shdr[i].sh_offset);
-        } else if (shdr[i].sh_type == SHT_SYMTAB) {
-            symtab = (Elf64_Sym *)((uintptr_t)buffer + shdr[i].sh_offset);
-            symbol_count = shdr[i].sh_size / shdr[i].sh_entsize;
-        }
-    }
-
     struct task *proc = sched_new_user_task(NULL, file, -1);
     uintptr_t *pml4 = this_core()->pml4;
     this_core()->pml4 = proc->pml4;
 
     Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
 
-    for (i = 0; i < ehdr->e_phnum; i++) {
+    for (int i = 0; i < ehdr->e_phnum; i++) {
         if (phdr[i].p_type == PT_LOAD) {
             if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
                 continue;
@@ -207,8 +189,8 @@ int elf_exec(const char *file) {
     }
 
     this_core()->pml4 = pml4;
-    proc->ctx.rdi = ehdr->e_entry;
+    proc->ctx.rip = ehdr->e_entry;
 
+    kfree(buffer);
     return 0;
-    //return metadata->init();
 }

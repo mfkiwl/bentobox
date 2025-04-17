@@ -17,19 +17,19 @@ void debugcon_entry(void) {
         if (!input[0]) {
             continue;
         } else if (!strncmp(input, "clear", 6)) {
-            printf("\033[2J\033[H");
+            fprintf(stdout, "\033[2J\033[H");
             continue;
         } else if (!strncmp(input, "ls", 2)) {
             struct vfs_node *dir = vfs_open(NULL, input + 3);
             if (!dir) {
-                printf("ls: cannot access '%s': No such file or directory\n", input + 3);
+                fprintf(stdout, "ls: cannot access '%s': No such file or directory\n", input + 3);
                 continue;
             }
 
             struct vfs_node *child = dir->children;
 
             if (!child) {
-                printf("\n");
+                fprintf(stdout, "\n");
                 continue;
             }
             while (child) {
@@ -49,11 +49,17 @@ void debugcon_entry(void) {
                         color = "";
                         break;
                 }
-                printf("%s%s  ", color, child->name);
+                fprintf(stdout, "%s%s  ", color, child->name);
                 child = child->next;
             }
-            printf("\033[0m\n");
+            fprintf(stdout, "\033[0m\n");
             continue;
+        } else if (!strncmp(input, "ps", 3)) {
+            struct task *i = this_core()->current_proc;
+            do {
+                printf("%d %s\n", i->pid, i->name);
+                i = i->next;
+            } while (i != this_core()->current_proc);
         } else if (!strncmp(input, "cat ", 4)) {
             struct vfs_node *file = vfs_open(NULL, input + 4);
             if (!file) {
@@ -64,7 +70,7 @@ void debugcon_entry(void) {
             char *buf = kmalloc(file->size + 1);
             memset(buf, 0, file->size + 1);
             vfs_read(file, buf, 0, file->size);
-            printf("%s", buf);
+            fprintf(stdout, "%s", buf);
             kfree(buf);
             continue;
         } else if (!strncmp(input, ".", 1)) {
@@ -73,7 +79,7 @@ void debugcon_entry(void) {
         } else if (!strncmp(input, "exit", 5)) {
             break;
         } else {
-            printf("Unknown command: %s\n", input);
+            fprintf(stdout, "Unknown command: %s\n", input);
         }
     }
 }

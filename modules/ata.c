@@ -151,18 +151,16 @@ int32_t hda_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t 
 
     uint32_t sector = offset / 512;
     uint32_t num_sectors = len / 512;
-    
-    //printf("ata: reading %d sectors at sector %d @ 0x%lx\n", num_sectors, sector, buffer);
 
     return ata_read(sector, buffer, num_sectors) ? -1 : len;
 }
 
 int init() {
-    dprintf("%s:%d: bentobox ATA driver v1.0\n", __FILE__, __LINE__);
+    dprintf("%s:%d: ATA driver v1.0\n", __FILE__, __LINE__);
 
     char name[40];
-    if (ata_identify(ATA_PRIMARY, ATA_MASTER, name) == ATA_OK) {
-        dprintf("%s:%d: Drive name: %s\n", __FILE__, __LINE__, name);
+    if (ata_identify(ATA_PRIMARY, ATA_MASTER, name) != ATA_OK) {
+        return 1;
     }
 
     struct vfs_node *hda = vfs_create_node("hda", VFS_BLOCKDEVICE);
@@ -173,6 +171,7 @@ int init() {
 }
 
 int fini() {
+    dprintf("%s:%d: Goodbye!\n", __FILE__, __LINE__);
     kfree(ata_ident);
     return 0;
 }

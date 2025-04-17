@@ -190,7 +190,6 @@ void sched_sleep(int us) {
 }
 
 void sched_kill(struct task *proc, int status) {
-    dprintf("%s:%d: %s exited with status %d\n", __FILE__, __LINE__, proc->name, status);
     proc->state = KILLED;
     sched_yield();
 }
@@ -211,14 +210,8 @@ void sched_start_all_cores(void) {
     }
 }
 
-void test_user_task(void) {
-    printf("Hello from userspace!\n");
-    for (;;);
-}
-
 void sched_install(void) {
     sched_new_task(sched_idle, "System Idle Process", -1);
-    sched_new_user_task(test_user_task, "Test user task", -1);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }

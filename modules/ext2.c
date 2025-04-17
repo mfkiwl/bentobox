@@ -241,7 +241,6 @@ int init() {
         dprintf("%s:%d: not an ext2 partition\n", __FILE__, __LINE__);
         return -EINVAL;
     }
-    dprintf("%s:%d: partition name: %s\n", __FILE__, __LINE__, sb->vol_name);
 
     ext2fs.sb = sb;
     ext2fs.block_size = 1024 << sb->log2_block;
@@ -262,6 +261,7 @@ int init() {
 }
 
 int fini() {
+    dprintf("%s:%d: Goodbye!\n", __FILE__, __LINE__);
     kfree(ext2fs.sb);
     kfree(ext2fs.bgd_table);
     return 0;
