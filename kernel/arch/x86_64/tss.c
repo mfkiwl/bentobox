@@ -8,8 +8,6 @@
 #include <kernel/sched.h>
 #include <kernel/mmu.h>
 
-extern void flush_tss();
-
 struct tss_entry tss;
 
 atomic_flag tss_lock = ATOMIC_FLAG_INIT;
@@ -21,7 +19,7 @@ void write_tss(int index, uint64_t rsp0) {
     memset(&tss, 0, sizeof(struct tss_entry));
     tss.rsp0 = rsp0;
 
-    flush_tss();
+    asm volatile ("mov $0x28, %%ax; ltr %%ax" : : : "ax");
     release(&tss_lock);
 }
 

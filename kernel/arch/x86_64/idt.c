@@ -104,7 +104,7 @@ void isr_handler(struct registers *r) {
 
     if (r->cs & 3) {
         dprintf("%s:%d: \033[91m%s\033[0m on \"%s\"\n", __FILE__, __LINE__, isr_errors[r->int_no], this_core()->current_proc->name);
-        sched_kill(this_core()->current_proc);
+        sched_kill(this_core()->current_proc, 11);
     }
 
     uint64_t cr2;

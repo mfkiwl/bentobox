@@ -88,6 +88,7 @@ void generic_fatal(void) {
 void generic_load_modules(void) {
 	assert(mboot);
 	mboot2_load_modules(mboot);
+    printf("\033[92m * \033[97mInitialized modules\033[0m\n");
 }
 
 void generic_map_kernel(uintptr_t *pml4) {

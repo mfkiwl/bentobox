@@ -102,11 +102,6 @@ int elf_module(struct multiboot_tag_module *mod) {
         return -1;
     }
 
-    uintptr_t *pml4 = mmu_alloc(1);
-    mmu_map((uintptr_t)VIRTUAL(pml4), (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE);
-    generic_map_kernel(pml4);
-    vmm_switch_pm(pml4);
-
     Elf64_Phdr *phdr = (Elf64_Phdr *)(mod->mod_start + ehdr->e_phoff);
 
     for (i = 0; i < ehdr->e_phnum; i++) {
@@ -136,12 +131,5 @@ int elf_module(struct multiboot_tag_module *mod) {
         }
     }
 
-    struct task *proc = sched_new_task(metadata->init, metadata->name, -1);
-    proc->elf.symtab = symtab;
-    proc->elf.strtab = strtab;
-    proc->elf.symbol_count = symbol_count;
-    proc->pml4 = pml4;
-
-    vmm_switch_pm(kernel_pd);
-    return 0;
+    return metadata->init();
 }

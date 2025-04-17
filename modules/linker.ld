@@ -9,7 +9,7 @@ SECTIONS
     . = bss_ld;
     . (NOLOAD) : { bin/ksym_rel.elf(.bss) }
 
-    . = 0x400000;
+    . = load_addr;
     . : { bin/module.elf(.text) }
     . : { bin/module.elf(.rodata) }
     . : { bin/module.elf(.data) }

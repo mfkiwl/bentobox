@@ -41,6 +41,9 @@ MODULE_OBJS := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.o))
 # Get module binaries
 MODULE_BINARIES := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.elf))
 
+# Module base load address
+LOAD_ADDR := 0x400000
+
 .PHONY: all
 all: kernel/target_arch.c kernel modules iso hdd
 
@@ -70,7 +73,7 @@ kernel/target_arch.c: bin/.target
 	@echo "const char *__kernel_arch = \"$(ARCH)\";" > $@
 	@echo "const char *__kernel_commit_hash = \"$(shell git rev-parse --short HEAD)\";" >> $@
 
-bin/.target: kernel/target_arch.c
+bin/.target: #kernel/target_arch.c
 	mkdir -p "$$(dirname $@)"
 	@touch $@
 
@@ -89,10 +92,12 @@ kernel: $(KERNEL_OBJS)
 
 .PHONY: modules
 modules: kernel $(MODULE_OBJS)
-	@for obj in $(MODULE_OBJS); do \
-		echo " LD $${obj}"; \
-		cp $${obj} bin/module.elf; \
-		ld -Tbin/mod.ld bin/ksym_rel.elf bin/module.elf -o $${obj%.o}.elf; \
+	@LOAD_ADDR=$(LOAD_ADDR); \
+	for obj in $(MODULE_OBJS); do \
+		echo " LD $$obj"; \
+		cp $$obj bin/module.elf; \
+		ld -Tbin/mod.ld --defsym=load_addr=$$LOAD_ADDR -o $${obj%.o}.elf; \
+		LOAD_ADDR=$$(printf '0x%X' $$(( $$LOAD_ADDR + 0x100000 ))); \
 	done
 
 .PHONY: iso
