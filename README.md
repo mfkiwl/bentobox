@@ -52,7 +52,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [ ] Userspace support
     - [X] TSS
     - [X] Ring 3 in the scheduler
-    - [ ] Syscalls
+    - [ ] Syscall handler
     - [ ] Port a libc
 - [X] ELF loading
 - [X] Symbol table
@@ -60,7 +60,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] `unimplemented` macro
 - [X] Simplify the PCI driver
 - [X] FIFO queues
-- [ ] Write a better heap
+- [ ] Write a more efficient heap
 - [ ] Make an OS specific toolchain
 - [ ] General VFS improvements
 - [X] Module metadata headers
@@ -68,3 +68,4 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [ ] Use mutexes in FIFO queues and ATA driver
 - [X] %p in printf
 - [ ] Implement file descriptors
+- [ ] Elf execution from the filesystem

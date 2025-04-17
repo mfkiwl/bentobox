@@ -1,3 +1,6 @@
 [submodule "kernel/misc/flanterm"]
 	path = kernel/misc/flanterm
 	url = https://codeberg.org/mintsuki/flanterm
+[submodule "mlibc"]
+	path = mlibc
+	url = https://github.com/managarm/mlibc

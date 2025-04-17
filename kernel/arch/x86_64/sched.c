@@ -212,17 +212,15 @@ void sched_start_all_cores(void) {
 }
 
 void test_user_task(void) {
-    unsigned short cs, ss;
-    asm volatile ("mov %%cs, %0" : "=r" (cs));
-    asm volatile ("mov %%ss, %0" : "=r" (ss));
-
-    printf("Hello from userspace! cs=%x, ss=%x\n", cs, ss);
-    asm volatile ("syscall");
-
-    asm volatile ("mov %%cs, %0" : "=r" (cs));
-    asm volatile ("mov %%ss, %0" : "=r" (ss));
-
-    printf("User task: cs=%x, ss=%x\n", cs, ss);
+    printf("Hello from userspace!\n");
+    asm volatile (
+        "mov $1, %%rax;"
+        "syscall;"
+        :
+        :
+        : "%rax"
+    );
+    printf("syscall called!\n");
     for (;;);
 }
 
