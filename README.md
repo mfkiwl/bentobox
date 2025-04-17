@@ -65,7 +65,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [ ] General VFS improvements
 - [X] Module metadata headers
 - [X] Allow use of symbols in debugcon.c
-- [ ] Use mutexes in FIFO queues and ATA driver
+- [X] Use spinlocks in FIFO queues and mutexes in the ATA driver
 - [X] %p in printf
 - [X] Implement file descriptors
 - [X] Elf execution from the filesystem

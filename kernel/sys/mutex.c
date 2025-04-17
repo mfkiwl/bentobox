@@ -12,35 +12,46 @@ void mutex_init(mutex_t *m) {
 }
 
 void mutex_lock(mutex_t *m) {
-    acquire(&(m->lock));
     struct cpu *this = this_core();
+    if (!this->current_proc) return;
 
-    if (!this->current_proc || m->owner == this->current_proc) {
-        release(&(m->lock));
-        return;
-    }
-    
-    while (m->locked) {
-        if (!m->queue) {
-            m->queue = (mutex_list_t *)kmalloc(sizeof(mutex_list_t));
-            m->queue->proc = this->current_proc;
-            m->queue->next = NULL;
-        } else {
-            mutex_list_t *i = m->queue;
-            while (i->next) {
-                i = i->next;
-            }
-            i->next = (mutex_list_t *)kmalloc(sizeof(mutex_list_t));
-            i->next->proc = this->current_proc;
-            i->next->next = NULL;
+    for (;;) {
+        acquire(&m->lock);
+
+        if (!m->locked) {
+            m->locked = 1;
+            m->owner = this->current_proc;
+            release(&m->lock);
+            return;
         }
+
+        mutex_list_t *i = m->queue;
+        int already_queued = 0;
+        while (i) {
+            if (i->proc == this->current_proc) {
+                already_queued = 1;
+                break;
+            }
+            i = i->next;
+        }
+
+        if (!already_queued) {
+            mutex_list_t *node = kmalloc(sizeof(mutex_list_t));
+            node->proc = this->current_proc;
+            node->next = NULL;
+
+            if (!m->queue) {
+                m->queue = node;
+            } else {
+                i = m->queue;
+                while (i->next) i = i->next;
+                i->next = node;
+            }
+        }
+
+        release(&m->lock);
         sched_block(MUTEX);
     }
-
-    m->locked = 1;
-    m->owner = this->current_proc;
-    
-    release(&(m->lock));
 }
 
 void mutex_unlock(mutex_t *m) {

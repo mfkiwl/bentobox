@@ -1,5 +1,6 @@
 #pragma once
 #include <stddef.h>
+#include <stdatomic.h>
 
 struct fifo {
     int *data;
@@ -7,6 +8,7 @@ struct fifo {
     int tail;
     int count;
     int size;
+    atomic_flag lock;
 };
 
 void fifo_init(struct fifo *fifo, int size);

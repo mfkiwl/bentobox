@@ -1,6 +1,7 @@
 #include <kernel/arch/x86_64/io.h>
 #include <kernel/pci.h>
 #include <kernel/mmu.h>
+#include <kernel/mutex.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/module.h>
@@ -20,9 +21,9 @@
 #define ATA_DISK_ERR        0x02
 
 uint16_t ata_base;
-uint8_t ata_type;
-
+uint8_t  ata_type;
 uint8_t *ata_ident = NULL;
+mutex_t  ata_mutex;
 
 void ata_400ns(void) {
     for (int i = 0; i < 4; i++) {
@@ -50,10 +51,9 @@ uint8_t ata_poll() {
     return ATA_OK;
 }
 
-// TODO: use a mutex here
-
 __attribute__((no_sanitize("undefined")))
 uint8_t ata_read(uint32_t lba, void *buffer, uint32_t sectors) {
+    mutex_lock(&ata_mutex);
     outb(ata_base + 6, (ata_type == ATA_MASTER ? 0xE0 : 0xF0) | ((lba >> 24) & 0x0F));
     outb(ata_base + 1, ATA_WAIT);
     outb(ata_base + 2, sectors);
@@ -71,11 +71,14 @@ uint8_t ata_read(uint32_t lba, void *buffer, uint32_t sectors) {
     }
 
     ata_400ns();
+    mutex_unlock(&ata_mutex);
     return ATA_OK;
 }
 
 __attribute__((no_sanitize("undefined")))
 uint8_t ata_write(uint32_t lba, void *buffer, uint32_t sectors) {
+    mutex_lock(&ata_mutex);
+
     outb(ata_base + 6, (ata_type == ATA_MASTER ? 0xE0 : 0xF0) | ((lba >> 24) & 0x0F));
     outb(ata_base + 1, ATA_WAIT);
     outb(ata_base + 2, sectors);
@@ -93,6 +96,7 @@ uint8_t ata_write(uint32_t lba, void *buffer, uint32_t sectors) {
     }
 
     ata_400ns();
+    mutex_unlock(&ata_mutex);
     return ATA_OK;
 }
 
@@ -157,6 +161,8 @@ int32_t hda_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t 
 
 int init() {
     dprintf("%s:%d: ATA driver v1.0\n", __FILE__, __LINE__);
+
+    mutex_init(&ata_mutex);
 
     char name[40];
     if (ata_identify(ATA_PRIMARY, ATA_MASTER, name) != ATA_OK) {
