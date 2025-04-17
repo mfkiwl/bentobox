@@ -26,6 +26,7 @@ To build, you need to install the following packages:
 - xorriso
 - mtools
 - qemu-system-x86
+- genext2fs
 
 Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 

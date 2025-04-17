@@ -18,6 +18,7 @@ typedef struct vfs_node {
     enum vfs_node_type type;
     uint32_t size;
     uint32_t perms;
+    uint32_t inode;
     struct vfs_node *parent;
     struct vfs_node *children;
     struct vfs_node *next;

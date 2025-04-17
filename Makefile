@@ -124,8 +124,7 @@ endif
 
 .PHONY: hdd
 hdd:
-	@dd if=/dev/zero of=bin/$(IMAGE_NAME).hdd bs=1M count=64 status=none
-	@mkfs.ext2 bin/$(IMAGE_NAME).hdd -L bentobox 2>&1 >/dev/null | grep -v mke2fs | cat
+	@genext2fs -d base -b 65536 -L bentobox bin/$(IMAGE_NAME).hdd 2>&1 >/dev/null | grep -v copying | cat
 
 .PHONY: clean
 clean:

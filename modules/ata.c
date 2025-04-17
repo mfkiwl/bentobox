@@ -150,7 +150,7 @@ int32_t hda_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t 
     uint32_t sector = offset / 512;
     uint32_t num_sectors = len / 512;
     
-    printf("ata: reading %d sectors at sector %d @ 0x%lx\n", num_sectors, sector, buffer);
+    //printf("ata: reading %d sectors at sector %d @ 0x%lx\n", num_sectors, sector, buffer);
 
     return ata_read(sector, buffer, num_sectors) ? -1 : len;
 }

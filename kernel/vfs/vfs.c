@@ -26,6 +26,7 @@ struct vfs_node *vfs_create_node(const char *name, enum vfs_node_type type) {
     node->type = type;
     node->size = 0;
     node->perms = 0;
+    node->inode = 0;
     node->parent = NULL;
     node->children = NULL;
     node->next = NULL;
