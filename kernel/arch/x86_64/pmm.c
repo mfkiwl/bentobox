@@ -66,7 +66,7 @@ void pmm_install(void *mboot_info) {
 
 	mmu_mark_used(mboot_info, 2);
 
-    dprintf("%s:%d: initialized allocator at 0x%lx\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
+    dprintf("%s:%d: initialized allocator at 0x%p\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
     dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, mmu_usable_mem / 1024 - mmu_used_pages * 4);
 }
 

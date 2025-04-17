@@ -28,7 +28,7 @@ void __panic(char *file, int line, char *fmt, ...) {
                 this->current_proc->elf.symbol_count, frame_ptr->rip
             );
         }
-        printf("#%d  0x%lx in %s\n", i, frame_ptr->rip, symbol);
+        printf("#%d  0x%p in %s\n", i, frame_ptr->rip, symbol);
         frame_ptr = frame_ptr->rbp;
     }
 

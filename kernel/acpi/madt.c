@@ -16,10 +16,10 @@ struct madt_lapic_addr *lapic_addr;
 __attribute__((no_sanitize("alignment")))
 void madt_init() {
     madt = (struct acpi_madt*)acpi_find_table("APIC");
-    dprintf("%s:%d: MADT address: 0x%lx\n", __FILE__, __LINE__, (uintptr_t)madt);
+    dprintf("%s:%d: MADT address: 0x%p\n", __FILE__, __LINE__, (uintptr_t)madt);
 
     uint32_t i = 0;
-    while (i <= madt->length - sizeof(madt)) {
+    while (i <= madt->length - sizeof(struct acpi_madt)) {
         struct madt_entry *entry = (struct madt_entry*)(madt->table + i);
 
         switch (entry->type) {

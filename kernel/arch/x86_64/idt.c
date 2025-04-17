@@ -63,7 +63,7 @@ void idt_install(void) {
     };
 
     asm volatile ("lidt %0" :: "m"(idt_descriptor));
-    dprintf("%s:%d: IDT address: 0x%lx\n", __FILE__, __LINE__, (uint64_t)&idt_descriptor);
+    dprintf("%s:%d: IDT address: 0x%p\n", __FILE__, __LINE__, (uint64_t)&idt_descriptor);
 }
 
 void idt_reinstall(void) {
@@ -114,13 +114,13 @@ void isr_handler(struct registers *r) {
     asm volatile ("mov $1, %%eax; cpuid; shrl $24, %%ebx;": "=b"(bspid) : :);
 
     printf("%s:%d: x86 Fault: \033[91m%s\033[0m on CPU %d\n"
-            "rdi: 0x%lx rsi: 0x%lx rbp:    0x%lx\n"
-            "rsp: 0x%lx rbx: 0x%lx rdx:    0x%lx\n"
-            "rcx: 0x%lx rax: 0x%lx rip:    0x%lx\n"
-            "r8:  0x%lx r9:  0x%lx r10:    0x%lx\n"
-            "r11: 0x%lx r12: 0x%lx r13:    0x%lx\n"
-            "r14: 0x%lx r15: 0x%lx cr2:    0x%lx\n"
-            "cs:  0x%lx ss:  0x%lx rflags: 0x%lx\n",
+            "rdi: 0x%p rsi: 0x%p rbp:    0x%p\n"
+            "rsp: 0x%p rbx: 0x%p rdx:    0x%p\n"
+            "rcx: 0x%p rax: 0x%p rip:    0x%p\n"
+            "r8:  0x%p r9:  0x%p r10:    0x%p\n"
+            "r11: 0x%p r12: 0x%p r13:    0x%p\n"
+            "r14: 0x%p r15: 0x%p cr2:    0x%p\n"
+            "cs:  0x%p ss:  0x%p rflags: 0x%p\n",
             __FILE__, __LINE__, isr_errors[r->int_no], bspid, r->rdi, r->rsi, r->rbp,
             r->rsp, r->rbx, r->rdx, r->rcx, r->rax, r->rip, r->r8, r->r9,
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,
@@ -139,7 +139,7 @@ void isr_handler(struct registers *r) {
                 this->current_proc->elf.symbol_count, frame_ptr->rip
             );
         }
-        printf("#%d  0x%lx in %s\n", i, frame_ptr->rip, symbol);
+        printf("#%d  0x%p in %s\n", i, frame_ptr->rip, symbol);
         frame_ptr = frame_ptr->rbp;
     }
 

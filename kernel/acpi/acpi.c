@@ -51,20 +51,20 @@ void *acpi_get_rsdp(void *base) {
 #ifdef __x86_64__
     for (uint16_t *addr = (uint16_t*)0x000E0000; addr < (uint16_t*)0x000FFFFF; addr += 16) {
         if (!strncmp((const char*)addr, "RSD PTR ", 8)) {
-            dprintf("%s:%d: found RSDP at address 0x%x\n", __FILE__, __LINE__, addr);
+            dprintf("%s:%d: found RSDP at address 0x%p\n", __FILE__, __LINE__, addr);
             return (void *)addr;
         }
     }
 
     void *rsdp = mboot2_find_tag(base, 14);
     if (rsdp != NULL) {
-        dprintf("%s:%d: found RSDP at address 0x%lx\n", __FILE__, __LINE__, rsdp + 8);
+        dprintf("%s:%d: found RSDP at address 0x%p\n", __FILE__, __LINE__, rsdp + 8);
         return (void *)(rsdp + 8);
     }
 
 	rsdp = mboot2_find_tag(base, 15);
     if (rsdp != NULL) {
-        dprintf("%s:%d: found RSDP at address 0x%lx\n", __FILE__, __LINE__, rsdp + 8);
+        dprintf("%s:%d: found RSDP at address 0x%p\n", __FILE__, __LINE__, rsdp + 8);
         return (void *)(rsdp + 8);
     }
 #else

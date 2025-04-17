@@ -4,6 +4,14 @@
 #include <kernel/printf.h>
 #include <kernel/string.h>
 
+int hex_length(uint64_t val) {
+    int len = 0;
+    do {
+        len++; val >>= 4;
+    } while (val != 0);
+    return len;
+}
+
 void parse_num(char *s, int *ptr, int64_t val, uint32_t base, bool is_signed) {
     if (is_signed && val < 0) {
         s[(*ptr)++] = '-';
@@ -18,6 +26,9 @@ void parse_num(char *s, int *ptr, int64_t val, uint32_t base, bool is_signed) {
 }
 
 void parse_hex(char *s, int *ptr, uint64_t val, int i) {
+    if (!i) {
+        i = hex_length(val);
+    }
     while (i-- > 0) {
         s[(*ptr)++] = "0123456789abcdef"[val >> (i * 4) & 0x0F];
     }
@@ -50,7 +61,10 @@ int vsprintf(char *s, const char *fmt, va_list args) {
                     parse_num(s, &ptr, is_long ? va_arg(args, long) : va_arg(args, int), 10, true);
                     break;
                 case 'x':
-                    parse_hex(s, &ptr, va_arg(args, uint64_t), is_long ? 16 : 8);
+                    parse_hex(s, &ptr, is_long ? va_arg(args, uint64_t) : va_arg(args, uint32_t), 0);
+                    break;
+                case 'p':
+                    parse_hex(s, &ptr, va_arg(args, uint64_t), 16);
                     break;
                 case 's':
                     parse_string(s, &ptr, va_arg(args, char *));
