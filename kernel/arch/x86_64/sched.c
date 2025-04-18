@@ -47,6 +47,8 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     memset(stack, 0, 4 * PAGE_SIZE);
 
+    //printf("Stack page: %lu\n", (uintptr_t)PHYSICAL(stack) / PAGE_SIZE);
+
     uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
     mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     memset(stack, 0, 4 * PAGE_SIZE);
@@ -69,10 +71,12 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->gs = 0;
     proc->state = RUNNING;
     proc->pid = max_pid++;
+    //dprintf("creating heap... ");
     proc->heap = heap_create();
+    //dprintf("done\n");
     proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
-    proc->fd_table[2] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
+    //dprintf("created file descriptors\n");
 
     sched_lock();
     if (!core->processes) {
@@ -101,7 +105,9 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     mmu_map((uintptr_t)VIRTUAL(pml4), (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_create_user_pm(pml4);
 
+    //dprintf("creating task... ");
     struct task *proc = sched_new_task(entry, name, cpu);
+    //dprintf("done\n");
     proc->ctx.cs = 0x23;
     proc->ctx.ss = 0x1b;
     proc->pml4 = pml4;
@@ -146,19 +152,26 @@ void sched_schedule(struct registers *r) {
             max_pid = proc->pid;
             proc->prev->next = proc->next;
             proc->next->prev = proc->prev;
+            uintptr_t *pml4 = this_core()->pml4;
+            this_core()->pml4 = proc->pml4;
             for (size_t i = 0; i < sizeof(proc->sections) / sizeof(struct task_section); i++) {
                 if (proc->sections[i].length == 0) continue;
                 //printf("sched: freeing section %lu\n", i);
-                for (size_t page = 0; page < proc->sections[i].length / PAGE_SIZE; i++) {
-                    uintptr_t paddr = mmu_get_physical(proc->pml4, proc->sections[i].ptr);
-                    //printf("sched: freeing page %lu @ vaddr=0x%p paddr=0x%p with size 0x%lx\n", i, proc->sections[i].ptr, paddr, proc->sections[i].length);
-
+                for (size_t page = 0; page < proc->sections[i].length / PAGE_SIZE; page++) {
+                    uintptr_t vaddr = proc->sections[i].ptr + page * PAGE_SIZE;
+                    uintptr_t paddr = mmu_get_physical(proc->pml4, vaddr);
                     mmu_free((void *)paddr, 1);
+                    mmu_unmap(vaddr);
                 }
             }
+            mmu_destroy_user_pm(proc->pml4);
+            this_core()->pml4 = pml4;
             heap_delete(proc->heap);
+            // triple fault when unmapping kernel stack... i wonder why
+            mmu_free(PHYSICAL(proc->kernel_stack), 4);
+            mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->kernel_stack));
             mmu_free(PHYSICAL(proc->stack), 4);
-            mmu_unmap_pages(4, (uintptr_t)proc->stack);
+            mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->stack));
             if (proc->pml4 != kernel_pd) {
                 mmu_free(PHYSICAL(proc->pml4), 1);
                 mmu_unmap((uintptr_t)proc->pml4);

@@ -49,7 +49,7 @@ all: kernel/target_arch.c kernel modules iso hdd
 
 .PHONY: run
 run: all
-	@qemu-system-$(ARCH) $(QEMUFLAGS)
+	@qemu-system-$(ARCH) $(QEMUFLAGS) -d int -M smm=off -no-reboot -no-shutdown
 
 .PHONY: run-kvm
 run-kvm: all

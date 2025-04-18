@@ -147,11 +147,13 @@ int elf_exec(const char *file) {
 
     if (memcmp(ehdr->e_ident, "\x7f""ELF", 4)) {
         printf("%s:%d: invalid elf file\n", __FILE__, __LINE__);
+        kfree(buffer);
         return -1;
     }
 
     if (ehdr->e_ident[EI_CLASS] != ELFCLASS64) {
         printf("%s:%d: unsupported elf class\n", __FILE__, __LINE__);
+        kfree(buffer);
         return -1;
     }
 
@@ -166,47 +168,38 @@ int elf_exec(const char *file) {
         if (phdr[i].p_type == PT_LOAD) {
             if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
                 continue;
-            
-            //printf("elf: mapping region vaddr=0x%p\n", phdr[i].p_vaddr);
 
             size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
 
             for (size_t page = 0; page < pages; page++) {
                 uintptr_t paddr = (uintptr_t)mmu_alloc(1);
                 uintptr_t vaddr = phdr[i].p_vaddr + page * PAGE_SIZE;
+                dprintf("paddr=0x%lx\n", paddr);
 
-                //printf("\relf: mapping page %lu/%lu @ 0x%lx... ", page + 1, pages, paddr);
                 mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
             }
 
             proc->sections[section].ptr = phdr[i].p_vaddr;
             proc->sections[section].length = pages * PAGE_SIZE;
             section++;
-            //printf("elf: ptr=0x%p\n", proc->sections[section].ptr);
 
-            //printf("done\n");
-
-            //printf("elf: copying pages... ");
             if (phdr[i].p_filesz > 0) {
                 uintptr_t src = (uintptr_t)(uintptr_t)buffer + phdr[i].p_offset;
                 uintptr_t dest = phdr[i].p_vaddr;
 
                 memcpy((void *)dest, (void *)src, phdr[i].p_filesz);
             }
-            //printf("done\n");
 
-            //printf("elf: padding section with zeros... ");
             if (phdr[i].p_memsz > phdr[i].p_filesz) {
                 memset((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
             }
-            //printf("done\n");
         }
     }
 
     vmm_switch_pm(pml4);
     proc->ctx.rip = ehdr->e_entry;
 
-    kfree(ehdr);
+    kfree(buffer);
     sched_start_timer();
     return 0;
 }

@@ -110,6 +110,7 @@ void *mmu_alloc(size_t page_count) {
     }
 
     uint64_t phys_addr = pages * PAGE_SIZE;
+    //dprintf("mmu: allocated page %lu @ 0x%lx\n", pages, phys_addr);
     
     release(&pmm_lock);
     return (void*)(phys_addr);
@@ -119,7 +120,7 @@ void mmu_free(void *ptr, size_t page_count) {
     acquire(&pmm_lock);
     uint64_t page = (uint64_t)ptr / PAGE_SIZE;
 
-    //printf("mmu: freed page %lu @ 0x%p\n", page, ptr);
+    //dprintf("mmu: freed page %lu @ 0x%lx\n", page, ptr);
 
     for (uint64_t i = 0; i < page_count; i++)
         bitmap_clear(pmm_bitmap, page + i);

@@ -65,6 +65,38 @@ void mmu_map_huge(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     pd[pd_index] = phys | flags | (1 << 7);
 }
 
+void mmu_unmap_huge(uintptr_t virt) {
+    acquire(&this_core()->vmm_lock);
+
+    struct cpu *this = this_core();
+    uintptr_t pml4_index = (virt >> 39) & 0x1ff;
+    uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
+    uintptr_t pd_index = (virt >> 21) & 0x1ff;
+
+    uint64_t *pdpt = vmm_get_next_lvl(this->pml4, pml4_index, 0, false);
+    uint64_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, 0, false);
+
+    if (pd && (pd[pd_index] & PTE_PRESENT)) {
+        pd[pd_index] = 0;
+
+        bool empty = true;
+        for (int i = 0; i < 512; i++) {
+            if (pd[i] & PTE_PRESENT) {
+                empty = false;
+                break;
+            }
+        }
+
+        if (empty) {
+            mmu_free(pd, 1);
+            pdpt[pdpt_index] = 0;
+        }
+    }
+
+    vmm_flush_tlb(virt);
+    release(&this_core()->vmm_lock);
+}
+
 void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     acquire(&this_core()->vmm_lock);
 
@@ -145,9 +177,13 @@ uintptr_t mmu_get_physical(uintptr_t *pml4, uintptr_t virt) {
 
 void mmu_create_user_pm(uintptr_t *pml4) {
     this_core()->pml4 = pml4;
+    memcpy(pml4, kernel_pd, PAGE_SIZE);
+
+#if 0
+    this_core()->pml4 = pml4;
 
     for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
-        mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+        mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE /*| PTE_USER*/);
     mmu_unmap(0x0);
 
     pml4[511] = kernel_pd[511];
@@ -157,6 +193,21 @@ void mmu_create_user_pm(uintptr_t *pml4) {
     mmu_map((uintptr_t)VIRTUAL(hpet->address), hpet->address, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr, (uintptr_t)lfb.addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+#endif
+}
+
+void mmu_destroy_user_pm(uintptr_t *pml4) {
+#if 0
+    this_core()->pml4 = pml4;
+
+    for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
+        mmu_unmap_huge(addr);
+    mmu_unmap((uintptr_t)VIRTUAL(LAPIC_REGS));
+    mmu_unmap((uintptr_t)madt_ioapic_list[0]->address);
+    mmu_unmap((uintptr_t)VIRTUAL(hpet->address));
+    mmu_unmap((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE));
+    mmu_unmap_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr);
+#endif
 }
 
 void vmm_install(void) {
