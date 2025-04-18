@@ -68,9 +68,10 @@ void debugcon_entry(void) {
                 continue;
             }
 
-            char *buf = kmalloc(file->size + 1);
-            memset(buf, 0, file->size + 1);
+            char *buf = kmalloc(file->size);
+            memset(buf, 0, file->size);
             vfs_read(file, buf, 0, file->size);
+
             fprintf(stdout, "%s", buf);
             kfree(buf);
             continue;
