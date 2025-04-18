@@ -120,13 +120,13 @@ typedef struct {
 ext2_fs ext2fs;
 struct vfs_node *hda = NULL;
 
-void ext2_read_block(ext2_fs* fs, uint32_t block, void* buf, uint32_t count) {
+void ext2_read_block(ext2_fs *fs, uint32_t block, void* buf, uint32_t count) {
     char buffer[fs->block_size];
     vfs_read(hda, buffer, block * fs->block_size, fs->block_size);
     memcpy(buf, buffer, count);
 }
 
-void ext2_read_inode(ext2_fs* fs, uint32_t inode, ext2_inode* in) {
+void ext2_read_inode(ext2_fs *fs, uint32_t inode, ext2_inode *in) {
     uint32_t bg = (inode - 1) / fs->sb->inodes_per_group;
     uint32_t idx = (inode - 1) % fs->sb->inodes_per_group;
     uint32_t bg_idx = (idx * fs->inode_size) / fs->block_size;
@@ -136,7 +136,23 @@ void ext2_read_inode(ext2_fs* fs, uint32_t inode, ext2_inode* in) {
     memcpy(in, (buf + (idx % (fs->block_size / fs->inode_size)) * fs->inode_size), fs->inode_size);
 }
 
-void ext2_read_inode_blocks(ext2_fs* fs, ext2_inode* in, uint8_t* buf, uint32_t count) {
+uint32_t ext2_read_singly_blocks(ext2_fs *fs, uint32_t block, uint8_t *buf, uint32_t count) {
+    uint32_t *blocks = (uint32_t *)kmalloc(fs->block_size);
+    uint32_t block_count = fs->block_size / 4;
+    uint32_t count_block = DIV_CEILING(count, fs->block_size);
+    ext2_read_block(fs, block, blocks, fs->block_size);
+    uint32_t remaining = count;
+    for (uint32_t i = 0; i < count_block; i++) {
+        if (i == block_count) break;
+        if (blocks[i] == 0) break;
+        ext2_read_block(fs, blocks[i], buf + (i * fs->block_size), (remaining > fs->block_size ? fs->block_size : remaining));
+        remaining -= fs->block_size;
+    }
+    kfree(blocks);
+    return remaining;
+}
+
+void ext2_read_inode_blocks(ext2_fs *fs, ext2_inode *in, uint8_t *buf, uint32_t count) {
     uint32_t remaining = count;
     uint32_t blocks = DIV_CEILING(count, fs->block_size);
     for (uint32_t i = 0; i < (blocks > 12 ? 12 : blocks); i++) {
@@ -144,6 +160,11 @@ void ext2_read_inode_blocks(ext2_fs* fs, ext2_inode* in, uint8_t* buf, uint32_t 
         if (block == 0) break;
         ext2_read_block(fs, block, buf + (i * fs->block_size), (remaining > fs->block_size ? fs->block_size : remaining));
         remaining -= fs->block_size;
+    }
+    if (blocks > 12) {
+        if (in->singly_block_ptr != 0) {
+            ext2_read_singly_blocks(fs, in->singly_block_ptr, buf + (12 * fs->block_size), remaining);
+        }
     }
 }
 

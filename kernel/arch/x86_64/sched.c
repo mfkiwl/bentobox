@@ -29,13 +29,11 @@ void sched_unlock(void) {
 }
 
 void sched_start_timer(void) {
-    sched_unlock();
     lapic_eoi();
     lapic_oneshot(0x79, 5);
 }
 
 void sched_stop_timer(void) {
-    sched_lock();
     lapic_stop_timer();
 }
 

@@ -134,6 +134,7 @@ int elf_module(struct multiboot_tag_module *mod) {
 }
 
 int elf_exec(const char *file) {
+    sched_stop_timer();
     struct vfs_node *fptr = vfs_open(NULL, file);
     if (!fptr) {
         printf("%s:%d: cannot open file \"%s\"\n", __FILE__, __LINE__, file);
@@ -192,5 +193,6 @@ int elf_exec(const char *file) {
     proc->ctx.rip = ehdr->e_entry;
 
     kfree(buffer);
+    sched_start_timer();
     return 0;
 }
