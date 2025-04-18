@@ -65,7 +65,7 @@ void pmm_install(void *mboot_info) {
 
 	mmu_mark_used(mboot_info, 2);
 
-    dprintf("%s:%d: initialized allocator at 0x%p\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
+    dprintf("%s:%d: initialized bitmap at 0x%p\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
     dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, mmu_usable_mem / 1024 - mmu_used_pages * 4);
 }
 
@@ -118,6 +118,8 @@ void *mmu_alloc(size_t page_count) {
 void mmu_free(void *ptr, size_t page_count) {
     acquire(&pmm_lock);
     uint64_t page = (uint64_t)ptr / PAGE_SIZE;
+
+    //printf("mmu: freed page %lu @ 0x%p\n", page, ptr);
 
     for (uint64_t i = 0; i < page_count; i++)
         bitmap_clear(pmm_bitmap, page + i);

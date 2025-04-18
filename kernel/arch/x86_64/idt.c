@@ -132,14 +132,8 @@ void isr_handler(struct registers *r) {
     printf("%s:%d: traceback:\n", __FILE__, __LINE__);
 
     char symbol[256];
-    struct cpu *this = this_core();
     for (int i = 0; i < 8 && frame_ptr->rbp; i++) {
-        if (elf_symbol_name(symbol, ksymtab, kstrtab, ksym_count, frame_ptr->rip)) {
-            elf_symbol_name(symbol,
-                this->current_proc->elf.symtab, this->current_proc->elf.strtab,
-                this->current_proc->elf.symbol_count, frame_ptr->rip
-            );
-        }
+        elf_symbol_name(symbol, ksymtab, kstrtab, ksym_count, frame_ptr->rip);
         printf("#%d  0x%p in %s\n", i, frame_ptr->rip, symbol);
         frame_ptr = frame_ptr->rbp;
     }

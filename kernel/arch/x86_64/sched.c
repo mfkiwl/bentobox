@@ -38,7 +38,7 @@ void sched_stop_timer(void) {
 }
 
 struct task *sched_new_task(void *entry, const char *name, int cpu) {
-    struct cpu *core = get_core(cpu == -1 ? next_cpu : cpu);
+    struct cpu *core = cpu == -2 ? this_core() : get_core(cpu == -1 ? next_cpu : cpu);
 
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
     proc->pml4 = this_core()->pml4;
@@ -73,9 +73,6 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
     proc->fd_table[2] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
-    proc->elf.symtab = NULL;
-    proc->elf.strtab = NULL;
-    proc->elf.symbol_count = 0;
 
     sched_lock();
     if (!core->processes) {
@@ -149,6 +146,16 @@ void sched_schedule(struct registers *r) {
             max_pid = proc->pid;
             proc->prev->next = proc->next;
             proc->next->prev = proc->prev;
+            for (size_t i = 0; i < sizeof(proc->sections) / sizeof(struct task_section); i++) {
+                if (proc->sections[i].length == 0) continue;
+                //printf("sched: freeing section %lu\n", i);
+                for (size_t page = 0; page < proc->sections[i].length / PAGE_SIZE; i++) {
+                    uintptr_t paddr = mmu_get_physical(proc->pml4, proc->sections[i].ptr);
+                    //printf("sched: freeing page %lu @ vaddr=0x%p paddr=0x%p with size 0x%lx\n", i, proc->sections[i].ptr, paddr, proc->sections[i].length);
+
+                    mmu_free((void *)paddr, 1);
+                }
+            }
             heap_delete(proc->heap);
             mmu_free(PHYSICAL(proc->stack), 4);
             mmu_unmap_pages(4, (uintptr_t)proc->stack);

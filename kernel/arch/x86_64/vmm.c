@@ -130,12 +130,26 @@ void mmu_unmap_pages(uint32_t count, uintptr_t virt) {
     }
 }
 
+uintptr_t mmu_get_physical(uintptr_t *pml4, uintptr_t virt) {
+    uintptr_t pml4_index = (virt >> 39) & 0x1ff;
+    uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
+    uintptr_t pd_index = (virt >> 21) & 0x1ff;
+    uintptr_t pt_index = (virt >> 12) & 0x1ff;
+    
+    uintptr_t *pdpt = vmm_get_next_lvl(pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false);
+    uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false);
+    uintptr_t *pt = vmm_get_next_lvl(pd, pd_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false);
+
+    return PTE_GET_ADDR(pt[pt_index]) | (virt & (PAGE_SIZE - 1));
+}
+
 void mmu_create_user_pm(uintptr_t *pml4) {
     this_core()->pml4 = pml4;
 
     for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
         mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_unmap(0x0);
+
     pml4[511] = kernel_pd[511];
 
     mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE | PTE_USER);

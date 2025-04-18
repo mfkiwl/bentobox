@@ -5,6 +5,7 @@
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/vmm.h>
 #include <kernel/arch/x86_64/hpet.h>
+#include <kernel/arch/x86_64/user.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
 #include <kernel/acpi.h>
@@ -113,6 +114,7 @@ void ap_startup(void) {
     lapic_install();
     lapic_calibrate_timer();
     lapic_eoi();
+    user_initialize();
 
     //uint64_t id = this_core()->id;
     //printf("Hello from CPU %d!\n", id);

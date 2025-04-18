@@ -48,7 +48,8 @@ int (*syscalls[256])(struct registers *) = {
 };
 
 void syscall_handler(struct registers *r) {
-    vmm_switch_pm(kernel_pd);
+    //vmm_switch_pm(kernel_pd);
+    sched_stop_timer();
 
     int(*handler)(struct registers *);
     handler = syscalls[r->rax];
@@ -59,7 +60,8 @@ void syscall_handler(struct registers *r) {
     }
 
     r->rax = handler(r);
-    vmm_switch_pm(this_core()->current_proc->pml4);
+    sched_start_timer();
+    //vmm_switch_pm(this_core()->current_proc->pml4);
 }
 
 void syscall_bind(uint64_t rax, void *handler) {

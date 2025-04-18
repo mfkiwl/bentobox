@@ -21,10 +21,9 @@ struct task_time {
     uint64_t last;
 };
 
-struct task_elf {
-    Elf64_Sym *symtab;
-    const char *strtab;
-    int symbol_count;
+struct task_section {
+    uintptr_t ptr;
+    size_t length;
 };
 
 struct task {
@@ -41,7 +40,7 @@ struct task {
     struct heap *heap;
     struct task_time time;
     struct fd fd_table[16];
-    struct task_elf elf;
+    struct task_section sections[16];
 };
 
 void sched_install(void);

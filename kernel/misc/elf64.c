@@ -111,10 +111,9 @@ int elf_module(struct multiboot_tag_module *mod) {
             size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
 
             for (size_t page = 0; page < pages; page++) {
-                uintptr_t paddr = (uintptr_t)mmu_alloc(1);
                 uintptr_t vaddr = phdr[i].p_vaddr + page * PAGE_SIZE;
 
-                mmu_map_pages(1, paddr, vaddr, PTE_PRESENT | PTE_WRITABLE);
+                mmu_mark_used((void *)vaddr, 1);
             }
 
             if (phdr[i].p_filesz > 0) {
@@ -158,14 +157,17 @@ int elf_exec(const char *file) {
 
     struct task *proc = sched_new_user_task(NULL, file, -1);
     uintptr_t *pml4 = this_core()->pml4;
-    this_core()->pml4 = proc->pml4;
+    vmm_switch_pm(proc->pml4);
 
     Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
 
-    for (int i = 0; i < ehdr->e_phnum; i++) {
+    int i, section = 0;
+    for (i = 0; i < ehdr->e_phnum; i++) {
         if (phdr[i].p_type == PT_LOAD) {
             if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
                 continue;
+            
+            //printf("elf: mapping region vaddr=0x%p\n", phdr[i].p_vaddr);
 
             size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
 
@@ -173,26 +175,38 @@ int elf_exec(const char *file) {
                 uintptr_t paddr = (uintptr_t)mmu_alloc(1);
                 uintptr_t vaddr = phdr[i].p_vaddr + page * PAGE_SIZE;
 
-                mmu_map_pages(1, paddr, vaddr, PTE_PRESENT | PTE_WRITABLE);
+                //printf("\relf: mapping page %lu/%lu @ 0x%lx... ", page + 1, pages, paddr);
+                mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
             }
 
+            proc->sections[section].ptr = phdr[i].p_vaddr;
+            proc->sections[section].length = pages * PAGE_SIZE;
+            section++;
+            //printf("elf: ptr=0x%p\n", proc->sections[section].ptr);
+
+            //printf("done\n");
+
+            //printf("elf: copying pages... ");
             if (phdr[i].p_filesz > 0) {
                 uintptr_t src = (uintptr_t)(uintptr_t)buffer + phdr[i].p_offset;
                 uintptr_t dest = phdr[i].p_vaddr;
 
                 memcpy((void *)dest, (void *)src, phdr[i].p_filesz);
             }
+            //printf("done\n");
 
+            //printf("elf: padding section with zeros... ");
             if (phdr[i].p_memsz > phdr[i].p_filesz) {
                 memset((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
             }
+            //printf("done\n");
         }
     }
 
-    this_core()->pml4 = pml4;
+    vmm_switch_pm(pml4);
     proc->ctx.rip = ehdr->e_entry;
 
-    kfree(buffer);
+    kfree(ehdr);
     sched_start_timer();
     return 0;
 }
