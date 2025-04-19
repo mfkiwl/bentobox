@@ -42,6 +42,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     struct cpu *core = cpu == -2 ? this_core() : get_core(cpu == -1 ? next_cpu : cpu);
 
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
+    memset(proc, 0, sizeof(struct task));
     proc->pml4 = this_core()->pml4;
 
     uint64_t *stack = VIRTUAL(mmu_alloc(4));
@@ -96,9 +97,10 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     return proc;
 }
 
+#if 0
 struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     uintptr_t *pml4 = mmu_alloc(1);
-    mmu_map((uintptr_t)VIRTUAL(pml4), (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_create_user_pm(pml4);
 
     struct task *proc = sched_new_task(entry, name, cpu);
@@ -108,6 +110,71 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     printf("elf64's heap @ 0x%lx\n", proc->heap);
 
     this_core()->pml4 = kernel_pd;
+    return proc;
+}
+#endif
+
+struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
+    struct cpu *core = cpu == -2 ? this_core() : get_core(cpu == -1 ? next_cpu : cpu);
+
+    struct task *proc = (struct task *)kmalloc(sizeof(struct task));
+    memset(proc, 0, sizeof(struct task));
+
+    uintptr_t *pml4 = mmu_alloc(1);
+    mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_create_user_pm(pml4);
+    proc->pml4 = pml4;
+
+    uint64_t *stack = VIRTUAL(mmu_alloc(4));
+    mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    memset(stack, 0, 4 * PAGE_SIZE);
+
+    uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
+    mmu_map_pages(4, (uintptr_t)PHYSICAL(kernel_stack), (uintptr_t)kernel_stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    memset(stack, 0, 4 * PAGE_SIZE);
+
+    proc->ctx.rdi = (uint64_t)entry;
+    proc->ctx.rsi = 0;
+    proc->ctx.rbp = 0;
+    proc->ctx.rsp = (uint64_t)stack + (4 * PAGE_SIZE) - 8;
+    proc->ctx.rbx = 0;
+    proc->ctx.rdx = 0;
+    proc->ctx.rcx = 0;
+    proc->ctx.rax = 0;
+    proc->ctx.rip = (uint64_t)sched_task_entry;
+    proc->ctx.cs = 0x23;
+    proc->ctx.ss = 0x1b;
+    proc->ctx.rflags = 0x202;
+    proc->name = name;
+    proc->stack = (uint64_t)stack;
+    proc->kernel_stack = (uint64_t)kernel_stack;
+    proc->gs = 0;
+    proc->state = RUNNING;
+    proc->pid = max_pid++;
+    proc->heap = heap_create();
+    proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/serial0"), 0);
+    proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
+    this_core()->pml4 = kernel_pd;
+
+    sched_lock();
+    if (!core->processes) {
+        proc->prev = proc;
+        proc->next = proc;
+        core->processes = proc;
+    } else {
+        proc->prev = core->processes->prev;
+        core->processes->prev->next = proc;
+        proc->next = core->processes;
+        core->processes->prev = proc;
+    }
+    next_cpu++;
+    if (next_cpu >= madt_lapics)
+        next_cpu = 0;
+    else if (next_cpu < 0)
+        next_cpu = madt_lapics - 1;
+    sched_unlock();
+
+    dprintf("%s:%d: created task \"%s\" on CPU #%d\n", __FILE__, __LINE__, name, core->id);
     return proc;
 }
 
@@ -128,13 +195,13 @@ void sched_schedule(struct registers *r) {
     if (this->current_proc == RUNNING)
         this->current_proc->time.last = hpet_ticks - this->current_proc->time.start;
 
-    dprintf("%s->", this->current_proc->name);
+    //dprintf("%s->", this->current_proc->name);
     if (!this->current_proc->next) {
         this->current_proc = this->processes;
     } else {
         this->current_proc = this->current_proc->next;
     }
-    dprintf("%s\n", this->current_proc->name);
+    //dprintf("%s\n", this->current_proc->name);
 
     while (this->current_proc->state != RUNNING) {
         if (this->current_proc->state == PAUSED
@@ -142,42 +209,14 @@ void sched_schedule(struct registers *r) {
             this->current_proc->state = RUNNING;
             this->current_proc->time.last = this->current_proc->time.end - this->current_proc->time.start;
             break;
-        } else if (this->current_proc->state == KILLED) {
-            printf("killing %s\n", this->current_proc->name);
-            vmm_switch_pm(kernel_pd);
-
+        }
+        if (this->current_proc->state == TCB) {
             struct task *proc = this->current_proc;
-            this->current_proc = this->current_proc->next;
-
+            this->current_proc = proc->next;
             max_pid = proc->pid;
             proc->prev->next = proc->next;
             proc->next->prev = proc->prev;
-
-            this_core()->pml4 = proc->pml4;
-            for (size_t i = 0; i < sizeof(proc->sections) / sizeof(struct task_section); i++) {
-                if (proc->sections[i].length == 0) continue;
-                for (size_t page = 0; page < proc->sections[i].length / PAGE_SIZE; page++) {
-                    uintptr_t vaddr = proc->sections[i].ptr + page * PAGE_SIZE;
-                    uintptr_t paddr = mmu_get_physical(proc->pml4, vaddr);
-                    mmu_free((void *)paddr, 1);
-                    mmu_unmap(vaddr);
-                }
-            }
-            this_core()->pml4 = kernel_pd;
-            heap_delete(proc->heap);
-            int a;
-            printf("current rsp: %lx | task rsp: %lx\n", &a, proc->kernel_stack);
-
-            mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->kernel_stack));
-            //mmu_free(PHYSICAL(proc->kernel_stack), 4); // this cause a triple fault when i run the elf64 user process twice
-            mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->stack));
-            //mmu_free(PHYSICAL(proc->stack), 4);
-            if (proc->pml4 != kernel_pd) {
-                mmu_free(proc->pml4, 1);
-                mmu_unmap((uintptr_t)VIRTUAL(proc->pml4));
-            }
             kfree(proc);
-            printf("current proc is now %s\n", this->current_proc->name);
             break;
         }
 
@@ -218,7 +257,43 @@ void sched_kill(struct task *proc, int status) {
 }
 
 void sched_idle(void) {
+    struct task *proc = this_core()->processes;
     for (;;) {
+        proc = proc->next;
+
+        if (proc->state == KILLED) {
+            sched_stop_timer();
+            printf("%s - You must be killed!!\n", proc->name);
+
+            this_core()->pml4 = proc->pml4;
+            for (size_t i = 0; i < sizeof(proc->sections) / sizeof(struct task_section); i++) {
+                if (proc->sections[i].length == 0) continue;
+                printf("freeing section %d\n", i);
+                for (size_t page = 0; page < proc->sections[i].length / PAGE_SIZE; page++) {
+                    uintptr_t vaddr = proc->sections[i].ptr + page * PAGE_SIZE;
+                    uintptr_t paddr = mmu_get_physical(proc->pml4, vaddr);
+                    mmu_free((void *)paddr, 1);
+                    mmu_unmap(vaddr);
+                }
+            }
+            heap_delete(proc->heap);
+            mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->kernel_stack));
+            mmu_free(PHYSICAL(proc->kernel_stack), 4);
+            mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->stack));
+            mmu_free(PHYSICAL(proc->stack), 4);
+            mmu_destroy_user_pm(proc->pml4);
+            this_core()->pml4 = this_core()->current_proc->pml4;
+            if (proc->pml4 != kernel_pd) {
+                mmu_free(proc->pml4, 1);
+                mmu_unmap((uintptr_t)proc->pml4);
+            }
+            //kfree(proc);
+            proc->state = TCB;
+            proc = this_core()->processes;
+
+            sched_start_timer();
+        }
+
         asm ("hlt");
     }
 }

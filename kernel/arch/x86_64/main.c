@@ -92,6 +92,18 @@ void generic_load_modules(void) {
     printf("\033[92m * \033[97mInitialized modules\033[0m\n");
 }
 
+void mubsan_log(const char* fmt, ...) {
+	//vmm_switch_pm(kernel_pd);
+
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+    
+    asm volatile ("cli");
+    for (;;) asm volatile ("hlt");
+}
+
 void kmain(void *mboot_info, uint32_t mboot_magic) {
     serial_install();
     

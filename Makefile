@@ -11,7 +11,7 @@ ifeq ($(ARCH),x86_64)
 	LD = ld
     ARCH_DIR := kernel/arch/x86_64
     ASFLAGS = -f elf64 -g -F dwarf
-    CCFLAGS := -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone #-fsanitize=undefined
+    CCFLAGS := -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone
     LDFLAGS := -m elf_x86_64 -Tkernel/arch/x86_64/linker.ld -z noexecstack
     QEMUFLAGS := -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -drive file=bin/$(IMAGE_NAME).hdd,format=raw
 else ifeq ($(ARCH),riscv64)
@@ -49,7 +49,7 @@ all: kernel/target_arch.c kernel modules iso hdd
 
 .PHONY: run
 run: all
-	@qemu-system-$(ARCH) $(QEMUFLAGS) -no-reboot -no-shutdown #-d int -M smm=off
+	@qemu-system-$(ARCH) $(QEMUFLAGS) -no-reboot -no-shutdown -d int -M smm=off
 
 .PHONY: run-kvm
 run-kvm: all
@@ -62,6 +62,7 @@ run-gdb: all
 bin/kernel/%.c.o: kernel/%.c
 	@echo " CC $<"
 	@mkdir -p "$$(dirname $@)"
+#   -fsanitize=undefined
 	@$(CC) $(CCFLAGS) -c $< -o $@
 
 bin/kernel/%.S.o: kernel/%.S

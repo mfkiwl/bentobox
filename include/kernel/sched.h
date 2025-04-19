@@ -12,7 +12,8 @@ enum task_state {
     RUNNING,
     PAUSED,
     KILLED,
-    MUTEX
+    MUTEX,
+    TCB
 };
 
 struct task_time {
