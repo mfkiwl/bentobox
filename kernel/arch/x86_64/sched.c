@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <stdatomic.h>
+#include <kernel/arch/x86_64/tss.h>
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/hpet.h>
 #include <kernel/arch/x86_64/user.h>
@@ -127,13 +128,13 @@ void sched_schedule(struct registers *r) {
     if (this->current_proc == RUNNING)
         this->current_proc->time.last = hpet_ticks - this->current_proc->time.start;
 
+    dprintf("%s->", this->current_proc->name);
     if (!this->current_proc->next) {
         this->current_proc = this->processes;
     } else {
         this->current_proc = this->current_proc->next;
     }
-
-    dprintf("context switch from %s\n", this->current_proc->name);
+    dprintf("%s\n", this->current_proc->name);
 
     while (this->current_proc->state != RUNNING) {
         if (this->current_proc->state == PAUSED
@@ -142,7 +143,7 @@ void sched_schedule(struct registers *r) {
             this->current_proc->time.last = this->current_proc->time.end - this->current_proc->time.start;
             break;
         } else if (this->current_proc->state == KILLED) {
-            dprintf("killing %s\n", this->current_proc->name);
+            printf("killing %s\n", this->current_proc->name);
             vmm_switch_pm(kernel_pd);
 
             struct task *proc = this->current_proc;
@@ -164,29 +165,30 @@ void sched_schedule(struct registers *r) {
             }
             this_core()->pml4 = kernel_pd;
             heap_delete(proc->heap);
-            //mmu_free(PHYSICAL(proc->kernel_stack), 4);
-            //mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->kernel_stack));
+            int a;
+            printf("current rsp: %lx | task rsp: %lx\n", &a, proc->kernel_stack);
+
+            mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->kernel_stack));
+            //mmu_free(PHYSICAL(proc->kernel_stack), 4); // this cause a triple fault when i run the elf64 user process twice
+            mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->stack));
             //mmu_free(PHYSICAL(proc->stack), 4);
-            //mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->stack));
             if (proc->pml4 != kernel_pd) {
                 mmu_free(proc->pml4, 1);
                 mmu_unmap((uintptr_t)VIRTUAL(proc->pml4));
             }
             kfree(proc);
-            dprintf("current proc is now %s\n", this->current_proc->name);
+            printf("current proc is now %s\n", this->current_proc->name);
             break;
         }
 
         this->current_proc = this->current_proc->next;
     }
 
-    if (this->current_proc->state != RUNNING)
-        this->current_proc = this->current_proc->next;
-
     this->current_proc->time.start = hpet_ticks;
 
     memcpy(r, &(this->current_proc->ctx), sizeof(struct registers));
     vmm_switch_pm(this->current_proc->pml4);
+    set_kernel_stack(this->current_proc->kernel_stack + (4 * PAGE_SIZE));
     write_kernel_gs((uint64_t)this->current_proc);
 
     sched_start_timer();
