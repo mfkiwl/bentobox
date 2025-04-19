@@ -133,10 +133,10 @@ int elf_module(struct multiboot_tag_module *mod) {
 }
 
 int elf_exec(const char *file) {
-    sched_stop_timer();
     struct vfs_node *fptr = vfs_open(NULL, file);
     if (!fptr) {
         printf("%s:%d: cannot open file \"%s\"\n", __FILE__, __LINE__, file);
+        // FIXME memory leak here
         return -1;
     }
 
@@ -157,7 +157,8 @@ int elf_exec(const char *file) {
         return -1;
     }
 
-    struct task *proc = sched_new_user_task(NULL, file, -1);
+    sched_stop_timer();
+    struct task *proc = sched_new_user_task(NULL, "elf64", -1);
     uintptr_t *pml4 = this_core()->pml4;
     vmm_switch_pm(proc->pml4);
 
@@ -174,7 +175,7 @@ int elf_exec(const char *file) {
             for (size_t page = 0; page < pages; page++) {
                 uintptr_t paddr = (uintptr_t)mmu_alloc(1);
                 uintptr_t vaddr = phdr[i].p_vaddr + page * PAGE_SIZE;
-                dprintf("paddr=0x%lx\n", paddr);
+                printf("paddr=0x%lx\n", paddr);
 
                 mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
             }

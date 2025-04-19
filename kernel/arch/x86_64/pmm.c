@@ -3,6 +3,7 @@
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/vmm.h>
 #include <kernel/mmu.h>
+#include <kernel/panic.h>
 #include <kernel/bitmap.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
@@ -10,6 +11,7 @@
 #include <kernel/multiboot.h>
 
 uint8_t *pmm_bitmap = NULL;
+uint64_t pmm_bitmap_size = 0;
 uint64_t mmu_page_count = 0;
 uint64_t mmu_usable_mem = 0;
 uint64_t mmu_used_pages = 0;
@@ -43,8 +45,8 @@ void pmm_install(void *mboot_info) {
 
     pmm_bitmap = (uint8_t *)PAGE_SIZE;
     mmu_page_count = highest_address / PAGE_SIZE;
-    uint64_t bitmap_size = ALIGN_UP(mmu_page_count / 8, PAGE_SIZE);
-    memset(pmm_bitmap, 0xFF, bitmap_size);
+    pmm_bitmap_size = ALIGN_UP(mmu_page_count / 8, PAGE_SIZE);
+    memset(pmm_bitmap, 0xFF, pmm_bitmap_size);
 
     for (i = 0; i < (mmap->size - sizeof(struct multiboot_tag_mmap)) / mmap->entry_size; i++) {
         mmmt = &mmap->entries[i];
@@ -105,9 +107,8 @@ void *mmu_alloc(size_t page_count) {
     acquire(&pmm_lock);
     uint64_t pages = pmm_find_pages(page_count);
     
-    if (!pages) {
-        printf("%s:%d: allocation failed: out of memory\n", __FILE__, __LINE__);
-    }
+    if (!pages)
+        panic("allocation failed: out of memory");
 
     uint64_t phys_addr = pages * PAGE_SIZE;
     //dprintf("mmu: allocated page %lu @ 0x%lx\n", pages, phys_addr);
@@ -120,7 +121,8 @@ void mmu_free(void *ptr, size_t page_count) {
     acquire(&pmm_lock);
     uint64_t page = (uint64_t)ptr / PAGE_SIZE;
 
-    //dprintf("mmu: freed page %lu @ 0x%lx\n", page, ptr);
+    if ((uintptr_t)ptr < KERNEL_PHYS_BASE || page > pmm_bitmap_size * 8)
+        panic("invalid deallocation @ 0x%p\n", ptr);
 
     for (uint64_t i = 0; i < page_count; i++)
         bitmap_clear(pmm_bitmap, page + i);

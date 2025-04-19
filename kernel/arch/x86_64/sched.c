@@ -70,7 +70,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->state = RUNNING;
     proc->pid = max_pid++;
     proc->heap = heap_create();
-    proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
+    proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/serial0"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
 
     sched_lock();
@@ -104,6 +104,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     proc->ctx.cs = 0x23;
     proc->ctx.ss = 0x1b;
     proc->pml4 = pml4;
+    printf("elf64's heap @ 0x%lx\n", proc->heap);
 
     this_core()->pml4 = kernel_pd;
     return proc;
@@ -132,6 +133,8 @@ void sched_schedule(struct registers *r) {
         this->current_proc = this->current_proc->next;
     }
 
+    dprintf("context switch from %s\n", this->current_proc->name);
+
     while (this->current_proc->state != RUNNING) {
         if (this->current_proc->state == PAUSED
          && hpet_ticks >= this->current_proc->time.end) {
@@ -139,13 +142,16 @@ void sched_schedule(struct registers *r) {
             this->current_proc->time.last = this->current_proc->time.end - this->current_proc->time.start;
             break;
         } else if (this->current_proc->state == KILLED) {
+            dprintf("killing %s\n", this->current_proc->name);
+            vmm_switch_pm(kernel_pd);
+
             struct task *proc = this->current_proc;
             this->current_proc = this->current_proc->next;
 
             max_pid = proc->pid;
             proc->prev->next = proc->next;
             proc->next->prev = proc->prev;
-            uintptr_t *pml4 = this_core()->pml4;
+
             this_core()->pml4 = proc->pml4;
             for (size_t i = 0; i < sizeof(proc->sections) / sizeof(struct task_section); i++) {
                 if (proc->sections[i].length == 0) continue;
@@ -156,23 +162,26 @@ void sched_schedule(struct registers *r) {
                     mmu_unmap(vaddr);
                 }
             }
-            //mmu_destroy_user_pm(proc->pml4);
-            this_core()->pml4 = pml4;
-            //heap_delete(proc->heap);
-            mmu_free(PHYSICAL(proc->kernel_stack), 4);
-            mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->kernel_stack));
+            this_core()->pml4 = kernel_pd;
+            heap_delete(proc->heap);
+            //mmu_free(PHYSICAL(proc->kernel_stack), 4);
+            //mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->kernel_stack));
             //mmu_free(PHYSICAL(proc->stack), 4);
             //mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->stack));
             if (proc->pml4 != kernel_pd) {
-                mmu_free(PHYSICAL(proc->pml4), 1);
-                mmu_unmap((uintptr_t)proc->pml4);
+                mmu_free(proc->pml4, 1);
+                mmu_unmap((uintptr_t)VIRTUAL(proc->pml4));
             }
             kfree(proc);
+            dprintf("current proc is now %s\n", this->current_proc->name);
             break;
         }
 
         this->current_proc = this->current_proc->next;
     }
+
+    if (this->current_proc->state != RUNNING)
+        this->current_proc = this->current_proc->next;
 
     this->current_proc->time.start = hpet_ticks;
 

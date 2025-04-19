@@ -28,6 +28,7 @@ struct heap *heap_create(void) {
 
 __attribute__((no_sanitize("undefined")))
 void heap_delete(struct heap *h) {
+    printf("deleting heap @ %lx\n", h);
     struct heap_block *current = h->head->next;
     struct heap_block *next;
 
@@ -38,7 +39,6 @@ void heap_delete(struct heap *h) {
         mmu_unmap_pages(pages, (uintptr_t)current);
         current = next;
     }
-
 
     mmu_free(PHYSICAL(h->head), 1);
     mmu_unmap((uintptr_t)h->head);
