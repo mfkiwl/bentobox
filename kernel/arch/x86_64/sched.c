@@ -255,7 +255,7 @@ void sched_idle(void) {
 
         if (proc->state == KILLED) {
             sched_stop_timer();
-            printf("Process %s is being killed\n", proc->name);
+            //printf("Process %s is being killed\n", proc->name);
             
             if (proc->ctx.cs == 0x23) {
                 if (proc->sections[0].length > 0) {

@@ -47,7 +47,7 @@ void test_kern_process(void) {
 void debugcon_entry(void) {
     char input[128] = {0};
     for (;;) {
-        fprintf(stdout, ">>> ");
+        fprintf(stdout, "# ");
         memset(input, 0, sizeof(input));
         fgets(input, sizeof(input), stdin);
 
@@ -70,6 +70,11 @@ void debugcon_entry(void) {
                 continue;
             }
             while (child) {
+                if (!strcmp(child->name, ".") || !strcmp(child->name, "..")) {
+                    child = child->next;
+                    continue;
+                }
+
                 char *color = NULL;
                 switch (child->type) {
                     case VFS_FILE:
@@ -113,7 +118,6 @@ void debugcon_entry(void) {
             continue;
         } else if (!strncmp(input, ".", 1)) {
             elf_exec(input + 1);
-            continue;
         } else if (!strncmp(input, "exit", 5)) {
             break;
         } else if (!strncmp(input, "user", 5)) {
