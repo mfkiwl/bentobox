@@ -85,7 +85,10 @@ struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
             child = child->next;
         }
 
-        if (!found) return NULL;
+        if (!found) {
+            kfree(copy);
+            return NULL;
+        }
         token = strtok(NULL, "/");
     }
 

@@ -126,8 +126,11 @@ void mmu_free(void *ptr, size_t page_count) {
         panic("invalid deallocation @ 0x%p", ptr);
     //dprintf("mmu: freeing page %lu @ 0x%lx\n", page, ptr);
 
-    for (uint64_t i = 0; i < page_count; i++)
+    for (uint64_t i = 0; i < page_count; i++) {
+        if (!bitmap_get(pmm_bitmap, page + i))
+            panic("double free @ 0x%p", ptr);
         bitmap_clear(pmm_bitmap, page + i);
+    }
     mmu_used_pages -= page_count;
     release(&pmm_lock);
 }

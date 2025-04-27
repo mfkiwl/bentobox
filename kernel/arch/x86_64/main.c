@@ -131,7 +131,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	ps2_install();
 	hpet_install();
 	lapic_calibrate_timer();
-	smp_initialize();
+	smp_initialize(mboot_info);
 	user_initialize();
 
 	generic_startup();

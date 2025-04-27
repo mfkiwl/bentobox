@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
-#include <kernel/elf64.h>
 
+#define MULTIBOOT_TAG_TYPE_CMDLINE          1
 #define MULTIBOOT_TAG_TYPE_MODULE           3
 #define MULTIBOOT_TAG_TYPE_MMAP             6
 #define MULTIBOOT_TAG_TYPE_FRAMEBUFFER      8
@@ -20,6 +20,12 @@
 struct multiboot_tag {
     uint32_t type;
     uint32_t size;
+} __attribute__((packed));
+
+struct multiboot_tag_string {
+    uint32_t type;
+    uint32_t size;
+    char string[0];
 } __attribute__((packed));
 
 struct multiboot_mmap_entry {
@@ -57,16 +63,6 @@ struct multiboot_tag_module {
     uint32_t mod_start;
     uint32_t mod_end;
     char string[0];
-};
-
-/* GNU, what the fuck. */
-struct multiboot_tag_elf_sections {
-    uint32_t type;
-    uint32_t size;
-    uint32_t num;
-    uint32_t entsize;
-    uint32_t shndx;
-    char sections[0];
 };
 
 struct multiboot_color {

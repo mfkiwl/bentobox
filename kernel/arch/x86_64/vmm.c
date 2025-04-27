@@ -208,7 +208,7 @@ void mmu_destroy_user_pm(uintptr_t *pml4) {
     mmu_unmap_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr);
 
     this_core()->pml4 = kernel_pd;
-    mmu_free(pml4, 1); // TODO: unmap this
+    //mmu_free(pml4, 1); // TODO: unmap this
 //#endif
 }
 

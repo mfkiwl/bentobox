@@ -1,3 +1,4 @@
+#include "kernel/arch/x86_64/smp.h"
 #include "kernel/sched.h"
 #include <kernel/fd.h>
 #include <kernel/vfs.h>
@@ -36,6 +37,11 @@ void test_user_process(void) {
     );
 
     for (;;);
+}
+
+void test_kern_process(void) {
+    printf("Hello kernel!\n");
+    sched_kill(this_core()->current_proc, 0);
 }
 
 void debugcon_entry(void) {
@@ -112,6 +118,8 @@ void debugcon_entry(void) {
             break;
         } else if (!strncmp(input, "user", 5)) {
             sched_new_user_task(test_user_process, "Test User Process", -1);
+        } else if (!strncmp(input, "test", 5)) {
+            sched_new_task(test_kern_process, "Test Kernel Process", -1);
         } else {
             fprintf(stdout, "Unknown command: %s\n", input);
         }

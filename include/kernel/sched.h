@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/fd.h>
 #include <kernel/vfs.h>

@@ -250,8 +250,10 @@ void ext2_mount(ext2_fs *fs, struct vfs_node *parent, uint32_t inode_num) {
     kfree(inode);
 }
 
+extern char load_addr[];
+
 int init() {
-    dprintf("%s:%d: ext2 driver v1.0\n", __FILE__, __LINE__);
+    dprintf("%s:%d: ext2 driver v1.0 @ 0x%lx\n", __FILE__, __LINE__, &load_addr);
 
     hda = vfs_open(NULL, "/dev/hda");
 

@@ -1,5 +1,3 @@
-#include "kernel/arch/x86_64/vga.h"
-#include "kernel/arch/x86_64/vmm.h"
 #include <stddef.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/tss.h>
@@ -257,22 +255,26 @@ void sched_idle(void) {
 
         if (proc->state == KILLED) {
             sched_stop_timer();
-            
-            // TODO: unmap elf sections
             printf("Process %s is being killed\n", proc->name);
-            if (proc->sections[0].length > 0) {
-                printf("Process %s has ELF sections\n", proc->name);
-
-                for (int i = 0; proc->sections[i].length; i++) {
-                    mmu_unmap_pages(ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE, mmu_get_physical(proc->pml4, proc->sections[i].ptr));
+            
+            if (proc->ctx.cs == 0x23) {
+                if (proc->sections[0].length > 0) {
+                    printf("Process %s has ELF sections\n", proc->name);
+    
+                    for (int i = 0; proc->sections[i].length; i++) {
+                        mmu_unmap_pages(ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE, mmu_get_physical(proc->pml4, proc->sections[i].ptr));
+                    }
                 }
+    
+                mmu_unmap_pages(4, proc->stack);
+                mmu_unmap_pages(4, proc->kernel_stack);
+                mmu_free(PHYSICAL(proc->stack), 4);
+                mmu_free(PHYSICAL(proc->kernel_stack), 4);
+                mmu_destroy_user_pm(proc->pml4);
+            } else {
+                mmu_unmap_pages(4, proc->stack);
+                mmu_free(PHYSICAL(proc->stack), 4);
             }
-
-            mmu_unmap_pages(4, proc->stack);
-            mmu_unmap_pages(4, proc->kernel_stack);
-            mmu_free(PHYSICAL(proc->stack), 4);
-            mmu_free(PHYSICAL(proc->kernel_stack), 4);
-            mmu_destroy_user_pm(proc->pml4);
 
             proc->state = TCB;
             proc = this_core()->processes;
