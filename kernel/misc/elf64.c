@@ -1,4 +1,5 @@
 #include "kernel/arch/x86_64/smp.h"
+#include "kernel/sched.h"
 #include <stdbool.h>
 #include <kernel/mmu.h>
 #include <kernel/elf64.h>
@@ -136,7 +137,7 @@ int elf_exec(const char *file) {
     struct vfs_node *fptr = vfs_open(NULL, file);
     if (!fptr) {
         printf("%s:%d: cannot open file \"%s\"\n", __FILE__, __LINE__, file);
-        // FIXME memory leak here
+        // TODO: fix memory leak here
         return -1;
     }
 
@@ -158,11 +159,13 @@ int elf_exec(const char *file) {
     }
 
     sched_stop_timer();
-    struct task *proc = sched_new_user_task(NULL, "elf64", -1);
-    uintptr_t *pml4 = this_core()->pml4;
-    vmm_switch_pm(proc->pml4);
 
+    struct task *proc = sched_new_user_task((void *)ehdr->e_entry, "elf64", -1);
+    //proc->state = KILLED;
+    
     Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
+
+    printf("%lx=%lx\n", proc->pml4, this_core()->pml4);
 
     int i, section = 0;
     for (i = 0; i < ehdr->e_phnum; i++) {
@@ -175,7 +178,8 @@ int elf_exec(const char *file) {
             for (size_t page = 0; page < pages; page++) {
                 uintptr_t paddr = (uintptr_t)mmu_alloc(1);
                 uintptr_t vaddr = phdr[i].p_vaddr + page * PAGE_SIZE;
-                printf("paddr=0x%lx\n", paddr);
+                printf("paddr=0x%lx | vaddr=0x%lx\n", paddr, vaddr);
+                //mmu_free((void *)paddr, 1);
 
                 mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
             }
@@ -197,10 +201,9 @@ int elf_exec(const char *file) {
         }
     }
 
-    vmm_switch_pm(pml4);
-    proc->ctx.rip = ehdr->e_entry;
+    printf("Done!\n");
 
-    kfree(buffer);
     sched_start_timer();
+    kfree(buffer);
     return 0;
 }

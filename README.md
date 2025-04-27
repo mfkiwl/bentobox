@@ -41,7 +41,8 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] SMP
 - [X] ATA driver
 - [ ] ext2fs support
-    - [ ] Doubly and triply linked blocks
+    - [X] Doubly linked blocks
+    - [ ] Triply linked blocks
     - [X] Reading
     - [ ] Writing
     - [X] Mounting
@@ -69,3 +70,5 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] %p in printf
 - [X] Implement file descriptors
 - [X] Elf execution from the filesystem
+- [ ] Write an RTC driver
+- [ ] Fix memory leaks

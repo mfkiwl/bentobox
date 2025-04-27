@@ -28,7 +28,7 @@ struct heap *heap_create(void) {
 
 __attribute__((no_sanitize("undefined")))
 void heap_delete(struct heap *h) {
-    printf("deleting heap @ %lx\n", h);
+    dprintf("malloc: deleting heap @ %lx\n", h);
     struct heap_block *current = h->head->next;
     struct heap_block *next;
 

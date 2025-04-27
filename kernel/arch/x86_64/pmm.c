@@ -111,6 +111,7 @@ void *mmu_alloc(size_t page_count) {
         panic("allocation failed: out of memory");
 
     uint64_t phys_addr = pages * PAGE_SIZE;
+    //printf("mmu: allocated some pages\n");
     //dprintf("mmu: allocated page %lu @ 0x%lx\n", pages, phys_addr);
     
     release(&pmm_lock);
@@ -123,7 +124,7 @@ void mmu_free(void *ptr, size_t page_count) {
 
     if ((uintptr_t)ptr < KERNEL_PHYS_BASE || page > pmm_bitmap_size * 8)
         panic("invalid deallocation @ 0x%p", ptr);
-    //printf("mmu: freeing page %lu @ 0x%lx\n", page, ptr);
+    //dprintf("mmu: freeing page %lu @ 0x%lx\n", page, ptr);
 
     for (uint64_t i = 0; i < page_count; i++)
         bitmap_clear(pmm_bitmap, page + i);

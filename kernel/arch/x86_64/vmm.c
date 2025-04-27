@@ -179,15 +179,13 @@ uintptr_t *mmu_create_user_pm(struct task *proc) {
 //#if 0
     uintptr_t *pml4 = (uintptr_t *)mmu_alloc(1); // TODO: map this
     memset(pml4, 0, PAGE_SIZE);
-
     this_core()->pml4 = pml4;
+    
     pml4[511] = kernel_pd[511];
-
     for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
         mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
 
     mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_map((uintptr_t)madt_ioapic_list[0]->address, (uintptr_t)madt_ioapic_list[0]->address, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map((uintptr_t)VIRTUAL(hpet->address), hpet->address, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr, (uintptr_t)lfb.addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
@@ -205,7 +203,6 @@ void mmu_destroy_user_pm(uintptr_t *pml4) {
     for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
         mmu_unmap_huge(addr);
     mmu_unmap((uintptr_t)VIRTUAL(LAPIC_REGS));
-    mmu_unmap((uintptr_t)madt_ioapic_list[0]->address);
     mmu_unmap((uintptr_t)VIRTUAL(hpet->address));
     mmu_unmap((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE));
     mmu_unmap_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr);

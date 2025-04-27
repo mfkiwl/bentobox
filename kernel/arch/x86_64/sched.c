@@ -1,3 +1,4 @@
+#include "kernel/arch/x86_64/vga.h"
 #include "kernel/arch/x86_64/vmm.h"
 #include <stddef.h>
 #include <stdatomic.h>
@@ -129,9 +130,9 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->gs = 0;
     proc->state = RUNNING;
     proc->pid = max_pid++;
-    proc->heap = heap_create();
-    proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/serial0"), 0);
-    proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/serial0"), 0);
+    proc->heap = NULL;
+    proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
+    proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
 
     sched_lock();
     if (!core->processes) {
@@ -150,6 +151,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     else if (next_cpu < 0)
         next_cpu = madt_lapics - 1;
     sched_unlock();
+    //vmm_switch_pm(kernel_pd);
 
     dprintf("%s:%d: created task \"%s\" on CPU #%d @ 0x%p\n", __FILE__, __LINE__, name, core->id, proc);
     return proc;
@@ -189,13 +191,11 @@ void sched_schedule(struct registers *r) {
     if (this->current_proc == RUNNING)
         this->current_proc->time.last = hpet_ticks - this->current_proc->time.start;
 
-    //dprintf("%s->", this->current_proc->name);
     if (!this->current_proc->next) {
         this->current_proc = this->processes;
     } else {
         this->current_proc = this->current_proc->next;
     }
-    //dprintf("%s\n", this->current_proc->name);
 
     while (this->current_proc->state != RUNNING) {
         if (this->current_proc->state == PAUSED
@@ -220,7 +220,7 @@ void sched_schedule(struct registers *r) {
     this->current_proc->time.start = hpet_ticks;
 
     memcpy(r, &(this->current_proc->ctx), sizeof(struct registers));
-    vmm_switch_pm(this->current_proc->pml4);
+    vmm_switch_pm(this->current_proc->pml4); // TODO: only switch if necessary
     set_kernel_stack(this->current_proc->kernel_stack + (4 * PAGE_SIZE));
     write_kernel_gs((uint64_t)this->current_proc);
 
@@ -258,8 +258,16 @@ void sched_idle(void) {
         if (proc->state == KILLED) {
             sched_stop_timer();
             
-            // TODO: unmap sections & heap
-            heap_delete(proc->heap);
+            // TODO: unmap elf sections
+            printf("Process %s is being killed\n", proc->name);
+            if (proc->sections[0].length > 0) {
+                printf("Process %s has ELF sections\n", proc->name);
+
+                for (int i = 0; proc->sections[i].length; i++) {
+                    mmu_unmap_pages(ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE, mmu_get_physical(proc->pml4, proc->sections[i].ptr));
+                }
+            }
+
             mmu_unmap_pages(4, proc->stack);
             mmu_unmap_pages(4, proc->kernel_stack);
             mmu_free(PHYSICAL(proc->stack), 4);
@@ -287,7 +295,7 @@ void sched_start_all_cores(void) {
 }
 
 void sched_install(void) {
-    sched_new_task(sched_idle, "System Idle Process", -1);
+    sched_new_task(sched_idle, "System Idle Process", 0);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }
