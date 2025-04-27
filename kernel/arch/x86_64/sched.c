@@ -1,3 +1,4 @@
+#include "kernel/arch/x86_64/vmm.h"
 #include <stddef.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/tss.h>
@@ -17,10 +18,6 @@
 
 long max_pid = 0, next_cpu = 0;
 
-static void sched_task_entry(int (*entry)()) {
-    sched_kill(this_core()->current_proc, entry());
-}
-
 void sched_lock(void) {
     acquire(&(this_core()->sched_lock));
 }
@@ -38,6 +35,9 @@ void sched_stop_timer(void) {
     lapic_stop_timer();
 }
 
+/*
+ * sched_new_task - create a new ring 0 task
+ */
 struct task *sched_new_task(void *entry, const char *name, int cpu) {
     struct cpu *core = cpu == -2 ? this_core() : get_core(cpu == -1 ? next_cpu : cpu);
 
@@ -46,14 +46,10 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->pml4 = this_core()->pml4;
 
     uint64_t *stack = VIRTUAL(mmu_alloc(4));
-    mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE);
     memset(stack, 0, 4 * PAGE_SIZE);
 
-    uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
-    mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    memset(stack, 0, 4 * PAGE_SIZE);
-
-    proc->ctx.rdi = (uint64_t)entry;
+    proc->ctx.rdi = 0;
     proc->ctx.rsi = 0;
     proc->ctx.rbp = 0;
     proc->ctx.rsp = (uint64_t)stack + (4 * PAGE_SIZE) - 8;
@@ -61,18 +57,18 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->ctx.rdx = 0;
     proc->ctx.rcx = 0;
     proc->ctx.rax = 0;
-    proc->ctx.rip = (uint64_t)sched_task_entry;
+    proc->ctx.rip = (uint64_t)entry;
     proc->ctx.cs = 0x8;
     proc->ctx.ss = 0x10;
     proc->ctx.rflags = 0x202;
     proc->name = name;
     proc->stack = (uint64_t)stack;
-    proc->kernel_stack = (uint64_t)kernel_stack;
+    proc->kernel_stack = (uint64_t)stack;
     proc->gs = 0;
     proc->state = RUNNING;
     proc->pid = max_pid++;
     proc->heap = heap_create();
-    proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/serial0"), 0);
+    proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
 
     sched_lock();
@@ -97,7 +93,69 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     return proc;
 }
 
-#if 0
+/*
+ * sched_new_user_task - create a new ring 3 task
+ */
+ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
+    // TODO: fix framebuffer issues with this
+
+    struct cpu *core = cpu == -2 ? this_core() : get_core(cpu == -1 ? next_cpu : cpu);
+
+    struct task *proc = (struct task *)kmalloc(sizeof(struct task));
+    memset(proc, 0, sizeof(struct task));
+    proc->pml4 = mmu_create_user_pm(proc);
+
+    uint64_t *user_stack = VIRTUAL(mmu_alloc(4));
+    uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
+    mmu_map_pages(4, (uintptr_t)PHYSICAL(user_stack), (uintptr_t)user_stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map_pages(4, (uintptr_t)PHYSICAL(kernel_stack), (uintptr_t)kernel_stack, PTE_PRESENT | PTE_WRITABLE);
+    // TODO: zero the stacks
+    
+    proc->ctx.rdi = 0;
+    proc->ctx.rsi = 0;
+    proc->ctx.rbp = 0;
+    proc->ctx.rsp = (uint64_t)user_stack + (4 * PAGE_SIZE) - 8;
+    proc->ctx.rbx = 0;
+    proc->ctx.rdx = 0;
+    proc->ctx.rcx = 0;
+    proc->ctx.rax = 0;
+    proc->ctx.rip = (uint64_t)entry;
+    proc->ctx.cs = 0x23;
+    proc->ctx.ss = 0x1b;
+    proc->ctx.rflags = 0x202;
+    proc->name = name;
+    proc->stack = (uint64_t)user_stack;
+    proc->kernel_stack = (uint64_t)kernel_stack;
+    proc->gs = 0;
+    proc->state = RUNNING;
+    proc->pid = max_pid++;
+    proc->heap = heap_create();
+    proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/serial0"), 0);
+    proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/serial0"), 0);
+
+    sched_lock();
+    if (!core->processes) {
+        proc->prev = proc;
+        proc->next = proc;
+        core->processes = proc;
+    } else {
+        proc->prev = core->processes->prev;
+        core->processes->prev->next = proc;
+        proc->next = core->processes;
+        core->processes->prev = proc;
+    }
+    next_cpu++;
+    if (next_cpu >= madt_lapics)
+        next_cpu = 0;
+    else if (next_cpu < 0)
+        next_cpu = madt_lapics - 1;
+    sched_unlock();
+
+    dprintf("%s:%d: created task \"%s\" on CPU #%d @ 0x%p\n", __FILE__, __LINE__, name, core->id, proc);
+    return proc;
+}
+
+/*
 struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     uintptr_t *pml4 = mmu_alloc(1);
     mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
@@ -112,71 +170,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     this_core()->pml4 = kernel_pd;
     return proc;
 }
-#endif
-
-struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
-    struct cpu *core = cpu == -2 ? this_core() : get_core(cpu == -1 ? next_cpu : cpu);
-
-    struct task *proc = (struct task *)kmalloc(sizeof(struct task));
-    memset(proc, 0, sizeof(struct task));
-
-    uintptr_t *pml4 = mmu_alloc(1);
-    mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_create_user_pm(pml4);
-    proc->pml4 = pml4;
-
-    uint64_t *stack = VIRTUAL(mmu_alloc(4));
-    mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    memset(stack, 0, 4 * PAGE_SIZE);
-
-    uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
-    mmu_map_pages(4, (uintptr_t)PHYSICAL(kernel_stack), (uintptr_t)kernel_stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    memset(stack, 0, 4 * PAGE_SIZE);
-
-    proc->ctx.rdi = (uint64_t)entry;
-    proc->ctx.rsi = 0;
-    proc->ctx.rbp = 0;
-    proc->ctx.rsp = (uint64_t)stack + (4 * PAGE_SIZE) - 8;
-    proc->ctx.rbx = 0;
-    proc->ctx.rdx = 0;
-    proc->ctx.rcx = 0;
-    proc->ctx.rax = 0;
-    proc->ctx.rip = (uint64_t)sched_task_entry;
-    proc->ctx.cs = 0x23;
-    proc->ctx.ss = 0x1b;
-    proc->ctx.rflags = 0x202;
-    proc->name = name;
-    proc->stack = (uint64_t)stack;
-    proc->kernel_stack = (uint64_t)kernel_stack;
-    proc->gs = 0;
-    proc->state = RUNNING;
-    proc->pid = max_pid++;
-    proc->heap = heap_create();
-    proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/serial0"), 0);
-    proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
-    this_core()->pml4 = kernel_pd;
-
-    sched_lock();
-    if (!core->processes) {
-        proc->prev = proc;
-        proc->next = proc;
-        core->processes = proc;
-    } else {
-        proc->prev = core->processes->prev;
-        core->processes->prev->next = proc;
-        proc->next = core->processes;
-        core->processes->prev = proc;
-    }
-    next_cpu++;
-    if (next_cpu >= madt_lapics)
-        next_cpu = 0;
-    else if (next_cpu < 0)
-        next_cpu = madt_lapics - 1;
-    sched_unlock();
-
-    dprintf("%s:%d: created task \"%s\" on CPU #%d\n", __FILE__, __LINE__, name, core->id);
-    return proc;
-}
+*/
 
 void sched_schedule(struct registers *r) {
     sched_stop_timer();
@@ -263,31 +257,15 @@ void sched_idle(void) {
 
         if (proc->state == KILLED) {
             sched_stop_timer();
-            printf("%s - You must be killed!!\n", proc->name);
-
-            this_core()->pml4 = proc->pml4;
-            for (size_t i = 0; i < sizeof(proc->sections) / sizeof(struct task_section); i++) {
-                if (proc->sections[i].length == 0) continue;
-                printf("freeing section %d\n", i);
-                for (size_t page = 0; page < proc->sections[i].length / PAGE_SIZE; page++) {
-                    uintptr_t vaddr = proc->sections[i].ptr + page * PAGE_SIZE;
-                    uintptr_t paddr = mmu_get_physical(proc->pml4, vaddr);
-                    mmu_free((void *)paddr, 1);
-                    mmu_unmap(vaddr);
-                }
-            }
+            
+            // TODO: unmap sections & heap
             heap_delete(proc->heap);
-            mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->kernel_stack));
-            mmu_free(PHYSICAL(proc->kernel_stack), 4);
-            mmu_unmap_pages(4, (uintptr_t)PHYSICAL(proc->stack));
+            mmu_unmap_pages(4, proc->stack);
+            mmu_unmap_pages(4, proc->kernel_stack);
             mmu_free(PHYSICAL(proc->stack), 4);
+            mmu_free(PHYSICAL(proc->kernel_stack), 4);
             mmu_destroy_user_pm(proc->pml4);
-            this_core()->pml4 = this_core()->current_proc->pml4;
-            if (proc->pml4 != kernel_pd) {
-                mmu_free(proc->pml4, 1);
-                mmu_unmap((uintptr_t)proc->pml4);
-            }
-            //kfree(proc);
+
             proc->state = TCB;
             proc = this_core()->processes;
 

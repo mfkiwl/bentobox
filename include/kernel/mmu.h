@@ -1,4 +1,5 @@
 #pragma once
+#include "kernel/sched.h"
 #include <stdint.h>
 #include <stddef.h>
 
@@ -31,6 +32,6 @@ void  mmu_unmap(uintptr_t virt);
 void  mmu_mark_used(void *ptr, size_t page_size);
 void  mmu_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint32_t flags);
 void  mmu_unmap_pages(uint32_t count, uintptr_t virt);
-void  mmu_create_user_pm(uintptr_t *pml4);
 void  mmu_destroy_user_pm(uintptr_t *pml4);
 uintptr_t mmu_get_physical(uintptr_t *pml4, uintptr_t virt);
+uintptr_t *mmu_create_user_pm(struct task *proc);

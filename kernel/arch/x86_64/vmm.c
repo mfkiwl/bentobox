@@ -53,13 +53,11 @@ uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, boo
 }
 
 void mmu_map_huge(uintptr_t virt, uintptr_t phys, uint64_t flags) {
-    struct cpu *this = this_core();
- 
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
  
-    uintptr_t *pdpt = vmm_get_next_lvl(this->pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
+    uintptr_t *pdpt = vmm_get_next_lvl(this_core()->pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
     uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
  
     pd[pd_index] = phys | flags | (1 << 7);
@@ -68,12 +66,11 @@ void mmu_map_huge(uintptr_t virt, uintptr_t phys, uint64_t flags) {
 void mmu_unmap_huge(uintptr_t virt) {
     acquire(&this_core()->vmm_lock);
 
-    struct cpu *this = this_core();
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
 
-    uint64_t *pdpt = vmm_get_next_lvl(this->pml4, pml4_index, 0, false);
+    uint64_t *pdpt = vmm_get_next_lvl(this_core()->pml4, pml4_index, 0, false);
     uint64_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, 0, false);
 
     if (pd && (pd[pd_index] & PTE_PRESENT)) {
@@ -101,13 +98,12 @@ __attribute__((no_sanitize("undefined")))
 void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     acquire(&this_core()->vmm_lock);
 
-    struct cpu *this = this_core();
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
     uintptr_t pt_index = (virt >> 12) & 0x1ff;
     
-    uintptr_t *pdpt = vmm_get_next_lvl(this->pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
+    uintptr_t *pdpt = vmm_get_next_lvl(this_core()->pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
     uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
     uintptr_t *pt = vmm_get_next_lvl(pd, pd_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
 
@@ -121,13 +117,12 @@ __attribute__((no_sanitize("undefined")))
 void mmu_unmap(uintptr_t virt) {
     acquire(&this_core()->vmm_lock);
 
-    struct cpu *this = this_core();
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
     uintptr_t pt_index = (virt >> 12) & 0x1ff;
 
-    uint64_t *pdpt = vmm_get_next_lvl(this->pml4, pml4_index, 0, false);
+    uint64_t *pdpt = vmm_get_next_lvl(this_core()->pml4, pml4_index, 0, false);
     uint64_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, 0, false);
     uint64_t *pt = vmm_get_next_lvl(pd, pd_index, 0, false);
 
@@ -177,29 +172,34 @@ uintptr_t mmu_get_physical(uintptr_t *pml4, uintptr_t virt) {
     return PTE_GET_ADDR(pt[pt_index]) | (virt & (PAGE_SIZE - 1));
 }
 
-void mmu_create_user_pm(uintptr_t *pml4) {
+uintptr_t *mmu_create_user_pm(struct task *proc) {
     //this_core()->pml4 = pml4;
     //memcpy(pml4, kernel_pd, PAGE_SIZE);
 
 //#if 0
+    uintptr_t *pml4 = (uintptr_t *)mmu_alloc(1); // TODO: map this
+    memset(pml4, 0, PAGE_SIZE);
+
     this_core()->pml4 = pml4;
-
-    for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
-        mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE /*| PTE_USER*/);
-    mmu_unmap(0x0);
-
     pml4[511] = kernel_pd[511];
 
+    for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
+        mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+
     mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_map((uintptr_t)madt_ioapic_list[0]->address, (uintptr_t)madt_ioapic_list[0]->address, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map((uintptr_t)madt_ioapic_list[0]->address, (uintptr_t)madt_ioapic_list[0]->address, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map((uintptr_t)VIRTUAL(hpet->address), hpet->address, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr, (uintptr_t)lfb.addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    vmm_switch_pm(pml4);
+
+    return pml4;
 //#endif
 }
 
 void mmu_destroy_user_pm(uintptr_t *pml4) {
 //#if 0
+    vmm_switch_pm(kernel_pd);
     this_core()->pml4 = pml4;
 
     for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
@@ -209,6 +209,9 @@ void mmu_destroy_user_pm(uintptr_t *pml4) {
     mmu_unmap((uintptr_t)VIRTUAL(hpet->address));
     mmu_unmap((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE));
     mmu_unmap_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr);
+
+    this_core()->pml4 = kernel_pd;
+    mmu_free(pml4, 1); // TODO: unmap this
 //#endif
 }
 

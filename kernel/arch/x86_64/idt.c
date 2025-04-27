@@ -91,11 +91,14 @@ void irq_unregister(uint8_t vector) {
     irq_handlers[vector] = (void *)0;
 }
 
+size_t faults = 0;
+
 void isr_handler(struct registers *r) {
     if (r->int_no == 0xff) {
         return;
     }
-    if (r->int_no == 0x02) {
+    faults++;
+    if (r->int_no == 0x02 || faults > 3) {
         asm ("cli");
 	    for (;;) asm ("hlt");
     }
@@ -132,7 +135,7 @@ void isr_handler(struct registers *r) {
     printf("%s:%d: traceback:\n", __FILE__, __LINE__);
 
     char symbol[256];
-    for (int i = 0; i < 8 && frame_ptr->rbp; i++) {
+    for (int i = 0; i < 12 && frame_ptr->rbp; i++) {
         elf_symbol_name(symbol, ksymtab, kstrtab, ksym_count, frame_ptr->rip);
         printf("#%d  0x%p in %s\n", i, frame_ptr->rip, symbol);
         frame_ptr = frame_ptr->rbp;

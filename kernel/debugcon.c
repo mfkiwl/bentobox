@@ -1,3 +1,4 @@
+#include "kernel/sched.h"
 #include <kernel/fd.h>
 #include <kernel/vfs.h>
 #include <kernel/mmu.h>
@@ -7,6 +8,35 @@
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/module.h>
+
+void test_user_process(void) {
+    static char msg[] = "Hello, world!\n";
+    static const size_t msglen = sizeof(msg) - 1;
+
+    // Write "Hello, world!\n" to STDOUT
+    __asm__ __volatile__(
+        "mov $1, %%rax\n\t"      // syscall number for write
+        "mov $1, %%rdi\n\t"      // file descriptor (STDOUT_FILENO)
+        "mov %0, %%rsi\n\t"      // pointer to message
+        "mov %1, %%rdx\n\t"      // message length
+        "syscall\n\t"
+        :
+        : "r"(msg), "r"(msglen)
+        : "rax", "rdi", "rsi", "rdx"
+    );
+
+    // Exit with success
+    __asm__ __volatile__(
+        "mov $60, %%rax\n\t"     // syscall number for exit
+        "mov $0, %%rdi\n\t"      // exit code (EXIT_SUCCESS)
+        "syscall\n\t"
+        :
+        :
+        : "rax", "rdi"
+    );
+
+    for (;;);
+}
 
 void debugcon_entry(void) {
     char input[128] = {0};
@@ -80,6 +110,8 @@ void debugcon_entry(void) {
             continue;
         } else if (!strncmp(input, "exit", 5)) {
             break;
+        } else if (!strncmp(input, "user", 5)) {
+            sched_new_user_task(test_user_process, "Test User Process", -1);
         } else {
             fprintf(stdout, "Unknown command: %s\n", input);
         }
