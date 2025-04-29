@@ -45,7 +45,7 @@ MODULE_BINARIES := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.elf))
 LOAD_ADDR := 0x400000
 
 .PHONY: all
-all: kernel/target_arch.c kernel modules iso hdd
+all: kernel/target_arch.c kernel ubsan modules iso hdd
 
 .PHONY: run
 run: all
@@ -62,7 +62,6 @@ run-gdb: all
 bin/kernel/%.c.o: kernel/%.c
 	@echo " CC $<"
 	@mkdir -p "$$(dirname $@)"
-#   -fsanitize=undefined
 	@$(CC) $(CCFLAGS) -c $< -o $@
 
 bin/kernel/%.S.o: kernel/%.S
@@ -74,7 +73,7 @@ kernel/target_arch.c: bin/.target
 	@echo "const char *__kernel_arch = \"$(ARCH)\";" > $@
 	@echo "const char *__kernel_commit_hash = \"$(shell git rev-parse --short HEAD)\";" >> $@
 
-bin/.target: #kernel/target_arch.c
+bin/.target:
 	mkdir -p "$$(dirname $@)"
 	@touch $@
 
@@ -91,13 +90,20 @@ kernel: $(KERNEL_OBJS)
 	@objcopy --only-keep-debug bin/$(IMAGE_NAME).elf bin/ksym.elf
 	@bash util/symbols.sh
 
+# TODO: make $(UBSAN) conditional instead of the output file
+ubsan:
+ifdef UBSAN
+	@echo " CC util/mubsan.c"
+	@$(CC) $(CCFLAGS) -c util/mubsan.c -o $(UBSAN)
+endif
+
 .PHONY: modules
 modules: kernel $(MODULE_OBJS)
-	@LOAD_ADDR=$(LOAD_ADDR); \
+	LOAD_ADDR=$(LOAD_ADDR); \
 	for obj in $(MODULE_OBJS); do \
 		echo " LD $$obj"; \
 		cp $$obj bin/module.elf; \
-		ld -Tbin/mod.ld --defsym=load_addr=$$LOAD_ADDR -o $${obj%.o}.elf; \
+		ld -Tbin/mod.ld --defsym=load_addr=$$LOAD_ADDR $(UBSAN) -o $${obj%.o}.elf; \
 		LOAD_ADDR=$$(printf '0x%X' $$(( $$LOAD_ADDR + 0x100000 ))); \
 	done
 

@@ -96,15 +96,14 @@ void generic_load_modules(void) {
 }
 
 void mubsan_log(const char* fmt, ...) {
-	//vmm_switch_pm(kernel_pd);
+	arch_prepare_fatal();
 
     va_list args;
     va_start(args, fmt);
     vprintf(fmt, args);
     va_end(args);
-    
-    asm volatile ("cli");
-    for (;;) asm volatile ("hlt");
+
+	arch_fatal();
 }
 
 void kmain(void *mboot_info, uint32_t mboot_magic) {
