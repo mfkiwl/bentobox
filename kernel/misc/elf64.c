@@ -158,7 +158,6 @@ int elf_exec(const char *file) {
     }
 
     sched_stop_timer();
-
     struct task *proc = sched_new_user_task((void *)ehdr->e_entry, "elf64", -1);
     
     Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
@@ -174,7 +173,6 @@ int elf_exec(const char *file) {
             for (size_t page = 0; page < pages; page++) {
                 uintptr_t paddr = (uintptr_t)mmu_alloc(1);
                 uintptr_t vaddr = phdr[i].p_vaddr + page * PAGE_SIZE;
-                //printf("paddr=0x%lx | vaddr=0x%lx\n", paddr, vaddr);
 
                 mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
             }
@@ -196,9 +194,7 @@ int elf_exec(const char *file) {
         }
     }
 
-    //printf("Done!\n");
-
-    sched_start_timer();
     kfree(buffer);
+    sched_yield();
     return 0;
 }

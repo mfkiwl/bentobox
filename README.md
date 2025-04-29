@@ -47,6 +47,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
     - [X] Reading
     - [ ] Writing
     - [X] Mounting
+    - [ ] Caching
 - [X] Framebuffer support
 - [ ] PS/2 drivers
     - [X] Keyboard
@@ -72,8 +73,9 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] Implement file descriptors
 - [X] Elf execution from the filesystem
 - [ ] Write an RTC driver
-- [ ] Fix ring 3 processes in SMP
-- [ ] Fix memory leaks
+- [X] Fix ring 3 processes in SMP
+- [X] Fix memory leaks
+- [ ] Refactor VMM to take pml4's and `void *` instead of `uintptr_t`
 
 ## Screenshot
 ![image](https://github.com/user-attachments/assets/8829074f-8e42-47a8-b2aa-e2340813cc8e)

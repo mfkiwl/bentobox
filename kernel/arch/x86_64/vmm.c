@@ -173,43 +173,22 @@ uintptr_t mmu_get_physical(uintptr_t *pml4, uintptr_t virt) {
 }
 
 uintptr_t *mmu_create_user_pm(struct task *proc) {
-    //this_core()->pml4 = pml4;
-    //memcpy(pml4, kernel_pd, PAGE_SIZE);
-
-//#if 0
-    uintptr_t *pml4 = (uintptr_t *)mmu_alloc(1); // TODO: map this
+    uintptr_t *pml4 = (uintptr_t *)mmu_alloc(1);
+    mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     memset(pml4, 0, PAGE_SIZE);
     this_core()->pml4 = pml4;
     
-    pml4[511] = kernel_pd[511];
-    for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
-        mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-
-    mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_map((uintptr_t)VIRTUAL(hpet->address), hpet->address, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_map_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr, (uintptr_t)lfb.addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    vmm_switch_pm(pml4);
+    memcpy(pml4, kernel_pd, PAGE_SIZE);
 
     return pml4;
-//#endif
 }
 
 void mmu_destroy_user_pm(uintptr_t *pml4) {
-//#if 0
-    vmm_switch_pm(kernel_pd);
     this_core()->pml4 = pml4;
 
-    for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
-        mmu_unmap_huge(addr);
-    mmu_unmap((uintptr_t)VIRTUAL(LAPIC_REGS));
-    mmu_unmap((uintptr_t)VIRTUAL(hpet->address));
-    mmu_unmap((uintptr_t)ALIGN_DOWN((uintptr_t)hpet, PAGE_SIZE));
-    mmu_unmap_pages((ALIGN_UP((lfb.pitch * lfb.height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)lfb.addr);
-
     this_core()->pml4 = kernel_pd;
-    //mmu_free(pml4, 1); // TODO: unmap this
-//#endif
+    mmu_unmap((uintptr_t)pml4);
+    mmu_free(pml4, 1);
 }
 
 void vmm_install(void) {
@@ -218,7 +197,7 @@ void vmm_install(void) {
     memset(kernel_pd, 0, PAGE_SIZE);
 
     for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
-        mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE);
+        mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE/* | PTE_USER*/);
     mmu_unmap(0x0);
     dprintf("%s:%d: done mapping kernel regions\n", __FILE__, __LINE__);
 

@@ -1,3 +1,4 @@
+#include "kernel/arch/x86_64/vmm.h"
 #include <stddef.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/tss.h>
@@ -61,8 +62,8 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->ctx.ss = 0x10;
     proc->ctx.rflags = 0x202;
     proc->name = name;
+    proc->stack = (uint64_t)stack + (4 * PAGE_SIZE);
     proc->stack_bottom = (uint64_t)stack;
-    proc->kernel_stack_bottom = (uint64_t)stack;
     proc->gs = 0;
     proc->state = RUNNING;
     proc->pid = max_pid++;
@@ -96,9 +97,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
 /*
  * sched_new_user_task - create a new ring 3 task
  */
- struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
-    // TODO: fix framebuffer issues with this
-
+struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     struct cpu *core = cpu == -2 ? this_core() : get_core(cpu == -1 ? next_cpu : cpu);
 
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
@@ -109,7 +108,6 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
     mmu_map_pages(4, (uintptr_t)PHYSICAL(user_stack), (uintptr_t)user_stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map_pages(4, (uintptr_t)PHYSICAL(kernel_stack), (uintptr_t)kernel_stack, PTE_PRESENT | PTE_WRITABLE);
-    // TODO: zero the stacks
     
     proc->ctx.rdi = 0;
     proc->ctx.rsi = 0;
@@ -124,9 +122,9 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->ctx.ss = 0x1b;
     proc->ctx.rflags = 0x202;
     proc->name = name;
-    proc->stack = (uint64_t)user_stack;
+    proc->stack = (uint64_t)user_stack + (4 * PAGE_SIZE);
     proc->stack_bottom = (uint64_t)user_stack;
-    proc->kernel_stack = (uint64_t)kernel_stack;
+    proc->kernel_stack = (uint64_t)kernel_stack + (4 * PAGE_SIZE);
     proc->kernel_stack_bottom = (uint64_t)kernel_stack;
     proc->gs = 0;
     proc->state = RUNNING;
@@ -153,28 +151,10 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     else if (next_cpu < 0)
         next_cpu = madt_lapics - 1;
     sched_unlock();
-    //vmm_switch_pm(kernel_pd);
 
     dprintf("%s:%d: created task \"%s\" on CPU #%d @ 0x%p\n", __FILE__, __LINE__, name, core->id, proc);
     return proc;
 }
-
-/*
-struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
-    uintptr_t *pml4 = mmu_alloc(1);
-    mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_create_user_pm(pml4);
-
-    struct task *proc = sched_new_task(entry, name, cpu);
-    proc->ctx.cs = 0x23;
-    proc->ctx.ss = 0x1b;
-    proc->pml4 = pml4;
-    printf("elf64's heap @ 0x%lx\n", proc->heap);
-
-    this_core()->pml4 = kernel_pd;
-    return proc;
-}
-*/
 
 void sched_schedule(struct registers *r) {
     sched_stop_timer();
@@ -221,14 +201,13 @@ void sched_schedule(struct registers *r) {
 
     this->current_proc->time.start = hpet_ticks;
 
-    //dprintf("Switching to %s @ 0x%lx\n", this->current_proc->name, this->current_proc->ctx.rip);
-
     memcpy(r, &(this->current_proc->ctx), sizeof(struct registers));
-    vmm_switch_pm(this->current_proc->pml4); // TODO: only switch if necessary
+    if (this_core()->pml4 != this->current_proc->pml4)
+        vmm_switch_pm(this->current_proc->pml4);
     write_kernel_gs((uint64_t)this->current_proc);
+    set_kernel_stack(this->current_proc->kernel_stack);
 
     sched_start_timer();
-    set_kernel_stack(this->current_proc->kernel_stack_bottom);
 }
 
 void sched_yield(void) {
@@ -261,28 +240,22 @@ void sched_idle(void) {
 
         if (proc->state == KILLED) {
             sched_stop_timer();
-            //printf("Process %s is being killed\n", proc->name);
             
             if (proc->user) {
-                printf("%s is user\n", proc->name);
-                printf("User stack @ 0x%lx\n", proc->stack);
-                printf("Kernel stack @ 0x%lx\n", proc->kernel_stack);
-
-                printf("1");
                 if (proc->sections[0].length > 0) {
-                    printf("Process %s has ELF sections\n", proc->name);
-    
+                    this_core()->pml4 = proc->pml4;
                     for (int i = 0; proc->sections[i].length; i++) {
-                        mmu_unmap_pages(ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE, mmu_get_physical(proc->pml4, proc->sections[i].ptr));
+                        mmu_free((void *)mmu_get_physical(proc->pml4, proc->sections[i].ptr), ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE);
+                        mmu_unmap_pages(ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE, proc->sections[i].ptr);
                     }
+                    this_core()->pml4 = kernel_pd;
                 }
     
-                mmu_unmap_pages(4, proc->stack);        printf("2");
-                mmu_unmap_pages(4, proc->kernel_stack); printf("3");
-                mmu_free(PHYSICAL(proc->stack_bottom), 4); printf("4");
-                mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4); printf("5");
-                mmu_destroy_user_pm(proc->pml4);               printf("6");
-                printf("\n");
+                mmu_unmap_pages(4, proc->stack);
+                mmu_unmap_pages(4, proc->kernel_stack);
+                mmu_free(PHYSICAL(proc->stack_bottom), 4);
+                mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4);
+                mmu_destroy_user_pm(proc->pml4);
             } else {
                 mmu_unmap_pages(4, proc->stack_bottom);
                 mmu_free(PHYSICAL(proc->stack_bottom), 4);
