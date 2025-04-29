@@ -13,7 +13,7 @@ enum task_state {
     RUNNING,
     PAUSED,
     KILLED,
-    MUTEX,
+    BREAKPOINT,
     TCB
 };
 
@@ -38,11 +38,14 @@ struct task {
     const char *name;
     uint64_t *pml4;
     long pid;
+    bool user;
     enum task_state state;
     struct heap *heap;
     struct task_time time;
     struct fd fd_table[16];
     struct task_section sections[16];
+    uint64_t stack_bottom;
+    uint64_t kernel_stack_bottom;
 };
 
 void sched_install(void);

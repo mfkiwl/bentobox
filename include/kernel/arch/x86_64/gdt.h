@@ -1,4 +1,5 @@
 #pragma once
+#include <kernel/arch/x86_64/smp.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -24,7 +25,7 @@ struct gdt_entry_long {
 
 struct gdt_table {
     struct gdt_entry gdt_entries[5];
-    struct gdt_entry_long tss;
+    struct gdt_entry_long tss_entries[SMP_MAX_CORES];
 } __attribute__((packed));
 
 struct gdtr {

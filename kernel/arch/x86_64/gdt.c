@@ -8,14 +8,15 @@ struct gdt_table gdt_table;
 struct gdtr gdt_descriptor;
 
 void gdt_set_entry(uint8_t index, uint16_t limit, uint64_t base, uint8_t access, uint8_t gran) {
-    if (index == 5) {
-        gdt_table.tss.limit = limit;
-        gdt_table.tss.base_low = base & 0xFFFF;
-        gdt_table.tss.base_mid = (base >> 16) & 0xFF;
-        gdt_table.tss.access = access;
-        gdt_table.tss.gran = gran;
-        gdt_table.tss.base_high = (base >> 24) & 0xFF;
-        gdt_table.tss.base_long = (base >> 32);
+    if (index > 4) {
+        int i = index - 5; // index - 5
+        gdt_table.tss_entries[i].limit = limit;
+        gdt_table.tss_entries[i].base_low = base & 0xFFFF;
+        gdt_table.tss_entries[i].base_mid = (base >> 16) & 0xFF;
+        gdt_table.tss_entries[i].access = access;
+        gdt_table.tss_entries[i].gran = gran;
+        gdt_table.tss_entries[i].base_high = (base >> 24) & 0xFF;
+        gdt_table.tss_entries[i].base_long = (base >> 32);
         return;
     }
 

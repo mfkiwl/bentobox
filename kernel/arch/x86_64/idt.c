@@ -1,3 +1,4 @@
+#include "kernel/arch/x86_64/smp.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -8,7 +9,8 @@
 #include <kernel/elf64.h>
 #include <kernel/printf.h>
 
-extern void generic_fatal(void);
+extern void arch_fatal(void);
+extern void arch_prepare_fatal(void);
 
 __attribute__((aligned(0x10)))
 struct idt_entry idt_entries[256];
@@ -97,18 +99,21 @@ void isr_handler(struct registers *r) {
     if (r->int_no == 0xff) {
         return;
     }
+    if ((r->cs & 3) == 0x3) {
+        dprintf("%s:%d: \033[91m%s\033[0m on \"%s\"\n", __FILE__, __LINE__, isr_errors[r->int_no], this_core()->current_proc->name);
+        sched_kill(this_core()->current_proc, 11);
+        //this_core()->current_proc->state = BREAKPOINT;
+        //sched_yield();
+    }
+    arch_prepare_fatal();
+
     faults++;
     if (r->int_no == 0x02 || faults > 3) {
         asm ("cli");
 	    for (;;) asm ("hlt");
     }
 
-    vmm_switch_pm(kernel_pd);
-
-    if (r->cs & 3) {
-        dprintf("%s:%d: \033[91m%s\033[0m on \"%s\"\n", __FILE__, __LINE__, isr_errors[r->int_no], this_core()->current_proc->name);
-        sched_kill(this_core()->current_proc, 11);
-    }
+    //vmm_switch_pm(kernel_pd);
 
     uint64_t cr2;
     asm volatile("mov %%cr2, %0" : "=r" (cr2));
@@ -141,7 +146,7 @@ void isr_handler(struct registers *r) {
         frame_ptr = frame_ptr->rbp;
     }
 
-    generic_fatal();
+    arch_fatal();
 }
 
 void irq_handler(struct registers r) {

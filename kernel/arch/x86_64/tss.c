@@ -8,26 +8,22 @@
 #include <kernel/sched.h>
 #include <kernel/mmu.h>
 
-struct tss_entry tss;
+struct tss_entry tss[SMP_MAX_CORES] __attribute__((aligned(0x10)));
 
-atomic_flag tss_lock = ATOMIC_FLAG_INIT;
-
-void write_tss(int index, uint64_t rsp0) {
-    acquire(&tss_lock);
-    gdt_set_entry(index, sizeof(struct tss_entry), (uint64_t)&tss, 0x89, 0x20);
+void write_tss(int cpu, uint64_t rsp0) {
+    gdt_set_entry(cpu + 5, sizeof(struct tss_entry), (uint64_t)&tss[cpu], 0x89, 0x20);
     
-    memset(&tss, 0, sizeof(struct tss_entry));
-    tss.rsp0 = rsp0;
+    memset(&tss[cpu], 0, sizeof(struct tss_entry));
+    tss[cpu].rsp0 = rsp0;
 
-    asm volatile ("mov $0x28, %%ax; ltr %%ax" : : : "ax");
-    release(&tss_lock);
+    asm volatile ("ltr %0" : : "r"((uint16_t)(0x28 + cpu * 16)));
 }
 
 void tss_install(void) {
-    write_tss(5, (uint64_t)mmu_alloc(1) + PAGE_SIZE);
+    write_tss(this_core()->id, (uint64_t)mmu_alloc(1) + PAGE_SIZE);
     dprintf("%s:%d: initialized TSS on CPU #%d\n", __FILE__, __LINE__, this_core()->id);
 }
 
 void set_kernel_stack(uint64_t stack) {
-    tss.rsp0 = stack;
+    tss[this_core()->id].rsp0 = stack;
 }

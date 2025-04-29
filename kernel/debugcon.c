@@ -11,6 +11,8 @@
 #include <kernel/module.h>
 
 void test_user_process(void) {
+    //for (;;);
+
     static char msg[] = "Hello, world!\n";
     static const size_t msglen = sizeof(msg) - 1;
 
@@ -122,8 +124,17 @@ void debugcon_entry(void) {
             break;
         } else if (!strncmp(input, "user", 5)) {
             sched_new_user_task(test_user_process, "Test User Process", -1);
-        } else if (!strncmp(input, "test", 5)) {
-            sched_new_task(test_kern_process, "Test Kernel Process", -1);
+        } else if (!strncmp(input, "test ", 5)) {
+            int count = atoi(input + 5);
+            for (int i = 0; i < count; i++) {
+                printf("%d/%d\n", i + 1, count);
+                sched_new_task(test_kern_process, "Test Kernel Process", -1);
+                sched_sleep(100000);
+            }
+        } else if (!strncmp(input, "ram", 4)) {
+            printf("Total memory: %lu\n", mmu_usable_mem / 1024);
+            printf("Used pages: %lu\n", mmu_used_pages);
+            printf("Free pages: %lu\n", mmu_page_count - mmu_used_pages);
         } else {
             fprintf(stdout, "Unknown command: %s\n", input);
         }

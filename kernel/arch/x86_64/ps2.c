@@ -59,7 +59,9 @@ void irq1_handler(struct registers *r) {
 
 int32_t ps2_keyboard_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
     int c = 0;
-    while (!fifo_dequeue(&kb_fifo, &c)) {}
+    while (!fifo_dequeue(&kb_fifo, &c)) {
+        sched_yield();
+    }
 
     memcpy(buffer, &c, 1);
     return 1;

@@ -4,9 +4,12 @@
 #include <kernel/sched.h>
 #include <kernel/printf.h>
 
-extern void generic_fatal(void);
+extern void arch_prepare_fatal(void);
+extern void arch_fatal(void);
 
 void __panic(char *file, int line, char *fmt, ...) {
+    arch_prepare_fatal();
+    
     va_list args;
     va_start(args, fmt);
     char buf[1024] = {-1};
@@ -26,5 +29,5 @@ void __panic(char *file, int line, char *fmt, ...) {
         frame_ptr = frame_ptr->rbp;
     }
 
-    generic_fatal();
+    arch_fatal();
 }
