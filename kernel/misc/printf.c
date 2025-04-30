@@ -120,6 +120,8 @@ char *fgets(char *str, int n, int stream) {
         vfs_read(this_core()->current_proc->fd_table[stream].node, str + i, 0, 1);
 
         switch (str[i]) {
+            case '\0':
+                break;
             case '\n':
             case '\r':
                 fprintf(stdout, "\n");
