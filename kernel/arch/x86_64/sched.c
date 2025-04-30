@@ -152,7 +152,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
         next_cpu = madt_lapics - 1;
     sched_unlock();
 
-    dprintf("%s:%d: created task \"%s\" on CPU #%d @ 0x%p\n", __FILE__, __LINE__, name, core->id, proc);
+    dprintf("%s:%d: created task \"%s\" on CPU #%d\n", __FILE__, __LINE__, name, core->id);
     return proc;
 }
 

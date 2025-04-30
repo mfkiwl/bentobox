@@ -9,7 +9,7 @@ struct gdtr gdt_descriptor;
 
 void gdt_set_entry(uint8_t index, uint16_t limit, uint64_t base, uint8_t access, uint8_t gran) {
     if (index > 4) {
-        int i = index - 5; // index - 5
+        int i = index - 5;
         gdt_table.tss_entries[i].limit = limit;
         gdt_table.tss_entries[i].base_low = base & 0xFFFF;
         gdt_table.tss_entries[i].base_mid = (base >> 16) & 0xFF;

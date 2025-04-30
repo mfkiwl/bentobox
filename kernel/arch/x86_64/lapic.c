@@ -9,6 +9,8 @@
 #include <kernel/printf.h>
 #include <kernel/assert.h>
 
+extern void arch_sleep(size_t us);
+
 static uint32_t lapic_ticks = 0;
 
 static bool cpu_check_apic(void) {
@@ -67,12 +69,13 @@ void lapic_calibrate_timer(void) {
     lapic_write(LAPIC_TIMER_LVT, (1 << 16) | 0xff);
     lapic_write(LAPIC_TIMER_INITCNT, 0xFFFFFFFF);
 
-    hpet_sleep(1000);
+    arch_sleep(1000);
 
     lapic_write(LAPIC_TIMER_LVT, LAPIC_TIMER_DISABLE);
 
     uint32_t ticks = 0xFFFFFFFF - lapic_read(LAPIC_TIMER_CURCNT);
     lapic_ticks = ticks;
+    assert(lapic_ticks != 0);
 
     lapic_stop_timer();
 }

@@ -14,6 +14,6 @@
 extern struct acpi_hpet *hpet;
 extern uint32_t hpet_period;
 
-void hpet_install(void);
+int  hpet_install(void);
 void hpet_sleep(size_t us);
 size_t hpet_get_ticks(void);

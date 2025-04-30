@@ -90,7 +90,6 @@ kernel: $(KERNEL_OBJS)
 	@objcopy --only-keep-debug bin/$(IMAGE_NAME).elf bin/ksym.elf
 	@bash util/symbols.sh
 
-# TODO: make $(UBSAN) conditional instead of the output file
 ubsan:
 ifdef UBSAN
 	@echo " CC util/mubsan.c"
@@ -99,7 +98,7 @@ endif
 
 .PHONY: modules
 modules: kernel $(MODULE_OBJS)
-	LOAD_ADDR=$(LOAD_ADDR); \
+	@LOAD_ADDR=$(LOAD_ADDR); \
 	for obj in $(MODULE_OBJS); do \
 		echo " LD $$obj"; \
 		cp $$obj bin/module.elf; \

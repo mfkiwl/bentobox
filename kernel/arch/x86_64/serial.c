@@ -10,6 +10,7 @@
 #define COM1 0x3f8
 
 atomic_flag serial_lock = ATOMIC_FLAG_INIT;
+uint16_t serial_base = COM1;
 
 void serial_install(void) {
     outb(COM1 + 1, 0);
@@ -22,8 +23,10 @@ void serial_install(void) {
     outb(COM1 + 4, 0x1E);
     outb(COM1, 0x55);
 
-    if (inb(COM1) != 0x55)
+    if (inb(COM1) != 0x55) {
+        serial_base = 0;
         return;
+    }
 
     outb(COM1 + 4, 0x0F);
 }
@@ -63,7 +66,11 @@ int dprintf(const char *fmt, ...) {
     va_start(args, fmt);
     char buf[1024] = {0};
     int ret = vsprintf(buf, fmt, args);
-    serial_puts(buf);
+    if (serial_base == COM1) {
+        serial_puts(buf);
+    } else {
+        puts(buf);
+    }
     va_end(args);
     return ret;
 }

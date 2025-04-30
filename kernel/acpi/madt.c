@@ -19,7 +19,7 @@ void madt_init() {
     dprintf("%s:%d: MADT address: 0x%p\n", __FILE__, __LINE__, (uintptr_t)madt);
 
     uint32_t i = 0;
-    while (i <= madt->length - sizeof(struct acpi_madt)) {
+    while (i < madt->length - sizeof(struct acpi_madt)) {
         struct madt_entry *entry = (struct madt_entry*)(madt->table + i);
 
         switch (entry->type) {

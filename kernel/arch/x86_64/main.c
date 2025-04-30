@@ -4,6 +4,7 @@
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/ps2.h>
 #include <kernel/arch/x86_64/vga.h>
+#include <kernel/arch/x86_64/tsc.h>
 #include <kernel/arch/x86_64/hpet.h>
 #include <kernel/arch/x86_64/user.h>
 #include <kernel/arch/x86_64/lapic.h>
@@ -13,6 +14,7 @@
 #include <kernel/pci.h>
 #include <kernel/lfb.h>
 #include <kernel/acpi.h>
+#include <kernel/panic.h>
 #include <kernel/elf64.h>
 #include <kernel/sched.h>
 #include <kernel/malloc.h>
@@ -89,6 +91,41 @@ void arch_fatal(void) {
 	for (;;) asm ("hlt");
 }
 
+enum timer_source {
+	TIMER_NONE,
+	TIMER_HPET,
+	TIMER_TSC,
+	TIMER_PIT
+} timer_source = TIMER_NONE;
+
+void arch_calibrate_timer(void) {
+	if (hpet_install()) {
+		timer_source = TIMER_HPET;
+		goto calibrate_lapic;
+	}
+	if (tsc_install()) {
+		timer_source = TIMER_TSC;
+		goto calibrate_lapic;
+	}
+	panic("No timer sources available!");
+
+calibrate_lapic:
+	lapic_calibrate_timer();
+}
+
+void arch_sleep(size_t us) {
+	switch (timer_source) {
+		case TIMER_HPET:
+			hpet_sleep(us);
+			break;
+		case TIMER_TSC:
+			tsc_sleep(us);
+			break;
+		default:
+			panic("No timer sources available!");
+	}
+}
+
 void generic_load_modules(void) {
 	assert(mboot);
 	mboot2_load_modules(mboot);
@@ -118,7 +155,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
     gdt_install();
     idt_install();
 	pmm_install(mboot_info);
-	tss_install();
+	tss_install(); // ?
 	vmm_install();
 	kernel_heap = heap_create();
 
@@ -131,8 +168,7 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 	lapic_install();
 	ioapic_install();
 	ps2_install();
-	hpet_install();
-	lapic_calibrate_timer();
+	arch_calibrate_timer();
 	smp_initialize(mboot_info);
 	user_initialize();
 

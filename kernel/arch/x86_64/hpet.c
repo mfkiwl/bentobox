@@ -75,11 +75,11 @@ void hpet_sleep(size_t us) {
     }
 }
 
-void hpet_install(void) {
+int hpet_install(void) {
     hpet = acpi_find_table("HPET");
 
     if (!hpet)
-        panic("HPET not found!");
+        return 0;
 
     mmu_map((uintptr_t)VIRTUAL(hpet->address), hpet->address, PTE_PRESENT | PTE_WRITABLE);
     
@@ -93,4 +93,5 @@ void hpet_install(void) {
     hpet_write(HPET_REG_CONFIG, 0x1);
 
     dprintf("%s:%d: enabled HPET\n", __FILE__, __LINE__);
+    return 1;
 }

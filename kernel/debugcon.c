@@ -76,10 +76,11 @@ void debugcon_entry(void) {
             }
 
             char *buf = kmalloc(file->size);
-            memset(buf, 0, file->size);
-            vfs_read(file, buf, 0, file->size);
+            int len = vfs_read(file, buf, 0, file->size);
 
-            fprintf(stdout, "%s", buf);
+            for (int i = 0; i < len; i++) {
+                putchar(buf[i]);
+            }
             kfree(buf);
             continue;
         } else if (!strncmp(input, ".", 1)) {

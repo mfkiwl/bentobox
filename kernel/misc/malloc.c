@@ -48,6 +48,10 @@ void heap_delete(struct heap *h) {
 
 __attribute__((no_sanitize("undefined")))
 void *heap_alloc(struct heap *h, uint64_t n) {
+    if (n == 0) {
+        printf("%s:%d: \033[33mwarning:\033[0m allocating 0 bytes\n", __FILE__, __LINE__);
+    }
+
     uint64_t pages = DIV_CEILING(sizeof(struct heap_block) + n, PAGE_SIZE);
     
     struct heap_block *block = (struct heap_block *)VIRTUAL(mmu_alloc(pages));
