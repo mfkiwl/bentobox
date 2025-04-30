@@ -13,12 +13,12 @@ uint32_t hpet_period = 0;
 
 __attribute__((no_sanitize("undefined")))
 uint64_t hpet_read(uint32_t reg) {
-    return *((uint64_t*)(VIRTUAL(hpet_address) + reg));
+    return *((uint64_t*)(hpet_address + reg));
 }
 
 __attribute__((no_sanitize("undefined")))
 void hpet_write(uint32_t reg, uint64_t value) {
-    *((uint64_t*)(VIRTUAL(hpet_address) + reg)) = value;
+    *((uint64_t*)(hpet_address + reg)) = value;
 }
 
 size_t hpet_get_ticks(void) {

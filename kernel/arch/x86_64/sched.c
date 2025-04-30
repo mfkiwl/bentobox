@@ -274,16 +274,14 @@ void sched_idle(void) {
 
 void sched_start_all_cores(void) {
     irq_register(0x79 - 32, sched_schedule);
-    for (uint32_t i = 1; i < madt_lapics; i++) {
-        sched_new_task(sched_idle, "System Idle Process", i);
-    }
     for (uint32_t i = madt_lapics - 1; i >= 0; i--) {
         lapic_ipi(i, 0x79);
     }
 }
 
 void sched_install(void) {
-    sched_new_task(sched_idle, "System Idle Process", 0);
+    for (uint32_t i = 0; i < madt_lapics; i++)
+        sched_new_task(sched_idle, "System Idle Process", i);
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }
