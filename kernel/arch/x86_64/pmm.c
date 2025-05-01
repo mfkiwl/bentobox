@@ -18,11 +18,11 @@ uint64_t mmu_used_pages = 0;
 
 atomic_flag pmm_lock = ATOMIC_FLAG_INIT;
 
-void pmm_install(void *mboot_info) {
-    extern void *end;
+void pmm_install(void) {
+    extern void *mboot, end;
     uintptr_t highest_address = 0;
 
-    struct multiboot_tag_mmap *mmap = mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_MMAP);
+    struct multiboot_tag_mmap *mmap = mboot2_find_tag(mboot, MULTIBOOT_TAG_TYPE_MMAP);
     struct multiboot_mmap_entry *mmmt = NULL;
 
     uint32_t i;
@@ -59,13 +59,13 @@ void pmm_install(void *mboot_info) {
         }
     }
 
-    struct multiboot_tag_module *mod = mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_MODULE);
+    struct multiboot_tag_module *mod = mboot2_find_tag(mboot, MULTIBOOT_TAG_TYPE_MODULE);
     while (mod) {
         mmu_mark_used((void *)(uintptr_t)mod->mod_start, ALIGN_UP(mod->mod_end - mod->mod_start, PAGE_SIZE) / PAGE_SIZE);
         mod = mboot2_find_next((char *)mod + ALIGN_UP(mod->size, 8), MULTIBOOT_TAG_TYPE_MODULE);
     }
 
-	mmu_mark_used(mboot_info, 2);
+	mmu_mark_used(mboot, 2);
 
     dprintf("%s:%d: initialized bitmap at 0x%p\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
     dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, mmu_usable_mem / 1024 - mmu_used_pages * 4);

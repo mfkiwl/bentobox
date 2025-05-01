@@ -14,6 +14,7 @@
 #include <kernel/pci.h>
 #include <kernel/lfb.h>
 #include <kernel/acpi.h>
+#include <kernel/args.h>
 #include <kernel/panic.h>
 #include <kernel/elf64.h>
 #include <kernel/sched.h>
@@ -29,7 +30,7 @@
 extern void generic_startup(void);
 extern void generic_main(void);
 
-static void *mboot = NULL;
+void *mboot = NULL;
 
 atomic_flag flanterm_lock = ATOMIC_FLAG_INIT;
 
@@ -91,6 +92,14 @@ void arch_fatal(void) {
 	for (;;) asm ("hlt");
 }
 
+const char *arch_get_cmdline(void) {
+	struct multiboot_tag_string *cmdline = mboot2_find_tag(mboot, MULTIBOOT_TAG_TYPE_CMDLINE);
+	if (cmdline) {
+		return cmdline->string;
+	}
+	return "";
+}
+
 void generic_load_modules(void) {
 	assert(mboot);
 	mboot2_load_modules(mboot);
@@ -117,25 +126,26 @@ void kmain(void *mboot_info, uint32_t mboot_magic) {
 
     assert(mboot_magic == 0x36d76289);
 	mboot = mboot_info;
+	cmdline = arch_get_cmdline();
+
     gdt_install();
     idt_install();
-	pmm_install(mboot_info);
-	tss_install(); // ?
+	pmm_install();
+	tss_install();
 	vmm_install();
-	kernel_heap = heap_create();
-
-	lfb_initialize(mboot_info);
+	lfb_initialize();
 
 	printf("\n  \033[97mStarting up \033[94mbentobox (%s)\033[0m\n\n", __kernel_arch);
 
-	elf_module(mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_MODULE));
-	acpi_install(mboot_info);
+	create_kernel_heap();
+	elf_module(mboot2_find_tag(mboot, MULTIBOOT_TAG_TYPE_MODULE));
+	acpi_install();
 	lapic_install();
 	ioapic_install();
 	ps2_install();
 	hpet_install();
 	lapic_calibrate_timer();
-	smp_initialize(mboot_info);
+	smp_initialize();
 	user_initialize();
 
 	generic_startup();

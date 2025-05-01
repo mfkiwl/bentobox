@@ -21,7 +21,6 @@ void write_tss(int cpu, uint64_t rsp0) {
 
 void tss_install(void) {
     write_tss(this_core()->id, (uint64_t)mmu_alloc(1) + PAGE_SIZE);
-    dprintf("%s:%d: initialized TSS on CPU #%d\n", __FILE__, __LINE__, this_core()->id);
 }
 
 void set_kernel_stack(uint64_t stack) {

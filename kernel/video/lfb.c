@@ -10,22 +10,10 @@
 struct framebuffer lfb;
 struct flanterm_context *ft_ctx;
 
-void fb_draw_char(struct framebuffer *fb, uint32_t x, uint32_t y, uint8_t c, uint32_t fore, uint32_t back) {
-    uint32_t *display = (uint32_t *)fb->addr;
-    for (int i = 0; i < 16; i++) {
-        for (int o = 0; o < 8; o++) {
-            if (builtin_font[c * 16 + i] & (1 << (7 - o))) {
-                display[(y + i) * fb->width + x + o + (x / 8)] = fore;
-            } else {
-                display[(y + i) * fb->width + x + o + (x / 8)] = back;
-            }
-        }
-    }
-}
-
-void lfb_initialize(void *mboot_info) {
+void lfb_initialize(void) {
 #ifdef __x86_64__
-    struct multiboot_tag_framebuffer *fb = mboot2_find_tag(mboot_info, MULTIBOOT_TAG_TYPE_FRAMEBUFFER);
+    extern void *mboot;
+    struct multiboot_tag_framebuffer *fb = mboot2_find_tag(mboot, MULTIBOOT_TAG_TYPE_FRAMEBUFFER);
 
     if (!fb || fb->common.framebuffer_addr == 0xB8000) {
         dprintf("%s:%d: framebuffer not found, falling back to VGA text mode...\n", __FILE__, __LINE__);

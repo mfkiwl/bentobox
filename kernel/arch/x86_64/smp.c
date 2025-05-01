@@ -1,4 +1,3 @@
-#include "kernel/multiboot.h"
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/gdt.h>
 #include <kernel/arch/x86_64/tss.h>
@@ -9,6 +8,7 @@
 #include <kernel/arch/x86_64/user.h>
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/mmu.h>
+#include <kernel/args.h>
 #include <kernel/acpi.h>
 #include <kernel/panic.h>
 #include <kernel/malloc.h>
@@ -34,17 +34,14 @@ struct cpu *smp_cpu_list[SMP_MAX_CORES] = { &bsp };
  * https://wiki.osdev.org/Symmetric_Multiprocessing
  */
 __attribute__((no_sanitize("undefined")))
-void smp_initialize(void *mboot) {
+void smp_initialize(void) {
     assert(madt_lapics > 0);
     if (madt_lapics == 1)
         return;
-    struct multiboot_tag_string *cmdline = mboot2_find_tag(mboot, MULTIBOOT_TAG_TYPE_CMDLINE);
-    if (cmdline) {
-        if (strstr(cmdline->string, "nosmp")) {
-            dprintf("%s:%d: \033[33mwarning:\033[0m SMP disabled by kernel command line\n", __FILE__, __LINE__);
-            madt_lapics = 1;
-            return;
-        }
+    if (args_contains("nosmp")) {
+        dprintf("%s:%d: SMP disabled by kernel command line\n", __FILE__, __LINE__);
+        madt_lapics = 1;
+        return;
     }
     if (madt_lapics > SMP_MAX_CORES)
         panic("Too many cores! Please rebuild bentobox with SMP_MAX_CORES=%u", madt_lapics);

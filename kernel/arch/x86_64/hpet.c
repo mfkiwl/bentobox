@@ -4,9 +4,11 @@
 #include <kernel/arch/x86_64/ioapic.h>
 #include <stddef.h>
 #include <kernel/mmu.h>
+#include <kernel/args.h>
 #include <kernel/acpi.h>
 #include <kernel/panic.h>
 #include <kernel/printf.h>
+#include <kernel/string.h>
 
 uint64_t hpet_address = 0;
 uint32_t hpet_period = 0;
@@ -36,15 +38,17 @@ void hpet_sleep(size_t us) {
 void hpet_install(void) {
     struct acpi_hpet *hpet = acpi_find_table("HPET");
 
-    if (hpet) {
+    if (args_contains("hpet_mhz")) {
+        hpet_address = (uint64_t)VIRTUAL(0xFED00000);
+        mmu_map(hpet_address, 0xFED00000, PTE_PRESENT | PTE_WRITABLE);
+        hpet_period = atoi(args_value("hpet_mhz")) * 1000000;
+    } else if (hpet) {
         hpet_address = (uint64_t)VIRTUAL(hpet->address);
         mmu_map(hpet_address, hpet->address, PTE_PRESENT | PTE_WRITABLE);
         uint64_t cap = hpet_read(HPET_REG_CAP);
         hpet_period = (cap >> 32);
     } else {
-        /* You ARE there. */
-        hpet_address = 0xFED00000;
-        hpet_period = 10000000;
+        panic("No HPET found!");
     }
 
     dprintf("%s:%d: 1us is %lu ticks\n", __FILE__, __LINE__, hpet_period * 1 / 1000000);

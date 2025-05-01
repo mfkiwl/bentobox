@@ -18,6 +18,6 @@
 extern uintptr_t *pml;
 extern uintptr_t *kernel_pd;
 
-void pmm_install(void *mboot_info);
+void pmm_install(void);
 void vmm_install(void);
 void vmm_switch_pm(uintptr_t *pm);

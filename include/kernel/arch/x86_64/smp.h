@@ -15,6 +15,6 @@ struct cpu {
     atomic_flag vmm_lock;
 };
 
-void smp_initialize(void *mboot);
+void smp_initialize(void);
 struct cpu *get_core(int core);
 struct cpu *this_core(void);

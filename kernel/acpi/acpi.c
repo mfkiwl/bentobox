@@ -47,8 +47,9 @@ void *acpi_find_table(const char *signature) {
     return NULL;
 }
 
-void *acpi_get_rsdp(void *base) {
+void *acpi_get_rsdp(void) {
 #ifdef __x86_64__
+    extern void *mboot;
     for (uint16_t *addr = (uint16_t*)0x000E0000; addr < (uint16_t*)0x000FFFFF; addr += 16) {
         if (!strncmp((const char*)addr, "RSD PTR ", 8)) {
             dprintf("%s:%d: found RSDP at address 0x%p\n", __FILE__, __LINE__, addr);
@@ -56,13 +57,13 @@ void *acpi_get_rsdp(void *base) {
         }
     }
 
-    void *rsdp = mboot2_find_tag(base, 14);
+    void *rsdp = mboot2_find_tag(mboot, 14);
     if (rsdp != NULL) {
         dprintf("%s:%d: found RSDP at address 0x%p\n", __FILE__, __LINE__, rsdp + 8);
         return (void *)(rsdp + 8);
     }
 
-	rsdp = mboot2_find_tag(base, 15);
+	rsdp = mboot2_find_tag(mboot, 15);
     if (rsdp != NULL) {
         dprintf("%s:%d: found RSDP at address 0x%p\n", __FILE__, __LINE__, rsdp + 8);
         return (void *)(rsdp + 8);
@@ -74,8 +75,8 @@ void *acpi_get_rsdp(void *base) {
 }
 
 __attribute__((no_sanitize("undefined")))
-void acpi_install(void *mboot_info) {
-    struct acpi_rsdp *rsdp = acpi_get_rsdp(mboot_info);
+void acpi_install() {
+    struct acpi_rsdp *rsdp = acpi_get_rsdp();
 
     if (!rsdp)
         panic("couldn't find ACPI");

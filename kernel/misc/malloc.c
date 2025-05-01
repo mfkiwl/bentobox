@@ -13,6 +13,10 @@ void kfree(void *ptr) {
     heap_free(ptr);
 }
 
+void create_kernel_heap(void) {
+    kernel_heap = heap_create();
+}
+
 __attribute__((no_sanitize("undefined")))
 struct heap *heap_create(void) {
     struct heap *h = (struct heap *)VIRTUAL(mmu_alloc(1));

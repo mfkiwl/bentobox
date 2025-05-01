@@ -61,6 +61,7 @@ void lapic_ipi(uint32_t id, uint32_t irq) {
 }
 
 void lapic_calibrate_timer(void) {
+    asm volatile ("cli" : : : "memory");
     lapic_stop_timer();
 
     lapic_write(LAPIC_TIMER_DIV, 0);
@@ -76,6 +77,7 @@ void lapic_calibrate_timer(void) {
     assert(lapic_ticks != 0);
 
     lapic_stop_timer();
+    asm volatile ("sti" : : : "memory");
 }
 
 __attribute__((no_sanitize("undefined")))

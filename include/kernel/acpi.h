@@ -197,7 +197,7 @@ extern uint32_t madt_lapics;
 extern uint32_t madt_ioapics;
 extern uint32_t madt_isos;
 
-void acpi_install(void *mboot_info);
+void acpi_install(void);
 void acpi_reboot(void);
 void *acpi_find_table(const char *signature);
 

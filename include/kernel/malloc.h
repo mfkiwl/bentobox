@@ -20,6 +20,7 @@ extern struct heap *kernel_heap;
 
 void *kmalloc(size_t n);
 void  kfree(void *ptr);
+void  create_kernel_heap(void);
 
 struct heap *heap_create();
 void  heap_delete(struct heap *h);
