@@ -159,17 +159,15 @@ int32_t hda_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t 
     return ata_read(sector, buffer, num_sectors) ? -1 : len;
 }
 
-extern char load_addr[];
-
 int init() {
+    extern char load_addr[];
     dprintf("%s:%d: ATA driver v1.0 @ 0x%lx\n", __FILE__, __LINE__, &load_addr);
 
     mutex_init(&ata_mutex);
 
     char name[40];
-    if (ata_identify(ATA_PRIMARY, ATA_MASTER, name) != ATA_OK) {
+    if (ata_identify(ATA_PRIMARY, ATA_MASTER, name) != ATA_OK)
         return 1;
-    }
 
     struct vfs_node *hda = vfs_create_node("hda", VFS_BLOCKDEVICE);
     hda->read = hda_read;

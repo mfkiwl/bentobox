@@ -45,7 +45,7 @@ MODULE_BINARIES := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.elf))
 LOAD_ADDR := 0x400000
 
 .PHONY: all
-all: kernel/target_arch.c kernel ubsan modules iso hdd
+all: kernel/target_arch.c kernel ubsan modules libc apps iso hdd
 
 .PHONY: run
 run: all
@@ -58,6 +58,14 @@ run-kvm: all
 .PHONY: run-gdb
 run-gdb: all
 	@qemu-system-$(ARCH) $(QEMUFLAGS) -S -s
+
+.PHONY: libc
+libc:
+	@$(MAKE) -C libc
+
+.PHONY: apps
+apps: libc
+	@$(MAKE) -C apps
 
 bin/kernel/%.c.o: kernel/%.c
 	@echo " CC $<"
@@ -134,5 +142,6 @@ hdd:
 
 .PHONY: clean
 clean:
+	@$(MAKE) -C apps clean
 	@rm -f $(BOOT_OBJS) $(KERNEL_OBJS)
 	@rm -rf bin

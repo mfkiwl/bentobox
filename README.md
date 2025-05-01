@@ -41,6 +41,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] PCI
 - [X] SMP
 - [X] ATA driver
+- [ ] AHCI driver
 - [ ] ext2fs support
     - [X] Doubly linked blocks
     - [ ] Triply linked blocks
