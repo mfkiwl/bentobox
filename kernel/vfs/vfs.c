@@ -13,7 +13,7 @@ struct vfs_node *vfs_root = NULL;
 struct vfs_node *vfs_dev = NULL;
 
 const char *vfs_types[] = {
-    "NONE",
+    "VFS_NONE",
     "VFS_FILE",
     "VFS_DIRECTORY",
     "VFS_CHARDEVICE",
@@ -25,7 +25,7 @@ struct vfs_node *vfs_create_node(const char *name, enum vfs_node_type type) {
     strcpy(node->name, name);
     node->type = type;
     node->size = 0;
-    node->perms = 0;
+    node->perms = type == VFS_DIRECTORY ? 0755 : 0644;
     node->inode = 0;
     node->parent = NULL;
     node->children = NULL;

@@ -87,6 +87,6 @@ void lapic_install(void) {
         panic("APIC not supported");
 
     pic_mask_all_irqs();
-    mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map((uintptr_t)VIRTUAL(LAPIC_REGS), LAPIC_REGS, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     lapic_write(LAPIC_SIV, lapic_read(LAPIC_SIV) | 0x100);
 }

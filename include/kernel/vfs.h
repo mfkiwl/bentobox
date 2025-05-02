@@ -5,7 +5,7 @@
 #define MAX_PATH 256
 
 typedef enum vfs_node_type {
-    NONE,
+    VFS_NONE,
     VFS_FILE,
     VFS_DIRECTORY,
     VFS_CHARDEVICE,
@@ -17,7 +17,7 @@ typedef struct vfs_node {
     bool open;
     enum vfs_node_type type;
     uint32_t size;
-    uint32_t perms;
+    uint16_t perms;
     uint32_t inode;
     struct vfs_node *parent;
     struct vfs_node *children;

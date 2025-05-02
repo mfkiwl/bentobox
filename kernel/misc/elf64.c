@@ -1,4 +1,5 @@
 #include "kernel/arch/x86_64/smp.h"
+#include "kernel/arch/x86_64/vmm.h"
 #include "kernel/sched.h"
 #include <stdbool.h>
 #include <kernel/mmu.h>
@@ -159,6 +160,8 @@ int elf_exec(const char *file) {
 
     sched_stop_timer();
     struct task *proc = sched_new_user_task((void *)ehdr->e_entry, "elf64", -1);
+    vmm_switch_pm(proc->pml4);
+    dprintf("Mapping sections!!\n");
     
     Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
 
@@ -194,6 +197,7 @@ int elf_exec(const char *file) {
         }
     }
 
+    vmm_switch_pm(kernel_pd);
     kfree(buffer);
     sched_yield();
     return 0;

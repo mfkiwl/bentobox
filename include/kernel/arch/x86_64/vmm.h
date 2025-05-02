@@ -12,7 +12,7 @@
 #define PTE_CD       16ul
 #define PTE_NX (1ul << 63)
 
-#define KERNEL_VIRT_BASE 0xFFFFFFFF80000000
+#define KERNEL_VIRT_BASE 0xFFFFFFFF00000000
 #define KERNEL_PHYS_BASE 0x100000
 
 extern uintptr_t *pml;

@@ -1,3 +1,4 @@
+#include "kernel/arch/x86_64/vmm.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -175,16 +176,21 @@ uintptr_t mmu_get_physical(uintptr_t *pml4, uintptr_t virt) {
 uintptr_t *mmu_create_user_pm(struct task *proc) {
     uintptr_t *pml4 = (uintptr_t *)mmu_alloc(1);
     mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    memset(pml4, 0, PAGE_SIZE);
     this_core()->pml4 = pml4;
-    
-    memcpy(pml4, kernel_pd, PAGE_SIZE);
+    //pml4[0] = kernel_pd[0];
+    pml4[511] = kernel_pd[511];
+
+    for (uintptr_t addr = 0x0; addr < 0x4000000; addr += 0x200000)
+        mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE);
 
     return pml4;
 }
 
 void mmu_destroy_user_pm(uintptr_t *pml4) {
     this_core()->pml4 = pml4;
+
+    for (uintptr_t addr = 0x0; addr < 0x4000000; addr += 0x200000)
+        mmu_unmap_huge(addr);
 
     this_core()->pml4 = kernel_pd;
     mmu_unmap((uintptr_t)pml4);
@@ -196,9 +202,9 @@ void vmm_install(void) {
     this_core()->pml4 = kernel_pd;
     memset(kernel_pd, 0, PAGE_SIZE);
 
-    for (uintptr_t addr = 0; addr < 0x4000000; addr += 0x200000)
-        mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE/* | PTE_USER*/);
-    mmu_unmap(0x0);
+    mmu_map_pages(511, 0x1000, 0x1000, PTE_PRESENT | PTE_USER);
+    for (uintptr_t addr = 0x200000; addr < 0x4000000; addr += 0x200000)
+        mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE);
     dprintf("%s:%d: done mapping kernel regions\n", __FILE__, __LINE__);
 
     vmm_switch_pm(kernel_pd);

@@ -215,7 +215,7 @@ void ext2_mount(ext2_fs *fs, struct vfs_node *parent, uint32_t inode_num) {
             ext2_read_inode(fs, entry->inode, child);
 
             uint16_t type = child->type_perms & 0xF000;
-            uint32_t vfs_type = NONE;
+            uint32_t vfs_type = VFS_NONE;
 
             switch (type) {
                 case EXT_FILE:

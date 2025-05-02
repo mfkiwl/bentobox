@@ -21,9 +21,9 @@ void *acpi_find_table(const char *signature) {
 
         for (uint32_t i = 0; i < entries; i++) {
             struct acpi_sdt *sdt = (struct acpi_sdt*)(uintptr_t)(*((uint32_t*)rsdt->table + i));
-            mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE);
+            mmu_map((uintptr_t)VIRTUAL(ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE)), (uintptr_t)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
             if (!memcmp(sdt->signature, signature, 4)) {
-                return (void*)sdt;
+                return VIRTUAL(sdt);
             }
         }
 
@@ -37,9 +37,9 @@ void *acpi_find_table(const char *signature) {
         
     for (uint32_t i = 0; i < entries; i++) {
         struct acpi_sdt *sdt = (struct acpi_sdt*)(uintptr_t)(*((uint32_t*)rsdt->table + i));
-        mmu_map((uintptr_t)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), (uintptr_t)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE);
+        mmu_map((uintptr_t)VIRTUAL(ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE)), (uintptr_t)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
         if (!memcmp(sdt->signature, signature, 4)) {
-            return (void*)sdt;
+            return VIRTUAL(sdt);
         }
     }
 
