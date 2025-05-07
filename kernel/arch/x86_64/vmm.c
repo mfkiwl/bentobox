@@ -69,26 +69,46 @@ void mmu_unmap_huge(uintptr_t virt) {
 
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
-    uintptr_t pd_index = (virt >> 21) & 0x1ff;
+    uintptr_t pd_index   = (virt >> 21) & 0x1ff;
 
-    uint64_t *pdpt = vmm_get_next_lvl(this_core()->pml4, pml4_index, 0, false);
+    uint64_t *pml4 = this_core()->pml4;
+    uint64_t *pdpt = vmm_get_next_lvl(pml4, pml4_index, 0, false);
     uint64_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, 0, false);
 
-    if (pd && (pd[pd_index] & PTE_PRESENT)) {
+    /* check if the page directory entry is present */
+    if (pd[pd_index] & PTE_PRESENT) {
+        /* clear the page directory entry */
         pd[pd_index] = 0;
 
-        bool empty = true;
+        /* check if the page directory is empty */
+        bool pd_empty = true;
         for (int i = 0; i < 512; i++) {
             if (pd[i] & PTE_PRESENT) {
-                empty = false;
+                pd_empty = false;
                 break;
             }
         }
 
-        if (empty) {
+        /* free it if it's empty */
+        if (pd_empty) {
             mmu_free(pd, 1);
             pdpt[pdpt_index] = 0;
         }
+    }
+
+    /* check if the page directory pointer table entry is present */
+    bool pdpt_empty = true;
+    for (int i = 0; i < 512; i++) {
+        if (pdpt[i] & PTE_PRESENT) {
+            pdpt_empty = false;
+            break;
+        }
+    }
+
+    /* free it if it's empty */
+    if (pdpt_empty) {
+        mmu_free(pdpt, 1);
+        pml4[pml4_index] = 0;
     }
 
     vmm_flush_tlb(virt);
@@ -114,37 +134,67 @@ void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     release(&this_core()->vmm_lock);
 }
 
-__attribute__((no_sanitize("undefined")))
 void mmu_unmap(uintptr_t virt) {
     acquire(&this_core()->vmm_lock);
 
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
-    uintptr_t pd_index = (virt >> 21) & 0x1ff;
-    uintptr_t pt_index = (virt >> 12) & 0x1ff;
+    uintptr_t pd_index   = (virt >> 21) & 0x1ff;
+    uintptr_t pt_index   = (virt >> 12) & 0x1ff;
 
-    uint64_t *pdpt = vmm_get_next_lvl(this_core()->pml4, pml4_index, 0, false);
-    uint64_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, 0, false);
-    uint64_t *pt = vmm_get_next_lvl(pd, pd_index, 0, false);
+    uintptr_t *pml4 = this_core()->pml4;
+    uintptr_t *pdpt = vmm_get_next_lvl(pml4, pml4_index, 0, false);
+    uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, 0, false);
+    uintptr_t *pt = vmm_get_next_lvl(pd, pd_index, 0, false);
 
-    /* clear the page table entry */
-    pt[pt_index] = 0; /* unmap the page */
+    pt[pt_index] = 0;
 
-    /* check if the page table is empty and free it */
-    bool empty = true;
+    /* check if the page table entry is present */
+    bool pt_empty = true;
     for (int i = 0; i < 512; i++) {
-        if (pt[i] & PTE_PRESENT) { /* check if any entry is present */
-            empty = false;
+        if (pt[i] & PTE_PRESENT) {
+            pt_empty = false;
             break;
         }
     }
 
-    if (empty) {
-        mmu_free(pt, 1); /* free the page table if it is empty */
-        pd[pd_index] = 0x00000000; /* clear the pd entry */
+    /* free it if it's empty */
+    if (pt_empty) {
+        mmu_free(pt, 1);
+        pd[pd_index] = 0;
     }
 
-    vmm_flush_tlb(virt); /* flush the tlb entry */
+    /* check if the page directory entry is present */
+    bool pd_empty = true;
+    for (int i = 0; i < 512; i++) {
+        if (pd[i] & PTE_PRESENT) {
+            pd_empty = false;
+            break;
+        }
+    }
+
+    /* free it if it's empty */
+    if (pd_empty) {
+        mmu_free(pd, 1);
+        pdpt[pdpt_index] = 0;
+    }
+
+    /* check if the page directory pointer table entry is present */
+    bool pdpt_empty = true;
+    for (int i = 0; i < 512; i++) {
+        if (pdpt[i] & PTE_PRESENT) {
+            pdpt_empty = false;
+            break;
+        }
+    }
+
+    /* free it if it's empty */
+    if (pdpt_empty) {
+        mmu_free(pdpt, 1);
+        pml4[pml4_index] = 0;
+    }
+
+    vmm_flush_tlb(virt);
     release(&this_core()->vmm_lock);
 }
 
@@ -177,7 +227,6 @@ uintptr_t *mmu_create_user_pm(struct task *proc) {
     uintptr_t *pml4 = (uintptr_t *)mmu_alloc(1);
     mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     this_core()->pml4 = pml4;
-    //pml4[0] = kernel_pd[0];
     pml4[511] = kernel_pd[511];
 
     for (uintptr_t addr = 0x0; addr < 0x4000000; addr += 0x200000)

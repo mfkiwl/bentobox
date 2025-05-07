@@ -131,6 +131,7 @@ char *fgets(char *str, int n, int stream) {
             case 127:
                 if (i > 0) {
                     fprintf(stdout, "\b \b");
+                    str[i] = '\0';
                     i--;
                 }
                 break;

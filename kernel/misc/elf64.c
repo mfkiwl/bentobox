@@ -159,7 +159,7 @@ int elf_exec(const char *file) {
     }
 
     sched_stop_timer();
-    struct task *proc = sched_new_user_task((void *)ehdr->e_entry, "elf64", -1);
+    struct task *proc = sched_new_user_task((void *)ehdr->e_entry, "elf64", -1); // TODO: copy name
     vmm_switch_pm(proc->pml4);
     dprintf("Mapping sections!!\n");
     
