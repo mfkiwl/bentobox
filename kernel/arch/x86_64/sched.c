@@ -16,8 +16,16 @@
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
+/*
+ * TODO:
+ *       - write an assembly yield stub
+ *       - implement threads
+ */
+
+
 long max_pid = 0, next_cpu = 0;
 
+// TODO: do we need spinlocks?
 void sched_lock(void) {
     acquire(&(this_core()->sched_lock));
 }
@@ -35,9 +43,6 @@ void sched_stop_timer(void) {
     lapic_stop_timer();
 }
 
-/*
- * sched_new_task - create a new ring 0 task
- */
 struct task *sched_new_task(void *entry, const char *name, int cpu) {
     struct cpu *core = cpu == -2 ? this_core() : get_core(cpu == -1 ? next_cpu : cpu);
 
@@ -94,9 +99,6 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     return proc;
 }
 
-/*
- * sched_new_user_task - create a new ring 3 task
- */
 struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     struct cpu *core = cpu == -2 ? this_core() : get_core(cpu == -1 ? next_cpu : cpu);
 
@@ -170,7 +172,7 @@ void sched_schedule(struct registers *r) {
     }
 
     size_t hpet_ticks = hpet_get_ticks();
-    if (this->current_proc == RUNNING)
+    if (this->current_proc->state == RUNNING)
         this->current_proc->time.last = hpet_ticks - this->current_proc->time.start;
 
     if (!this->current_proc->next) {
@@ -184,15 +186,6 @@ void sched_schedule(struct registers *r) {
          && hpet_ticks >= this->current_proc->time.end) {
             this->current_proc->state = RUNNING;
             this->current_proc->time.last = this->current_proc->time.end - this->current_proc->time.start;
-            break;
-        }
-        if (this->current_proc->state == TCB) {
-            struct task *proc = this->current_proc;
-            this->current_proc = proc->next;
-            max_pid = proc->pid;
-            proc->prev->next = proc->next;
-            proc->next->prev = proc->prev;
-            kfree(proc);
             break;
         }
 
@@ -229,45 +222,63 @@ void sched_sleep(int us) {
 }
 
 void sched_kill(struct task *proc, int status) {
+    sched_stop_timer();
+
+    max_pid = proc->pid;
+    proc->prev->next = proc->next;
+    proc->next->prev = proc->prev;
+    proc->next = this_core()->terminated_processes;
+    this_core()->terminated_processes = proc;
+
     proc->state = KILLED;
-    sched_yield();
+    
+    bool is_current = proc == this_core()->current_proc;
+    if (is_current) {
+        this_core()->current_proc = proc->next;
+    }
+    
+    sched_unblock(this_core()->cleaner_proc);
+    sched_start_timer();
+
+    if (is_current) {
+        sched_yield();
+        __builtin_unreachable();
+    }
 }
 
-void sched_idle(void) {
-    struct task *proc = this_core()->processes;
+void sched_cleaner(void) {
     for (;;) {
-        proc = proc->next;
-
-        if (proc->state == KILLED) {
-            sched_stop_timer();
-            
-            if (proc->user) {
-                this_core()->pml4 = proc->pml4;
-                if (proc->sections[0].length > 0) {
-                    for (int i = 0; proc->sections[i].length; i++) {
-                        mmu_free((void *)mmu_get_physical(proc->pml4, proc->sections[i].ptr), ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE);
-                        mmu_unmap_pages(ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE, proc->sections[i].ptr);
-                    }
+        sched_stop_timer();
+        
+        struct task *proc = this_core()->terminated_processes;
+        if (!proc) {
+            sched_block(PAUSED);
+            continue;
+        }
+        this_core()->terminated_processes = proc->next;
+        
+        if (proc->user) {
+            this_core()->pml4 = proc->pml4;
+            if (proc->sections[0].length > 0) {
+                for (int i = 0; proc->sections[i].length; i++) {
+                    mmu_free((void *)mmu_get_physical(proc->pml4, proc->sections[i].ptr), ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE);
+                    mmu_unmap_pages(ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE, proc->sections[i].ptr);
                 }
-    
-                mmu_unmap_pages(4, proc->stack_bottom);
-                mmu_unmap_pages(4, proc->kernel_stack_bottom);
-                mmu_free(PHYSICAL(proc->stack_bottom), 4);
-                mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4);
-                mmu_destroy_user_pm(proc->pml4);
-            } else {
-                mmu_unmap_pages(4, proc->stack_bottom);
-                mmu_free(PHYSICAL(proc->stack_bottom), 4);
-                heap_delete(proc->heap);
             }
 
-            proc->state = TCB;
-            proc = this_core()->processes;
-
-            sched_start_timer();
+            mmu_unmap_pages(4, proc->stack_bottom);
+            mmu_unmap_pages(4, proc->kernel_stack_bottom);
+            mmu_free(PHYSICAL(proc->stack_bottom), 4);
+            mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4);
+            mmu_destroy_user_pm(proc->pml4);
+        } else {
+            mmu_unmap_pages(4, proc->stack_bottom);
+            mmu_free(PHYSICAL(proc->stack_bottom), 4);
+            heap_delete(proc->heap);
         }
-
-        asm ("hlt");
+        
+        kfree(proc);
+        sched_start_timer();
     }
 }
 
@@ -279,8 +290,11 @@ void sched_start_all_cores(void) {
 }
 
 void sched_install(void) {
-    for (uint32_t i = 0; i < madt_lapics; i++)
-        sched_new_task(sched_idle, "System Idle Process", i);
+    for (uint32_t i = 0; i < madt_lapics; i++) {
+        struct task *cleaner = sched_new_task(sched_cleaner, "System", i);
+        cleaner->state = PAUSED;
+        get_core(i)->cleaner_proc = cleaner;
+    }
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }

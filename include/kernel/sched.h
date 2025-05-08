@@ -9,12 +9,13 @@
 #include <kernel/elf64.h>
 #include <kernel/malloc.h>
 
+// TODO: rename to SCHED_*
 enum task_state {
     RUNNING,
     PAUSED,
+    SLEEPING,
     KILLED,
-    BREAKPOINT,
-    TCB
+    FREEABLE
 };
 
 struct task_time {

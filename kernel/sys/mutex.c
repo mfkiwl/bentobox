@@ -50,7 +50,7 @@ void mutex_lock(mutex_t *m) {
         }
 
         release(&m->lock);
-        sched_block(BREAKPOINT);
+        sched_block(PAUSED);
     }
 }
 

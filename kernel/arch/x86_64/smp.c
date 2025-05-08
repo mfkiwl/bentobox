@@ -62,6 +62,7 @@ void smp_initialize(void) {
         core->lapic_id = madt_lapic_list[i]->id;
         core->processes = NULL;
         core->current_proc = NULL;
+        core->terminated_processes = NULL;
         release(&core->sched_lock);
         release(&core->vmm_lock);
         smp_cpu_list[i] = core;

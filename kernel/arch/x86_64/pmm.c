@@ -90,7 +90,9 @@ uint64_t pmm_find_pages(uint64_t page_count) {
             pages++;
             if (pages == page_count) {
                 for (uint64_t j = 0; j < page_count; j++) {
+                    acquire(&pmm_lock);
                     bitmap_set(pmm_bitmap, first_page + j);
+                    release(&pmm_lock);
                 }
 
                 mmu_used_pages += page_count;
@@ -104,32 +106,29 @@ uint64_t pmm_find_pages(uint64_t page_count) {
 }
 
 void *mmu_alloc(size_t page_count) {
-    acquire(&pmm_lock);
     uint64_t pages = pmm_find_pages(page_count);
     
     if (!pages)
         panic("allocation failed: out of memory");
-    dprintf("alloc -> %ld-%ld\n", pages, pages + page_count);
 
     uint64_t phys_addr = pages * PAGE_SIZE;
     
-    release(&pmm_lock);
     return (void*)(phys_addr);
 }
 
 void mmu_free(void *ptr, size_t page_count) {
-    acquire(&pmm_lock);
     uint64_t page = (uint64_t)ptr / PAGE_SIZE;
 
     if ((uintptr_t)ptr < KERNEL_PHYS_BASE || page > pmm_bitmap_size * 8)
         panic("invalid deallocation @ 0x%p", ptr);
-    dprintf("free  -> %ld-%ld\n", page, page + page_count);
 
+    acquire(&pmm_lock);
     for (uint64_t i = 0; i < page_count; i++) {
         if (!bitmap_get(pmm_bitmap, page + i))
             panic("double free @ 0x%p", ptr);
         bitmap_clear(pmm_bitmap, page + i);
     }
-    mmu_used_pages -= page_count;
     release(&pmm_lock);
+    
+    mmu_used_pages -= page_count;
 }
