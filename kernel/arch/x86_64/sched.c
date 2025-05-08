@@ -16,30 +16,16 @@
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
-/*
- * TODO:
- *       - write an assembly yield stub
- *       - implement threads
- */
-
+// TODO: implement task threading
 
 long max_pid = 0, next_cpu = 0;
 
-// TODO: do we need spinlocks?
 void sched_lock(void) {
-    acquire(&(this_core()->sched_lock));
-}
-
-void sched_unlock(void) {
-    release(&(this_core()->sched_lock));
-}
-
-void sched_start_timer(void) {
     lapic_eoi();
     lapic_oneshot(0x79, 5);
 }
 
-void sched_stop_timer(void) {
+void sched_unlock(void) {
     lapic_stop_timer();
 }
 
@@ -159,7 +145,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
 }
 
 void sched_schedule(struct registers *r) {
-    sched_stop_timer();
+    sched_lock();
     vmm_switch_pm(kernel_pd);
 
     struct cpu *this = this_core();
@@ -200,7 +186,7 @@ void sched_schedule(struct registers *r) {
     write_kernel_gs((uint64_t)this->current_proc);
     set_kernel_stack(this->current_proc->kernel_stack);
 
-    sched_start_timer();
+    sched_unlock();
 }
 
 void sched_yield(void) {
@@ -222,7 +208,7 @@ void sched_sleep(int us) {
 }
 
 void sched_kill(struct task *proc, int status) {
-    sched_stop_timer();
+    sched_lock();
 
     max_pid = proc->pid;
     proc->prev->next = proc->next;
@@ -238,7 +224,7 @@ void sched_kill(struct task *proc, int status) {
     }
     
     sched_unblock(this_core()->cleaner_proc);
-    sched_start_timer();
+    sched_unlock();
 
     if (is_current) {
         sched_yield();
@@ -248,7 +234,7 @@ void sched_kill(struct task *proc, int status) {
 
 void sched_cleaner(void) {
     for (;;) {
-        sched_stop_timer();
+        sched_lock();
         
         struct task *proc = this_core()->terminated_processes;
         if (!proc) {
@@ -278,7 +264,7 @@ void sched_cleaner(void) {
         }
         
         kfree(proc);
-        sched_start_timer();
+        sched_unlock();
     }
 }
 

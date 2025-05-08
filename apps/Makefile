@@ -31,7 +31,7 @@ $(OUT)/%: %.c
 $(OUT)/%: %.S
 	@echo " AS $<"
 	@$(AS) $(ASFLAGS) -o $@.o $<
-	@$(LD) $(LDFLAGS) $@.o ../bin/libc.a -o $@
+	@$(LD) $(LDFLAGS) $@.o -o $@
 	@rm $@.o
 
 clean:

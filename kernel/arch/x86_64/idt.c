@@ -1,13 +1,14 @@
-#include "kernel/arch/x86_64/smp.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/vmm.h>
+#include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/ioapic.h>
 #include <kernel/ksym.h>
 #include <kernel/elf64.h>
 #include <kernel/printf.h>
+#include <kernel/assert.h>
 
 extern void arch_fatal(void);
 extern void arch_prepare_fatal(void);
@@ -100,10 +101,10 @@ void isr_handler(struct registers *r) {
         return;
     }
     if ((r->cs & 3) == 0x3) {
-        dprintf("%s:%d: \033[91m%s\033[0m on \"%s\"\n", __FILE__, __LINE__, isr_errors[r->int_no], this_core()->current_proc->name);
+        fprintf(1, "%s:%d: Segmentation fault\n", __FILE__, __LINE__);
         sched_kill(this_core()->current_proc, 11);
-        //this_core()->current_proc->state = BREAKPOINT;
-        //sched_yield();
+        sched_yield();
+        return;
     }
     arch_prepare_fatal();
 
@@ -112,8 +113,6 @@ void isr_handler(struct registers *r) {
         asm ("cli");
 	    for (;;) asm ("hlt");
     }
-
-    //vmm_switch_pm(kernel_pd);
 
     uint64_t cr2;
     asm volatile("mov %%cr2, %0" : "=r" (cr2));
@@ -133,7 +132,12 @@ void isr_handler(struct registers *r) {
             r->rsp, r->rbx, r->rdx, r->rcx, r->rax, r->rip, r->r8, r->r9,
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,
             r->rflags);
-    printf("Error code: 0x%p\n", r->error_code);
+    if (r->int_no == 14) {
+        printf("%s:%d: %s %s %s bits set\n", __FILE__, __LINE__,
+            r->error_code & 0x01 ? "Page-protection violation," : "Page not present,",
+            r->error_code & 0x02 ? "write operation," : "read operation,",
+            r->error_code & 0x04 ? "user mode" : "kernel mode");
+    }
 
     struct stackframe *frame_ptr = __builtin_frame_address(0);
 

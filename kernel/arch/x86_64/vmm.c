@@ -240,6 +240,7 @@ void mmu_destroy_user_pm(uintptr_t *pml4) {
 
     for (uintptr_t addr = 0x0; addr < 0x4000000; addr += 0x200000)
         mmu_unmap_huge(addr);
+    // TODO: recursively unmap everything
 
     this_core()->pml4 = kernel_pd;
     mmu_unmap((uintptr_t)pml4);
