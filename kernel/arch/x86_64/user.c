@@ -34,21 +34,19 @@ void user_initialize(void) {
     wrmsr(IA32_CSTAR + 1, 0x200);
 }
 
-int sys_exit(struct registers *r) {
-    sched_kill(this_core()->current_proc, r->rdi);
-    return 0;
-}
+extern int sys_read(struct registers *);
+extern int sys_write(struct registers *);
+extern int sys_exit(struct registers *);
 
 // [x ... y] = NULL,
 int (*syscalls[256])(struct registers *) = {
-    NULL,
+    sys_read,
     sys_write,
     [2 ... 59] = NULL,
     sys_exit
 };
 
 void syscall_handler(struct registers *r) {
-    //vmm_switch_pm(kernel_pd);
     sched_lock();
 
     int(*handler)(struct registers *);
@@ -61,7 +59,6 @@ void syscall_handler(struct registers *r) {
 
     r->rax = handler(r);
     sched_unlock();
-    //vmm_switch_pm(this_core()->current_proc->pml4);
 }
 
 void syscall_bind(uint64_t rax, void *handler) {

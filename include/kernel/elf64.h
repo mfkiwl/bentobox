@@ -120,3 +120,4 @@ Elf64_Addr elf_symbol_addr(Elf64_Sym *symtab, const char *strtab, int symbol_cou
 int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_count, Elf64_Addr addr);
 int elf_module(struct multiboot_tag_module *mod);
 int elf_exec(const char *file);
+int exec(const char *path, int argc, const char *argv[], const char *env[]);

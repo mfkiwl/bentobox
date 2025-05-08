@@ -11,6 +11,7 @@ long syscall6(long, long, long, long, long, long, long);
 long syscall7(long, long, long, long, long, long, long, long);
 
 void _exit(int status);
+long read(int fd, const void *buf, size_t count);
 long write(int fd, const void *buf, size_t count);
 
 #define syscall(...) __syscall(__VA_ARGS__, syscall7, syscall6, syscall5, syscall4, syscall3, syscall2, syscall1, syscall0)(__VA_ARGS__)

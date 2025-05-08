@@ -10,7 +10,7 @@ C_EXES = $(C_SRCS:.c=)
 S_EXES = $(S_SRCS:.S=)
 
 # Flags
-CFLAGS = -ffreestanding -nostdlib -fno-pic -nostdlib -nostartfiles -fno-stack-protector -I../include/libc
+CFLAGS = -ffreestanding -nostdlib -fno-pic -nostdlib -fno-stack-protector -I../include/libc -mcmodel=large
 ASFLAGS = -f elf64
 LDFLAGS = -T../libc/arch/x86_64/linker.ld
 
@@ -35,6 +35,6 @@ $(OUT)/%: %.S
 	@rm $@.o
 
 clean:
-	@rm -f $(addprefix $(OUT)/, $(EXES)) *.o
+	@rm -rf ../base/bin
 
 .PHONY: all clean

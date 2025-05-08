@@ -1,3 +1,10 @@
+PHDRS
+{
+    text PT_LOAD FLAGS(5);
+    rodata PT_LOAD FLAGS(4);
+    data PT_LOAD FLAGS(6);
+}
+
 SECTIONS
 {
     . = text_ld;
@@ -7,11 +14,14 @@ SECTIONS
     . = data_ld;
     . (NOLOAD) : { bin/ksym_rel.elf(.data) }
     . = bss_ld;
-    . (NOLOAD) : { bin/ksym_rel.elf(.bss) }
+    . (NOLOAD) : {
+        bin/ksym_rel.elf(COMMON)
+        bin/ksym_rel.elf(.bss)
+    }
 
     . = load_addr;
-    . : { bin/module.elf(.text) }
-    . : { bin/module.elf(.rodata) }
-    . : { bin/module.elf(.data) }
-    . : { bin/module.elf(.bss) }
+    . : { bin/module.elf(.text) } :text
+    . : { bin/module.elf(.rodata) } :rodata
+    . : { bin/module.elf(.data) } :data
+    . : { bin/module.elf(.bss) } :data
 }
