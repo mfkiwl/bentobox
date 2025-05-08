@@ -1,7 +1,5 @@
 [BITS 32]
 
-section .multiboot
-
 MB2_MAGIC    equ 0xE85250D6
 MB2_ARCH     equ 0
 MB2_LENGTH   equ 48
@@ -10,6 +8,8 @@ MB2_TAG_TYPE_END equ 0
 MB2_TAG_SIZE_END equ 8
 MB2_TAG_TYPE_FRAMEBUFFER equ 5
 MB2_TAG_FRAMEBUFFER_SIZE equ 20
+
+section .multiboot
 
 dd MB2_MAGIC
 dd MB2_ARCH
