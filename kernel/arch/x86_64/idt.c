@@ -102,9 +102,9 @@ void isr_handler(struct registers *r) {
     }
     if ((r->cs & 3) == 0x3) {
         fprintf(1, "%s:%d: Segmentation fault\n", __FILE__, __LINE__);
-        //sched_kill(this_core()->current_proc, 11);
-        //sched_yield();
-        //return;
+        sched_kill(this_core()->current_proc, 11);
+        sched_yield();
+        return;
     }
     arch_prepare_fatal();
 
@@ -133,7 +133,7 @@ void isr_handler(struct registers *r) {
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,
             r->rflags);
     if (r->int_no == 14) {
-        printf("%s:%d: %s %s %s bits set\n", __FILE__, __LINE__,
+        printf("%s:%d: %s %s %s\n", __FILE__, __LINE__,
             r->error_code & 0x01 ? "Page-protection violation," : "Page not present,",
             r->error_code & 0x02 ? "write operation," : "read operation,",
             r->error_code & 0x04 ? "user mode" : "kernel mode");

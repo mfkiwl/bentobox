@@ -1,9 +1,12 @@
-#include "kernel/arch/x86_64/vmm.h"
+#include <errno.h>
+#include <stdbool.h>
+#include <sys/mman.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/user.h>
 #include <kernel/mmu.h>
 #include <kernel/printf.h>
+#include <kernel/string.h>
 
 extern void syscall_entry(void);
 
@@ -48,16 +51,51 @@ long sys_arch_prctl(struct registers *r) {
             break;
         default:
             dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, r->rdi);
-            return -22; /* EINVAL */
+            return -EINVAL;
     }
     return 0;
+}
+
+long sys_mmap(struct registers *r) {
+    #define addr r->rdi
+    #define length r->rsi
+    #define prot r->rdx
+    #define flags r->r10
+    #define fd r->r8
+    #define offset r->r9
+
+    uint64_t mmu_flags = PTE_USER;
+    if (prot & PROT_READ) mmu_flags |= PTE_PRESENT;
+    if (prot & PROT_WRITE) mmu_flags |= PTE_WRITABLE;
+    //if (!(prot & PROT_EXEC)) mmu_flags |= PTE_NX;
+
+    bool anon = false;
+    if (flags & MAP_ANONYMOUS) {
+        if (offset != 0) return -EINVAL;
+        anon = true;
+    }
+
+    dprintf("mmu_flags: 0x%lx\n", mmu_flags);
+
+    uintptr_t virt = this_core()->current_proc->mmap_base;
+    for (size_t i = 0; i < ALIGN_UP(length, PAGE_SIZE); i += PAGE_SIZE) {
+        uintptr_t phys = (uintptr_t)mmu_alloc(1);
+        mmu_map(virt + i, phys, mmu_flags);
+        if (anon) {
+            memset((void *)(virt + i), 0, PAGE_SIZE);
+        }
+    }
+    this_core()->current_proc->mmap_base = virt + ALIGN_UP(length, PAGE_SIZE);
+    return virt;
 }
 
 // [x ... y] = NULL,
 long (*syscalls[256])(struct registers *) = {
     sys_read,
     sys_write,
-    [2 ... 59] = NULL,
+    [2 ... 8] = NULL,
+    sys_mmap,
+    [10 ... 59] = NULL,
     sys_exit,
     [61 ... 157] = NULL,
     sys_arch_prctl,
@@ -72,7 +110,8 @@ void syscall_handler(struct registers *r) {
     handler = syscalls[r->rax];
 
     if (!handler) {
-        dprintf("%s:%d: invalid syscall %lu\n", __FILE__, __LINE__, r->rax);
+        dprintf("%s:%d: unknown syscall %lu\n", __FILE__, __LINE__, r->rax);
+        r->rax = -ENOSYS;
         return;
     }
 

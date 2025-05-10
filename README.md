@@ -82,7 +82,9 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] Fix HPET math
 - [X] Better cmdline parsing
 - [X] Better task killing
-- [ ] Higher-half kernel
+- [ ] Implement CoW
+- [ ] Fix mmap(2)
+- [ ] Fix memory issues with large elf64 executables
 
 ## Screenshot
 ![image](https://github.com/user-attachments/assets/8829074f-8e42-47a8-b2aa-e2340813cc8e)

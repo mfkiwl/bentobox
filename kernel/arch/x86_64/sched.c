@@ -16,7 +16,7 @@
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
-#define USER_STACK_SIZE 4
+#define USER_STACK_SIZE 16
 
 // TODO: implement task threading
 
@@ -64,6 +64,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->heap = heap_create();
     proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
+    proc->mmap_base = 0;
 
     sched_lock();
     if (!core->processes) {
@@ -123,6 +124,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     proc->user = true;
     proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
+    proc->mmap_base = 0x80000000;
 
     sched_lock();
     if (!core->processes) {

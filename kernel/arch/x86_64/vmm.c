@@ -117,7 +117,7 @@ void mmu_unmap_huge(uintptr_t virt) {
 
 __attribute__((no_sanitize("undefined")))
 void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
-    acquire(&this_core()->vmm_lock);
+    //acquire(&this_core()->vmm_lock);
 
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
@@ -131,11 +131,11 @@ void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     pt[pt_index] = phys | flags; /* map the page */
     
     vmm_flush_tlb(virt); /* flush the tlb entry */
-    release(&this_core()->vmm_lock);
+    //release(&this_core()->vmm_lock);
 }
 
 void mmu_unmap(uintptr_t virt) {
-    acquire(&this_core()->vmm_lock);
+    //acquire(&this_core()->vmm_lock);
 
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
@@ -195,7 +195,7 @@ void mmu_unmap(uintptr_t virt) {
     }
 
     vmm_flush_tlb(virt);
-    release(&this_core()->vmm_lock);
+    //release(&this_core()->vmm_lock);
 }
 
 void mmu_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint32_t flags) {

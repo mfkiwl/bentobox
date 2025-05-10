@@ -47,6 +47,7 @@ struct task {
     struct task_section sections[16];
     uint64_t stack_bottom;
     uint64_t kernel_stack_bottom;
+    uint64_t mmap_base;
 };
 
 void sched_install(void);
