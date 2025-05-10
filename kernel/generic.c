@@ -13,8 +13,8 @@ void generic_startup(void) {
 	pci_scan();
     generic_load_modules();
 	sched_install();
-    //sched_new_task(debugcon_entry, "bentobox debug shell", -1);
-    exec("/bin/sh", 0, NULL, NULL);
+    sched_new_task(debugcon_entry, "bentobox debug shell", -1);
+    //exec("/bin/sh", 0, NULL, NULL);
 }
 
 void generic_main(void) {

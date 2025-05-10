@@ -152,6 +152,25 @@ uint32_t ext2_read_singly_blocks(ext2_fs *fs, uint32_t block, uint8_t *buf, uint
     return remaining;
 }
 
+uint32_t ext2_read_doubly_blocks(ext2_fs *fs, uint32_t doubly_block_id, uint8_t *buf, uint32_t count) {
+    uint32_t *blocks = (uint32_t*)kmalloc(fs->block_size);
+    uint32_t block_count = fs->block_size / 4;
+
+    uint32_t count_block = DIV_CEILING(count, fs->block_size);
+    ext2_read_block(fs, doubly_block_id, blocks, fs->block_size);
+    uint32_t remaining = count;
+    uint32_t rem_limit = fs->block_size * fs->block_size / 4;
+
+    for (uint32_t i = 0; i < count_block; i++) {
+        if (i == block_count) break;
+        if (blocks[i] == 0) break;
+        ext2_read_singly_blocks(fs, blocks[i], buf + (i * rem_limit), (remaining > rem_limit ? rem_limit : remaining));
+        remaining -= rem_limit;
+    }
+    kfree(blocks);
+    return remaining;
+}
+
 void ext2_read_inode_blocks(ext2_fs *fs, ext2_inode *in, uint8_t *buf, uint32_t count) {
     uint32_t remaining = count;
     uint32_t blocks = DIV_CEILING(count, fs->block_size);
@@ -164,6 +183,12 @@ void ext2_read_inode_blocks(ext2_fs *fs, ext2_inode *in, uint8_t *buf, uint32_t 
     if (blocks > 12) {
         if (in->singly_block_ptr != 0) {
             ext2_read_singly_blocks(fs, in->singly_block_ptr, buf + (12 * fs->block_size), remaining);
+        }
+    }
+    if (blocks > 265) {
+        if (in->doubly_block_ptr != 0) {
+            remaining -= fs->block_size * fs->block_size / 4;
+            ext2_read_doubly_blocks(fs, in->doubly_block_ptr, buf + (12 * fs->block_size) + (fs->block_size * fs->block_size / 4), remaining);
         }
     }
 }

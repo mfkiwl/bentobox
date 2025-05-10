@@ -4,7 +4,6 @@
 #include <kernel/arch/x86_64/user.h>
 #include <kernel/mmu.h>
 #include <kernel/printf.h>
-#include <kernel/syscall.h>
 
 extern void syscall_entry(void);
 
@@ -34,22 +33,42 @@ void user_initialize(void) {
     wrmsr(IA32_CSTAR + 1, 0x200);
 }
 
-extern int sys_read(struct registers *);
-extern int sys_write(struct registers *);
-extern int sys_exit(struct registers *);
+extern long sys_read(struct registers *);
+extern long sys_write(struct registers *);
+extern long sys_exit(struct registers *);
+
+long sys_gettid(struct registers *r) {
+    return this_core()->current_proc->pid;
+}
+
+long sys_arch_prctl(struct registers *r) {
+    switch (r->rdi) {
+        case 0x1002: /* ARCH_SET_FS */
+            wrmsr(IA32_FS_BASE, r->rsi);
+            break;
+        default:
+            dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, r->rdi);
+            return -22; /* EINVAL */
+    }
+    return 0;
+}
 
 // [x ... y] = NULL,
-int (*syscalls[256])(struct registers *) = {
+long (*syscalls[256])(struct registers *) = {
     sys_read,
     sys_write,
     [2 ... 59] = NULL,
-    sys_exit
+    sys_exit,
+    [61 ... 157] = NULL,
+    sys_arch_prctl,
+    [159 ... 185] = NULL,
+    sys_gettid
 };
 
 void syscall_handler(struct registers *r) {
     sched_lock();
 
-    int(*handler)(struct registers *);
+    long(*handler)(struct registers *);
     handler = syscalls[r->rax];
 
     if (!handler) {

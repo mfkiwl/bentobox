@@ -2,7 +2,7 @@
 #include <kernel/sched.h>
 #include <kernel/printf.h>
 
-int sys_read(struct registers *r) {
+long sys_read(struct registers *r) {
     struct fd fd = this_core()->current_proc->fd_table[r->rdi];
     if (!fd.node) {
         return -1;
@@ -40,7 +40,7 @@ int sys_read(struct registers *r) {
     return 0;
 }
 
-int sys_write(struct registers *r) {
+long sys_write(struct registers *r) {
     struct fd fd = this_core()->current_proc->fd_table[r->rdi];
     if (!fd.node) {
         return -1;

@@ -229,8 +229,10 @@ uintptr_t *mmu_create_user_pm(struct task *proc) {
     this_core()->pml4 = pml4;
     pml4[511] = kernel_pd[511];
 
-    for (uintptr_t addr = 0x0; addr < 0x4000000; addr += 0x200000)
-        mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE);
+    //for (uintptr_t addr = 0x0; addr < 0x4000000; addr += 0x200000)
+    //    mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map_huge(0x000000, 0x000000, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map_huge(0x200000, 0x200000, PTE_PRESENT | PTE_WRITABLE);
 
     return pml4;
 }
@@ -238,8 +240,10 @@ uintptr_t *mmu_create_user_pm(struct task *proc) {
 void mmu_destroy_user_pm(uintptr_t *pml4) {
     this_core()->pml4 = pml4;
 
-    for (uintptr_t addr = 0x0; addr < 0x4000000; addr += 0x200000)
-        mmu_unmap_huge(addr);
+    //for (uintptr_t addr = 0x0; addr < 0x4000000; addr += 0x200000)
+    //    mmu_unmap_huge(addr);
+    mmu_unmap_huge(0x000000);
+    mmu_unmap_huge(0x200000);
     // TODO: recursively unmap everything
 
     this_core()->pml4 = kernel_pd;

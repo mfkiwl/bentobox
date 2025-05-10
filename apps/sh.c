@@ -2,6 +2,7 @@
  * bentobox x86_64 userspace shell
  */
 
+/*
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -60,6 +61,8 @@ void parse(char input[]) {
     printf("%s: not found\n", input);
 }
 
+void __dso_handle() __attribute__((weak));
+
 int main(int argc, char *argv[]) {
     char input[100];
     for (;;) {
@@ -67,5 +70,13 @@ int main(int argc, char *argv[]) {
         fgets(input, sizeof(input), stdin);
         parse(input);
     }
+    return 0;
+}
+*/
+
+#include <stdio.h>
+
+int main() {
+    printf("Hello, mlibc!");
     return 0;
 }

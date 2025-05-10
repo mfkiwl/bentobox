@@ -16,17 +16,19 @@
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
+#define USER_STACK_SIZE 4
+
 // TODO: implement task threading
 
 long max_pid = 0, next_cpu = 0;
 
 void sched_lock(void) {
-    lapic_eoi();
-    lapic_oneshot(0x79, 5);
+    lapic_stop_timer();
 }
 
 void sched_unlock(void) {
-    lapic_stop_timer();
+    lapic_eoi();
+    lapic_oneshot(0x79, 5);
 }
 
 struct task *sched_new_task(void *entry, const char *name, int cpu) {
@@ -92,15 +94,15 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     memset(proc, 0, sizeof(struct task));
     proc->pml4 = mmu_create_user_pm(proc);
 
-    uint64_t *user_stack = VIRTUAL(mmu_alloc(4));
+    uint64_t *user_stack = VIRTUAL(mmu_alloc(USER_STACK_SIZE));
     uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
-    mmu_map_pages(4, (uintptr_t)PHYSICAL(user_stack), (uintptr_t)user_stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map_pages(USER_STACK_SIZE, (uintptr_t)PHYSICAL(user_stack), (uintptr_t)user_stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map_pages(4, (uintptr_t)PHYSICAL(kernel_stack), (uintptr_t)kernel_stack, PTE_PRESENT | PTE_WRITABLE);
     
     proc->ctx.rdi = 0;
     proc->ctx.rsi = 0;
     proc->ctx.rbp = 0;
-    proc->ctx.rsp = (uint64_t)user_stack + (4 * PAGE_SIZE) - 8;
+    proc->ctx.rsp = (uint64_t)user_stack + (USER_STACK_SIZE * PAGE_SIZE) - 8;
     proc->ctx.rbx = 0;
     proc->ctx.rdx = 0;
     proc->ctx.rcx = 0;
@@ -110,7 +112,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     proc->ctx.ss = 0x1b;
     proc->ctx.rflags = 0x202;
     proc->name = name;
-    proc->stack = (uint64_t)user_stack + (4 * PAGE_SIZE);
+    proc->stack = (uint64_t)user_stack + (USER_STACK_SIZE * PAGE_SIZE);
     proc->stack_bottom = (uint64_t)user_stack;
     proc->kernel_stack = (uint64_t)kernel_stack + (4 * PAGE_SIZE);
     proc->kernel_stack_bottom = (uint64_t)kernel_stack;
@@ -252,9 +254,9 @@ void sched_cleaner(void) {
                 }
             }
 
-            mmu_unmap_pages(4, proc->stack_bottom);
+            mmu_unmap_pages(USER_STACK_SIZE, proc->stack_bottom);
             mmu_unmap_pages(4, proc->kernel_stack_bottom);
-            mmu_free(PHYSICAL(proc->stack_bottom), 4);
+            mmu_free(PHYSICAL(proc->stack_bottom), USER_STACK_SIZE);
             mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4);
             mmu_destroy_user_pm(proc->pml4);
         } else {

@@ -2,6 +2,7 @@
 #include <kernel/arch/x86_64/idt.h>
 
 #define IA32_GS_KERNEL_MSR  0xC0000102
+#define IA32_FS_BASE        0xC0000100
 #define IA32_EFER           0xC0000080
 #define IA32_STAR           0xC0000081
 #define IA32_LSTAR          0xC0000082

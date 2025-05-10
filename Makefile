@@ -42,10 +42,11 @@ MODULE_OBJS := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.o))
 MODULE_BINARIES := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.elf))
 
 # Module base load address
-LOAD_ADDR := 0x400000
+# TODO: fix module system
+LOAD_ADDR := 0x300000
 
 .PHONY: all
-all: kernel/target_arch.c kernel ubsan modules libc apps iso hdd
+all: kernel/target_arch.c kernel ubsan modules apps iso hdd
 
 .PHONY: run
 run: all
@@ -59,12 +60,17 @@ run-kvm: all
 run-gdb: all
 	@qemu-system-$(ARCH) $(QEMUFLAGS) -S -s
 
-.PHONY: libc
-libc:
-	@$(MAKE) -C libc
+.PHONY: mlibc-setup
+mlibc-setup:
+	cd mlibc && meson setup build --cross-file ../crossfile.txt -Dheaders_only=false -Ddefault_library=static -Dbuild_tests=false -Dposix_option=disabled -Dlinux_option=disabled -Dglibc_option=disabled -Dbsd_option=disabled
+	make mlibc
+
+.PHONY: mlibc
+mlibc:
+	cd mlibc && ninja -C build
 
 .PHONY: apps
-apps: libc
+apps:
 	@$(MAKE) -C apps
 
 bin/kernel/%.c.o: kernel/%.c
@@ -111,7 +117,7 @@ modules: kernel $(MODULE_OBJS)
 		echo " LD $$obj"; \
 		cp $$obj bin/module.elf; \
 		ld -Tbin/mod.ld --defsym=load_addr=$$LOAD_ADDR $(UBSAN) -o $${obj%.o}.elf; \
-		LOAD_ADDR=$$(printf '0x%X' $$(( $$LOAD_ADDR + 0x100000 ))); \
+		LOAD_ADDR=$$(printf '0x%X' $$(( $$LOAD_ADDR + 0x80000 ))); \
 	done
 
 .PHONY: iso
