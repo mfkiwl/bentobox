@@ -11,6 +11,7 @@
 #include <kernel/panic.h>
 #include <kernel/sched.h>
 #include <kernel/printf.h>
+#include <kernel/assert.h>
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
@@ -143,9 +144,13 @@ void mmu_unmap(uintptr_t virt) {
     uintptr_t pt_index   = (virt >> 12) & 0x1ff;
 
     uintptr_t *pml4 = this_core()->pml4;
+    assert(pml4);
     uintptr_t *pdpt = vmm_get_next_lvl(pml4, pml4_index, 0, false);
+    if (!pdpt) return;
     uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, 0, false);
+    if (!pd) return;
     uintptr_t *pt = vmm_get_next_lvl(pd, pd_index, 0, false);
+    if (!pt) return;
 
     pt[pt_index] = 0;
 
@@ -198,7 +203,7 @@ void mmu_unmap(uintptr_t virt) {
     //release(&this_core()->vmm_lock);
 }
 
-void mmu_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint32_t flags) {
+void mmu_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint64_t flags) {
     for (uint32_t i = 0; i < count * PAGE_SIZE; i += PAGE_SIZE) {
         mmu_map(virt + i, phys + i, flags);
     }
@@ -217,8 +222,11 @@ uintptr_t mmu_get_physical(uintptr_t *pml4, uintptr_t virt) {
     uintptr_t pt_index = (virt >> 12) & 0x1ff;
     
     uintptr_t *pdpt = vmm_get_next_lvl(pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false);
+    if (!pdpt) return 0;
     uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false);
+    if (!pd) return 0;
     uintptr_t *pt = vmm_get_next_lvl(pd, pd_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false);
+    if (!pt) return 0;
 
     return PTE_GET_ADDR(pt[pt_index]) | (virt & (PAGE_SIZE - 1));
 }

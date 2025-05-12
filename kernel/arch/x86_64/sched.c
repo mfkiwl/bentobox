@@ -99,6 +99,14 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
     mmu_map_pages(USER_STACK_SIZE, (uintptr_t)PHYSICAL(user_stack), (uintptr_t)user_stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map_pages(4, (uintptr_t)PHYSICAL(kernel_stack), (uintptr_t)kernel_stack, PTE_PRESENT | PTE_WRITABLE);
+
+    vmm_switch_pm(proc->pml4);
+    //*(--user_stack_top) = 0; // argv[0] = NULL
+    //uint64_t argv_ptr = (uint64_t)user_stack_top;
+    //*(--user_stack_top) = 0; // argc = 0
+    //user_stack_top[(USER_STACK_SIZE * PAGE_SIZE / 8) - 1] = NULL;
+    memset(user_stack, 0, USER_STACK_SIZE * PAGE_SIZE);
+    vmm_switch_pm(kernel_pd);
     
     proc->ctx.rdi = 0;
     proc->ctx.rsi = 0;

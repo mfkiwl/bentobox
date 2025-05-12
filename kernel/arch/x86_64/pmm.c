@@ -119,13 +119,19 @@ void *mmu_alloc(size_t page_count) {
 void mmu_free(void *ptr, size_t page_count) {
     uint64_t page = (uint64_t)ptr / PAGE_SIZE;
 
-    if ((uintptr_t)ptr < KERNEL_PHYS_BASE || page > pmm_bitmap_size * 8)
-        panic("invalid deallocation @ 0x%p", ptr);
+    if ((uintptr_t)ptr < KERNEL_PHYS_BASE || page > pmm_bitmap_size * 8) {
+        //panic("invalid deallocation @ 0x%p", ptr);
+        dprintf("%s:%d: invalid deallocation @ 0x%p\n", __FILE__, __LINE__, ptr);
+        return;
+    }
 
     acquire(&pmm_lock);
     for (uint64_t i = 0; i < page_count; i++) {
-        if (!bitmap_get(pmm_bitmap, page + i))
-            panic("double free @ 0x%p", ptr);
+        if (!bitmap_get(pmm_bitmap, page + i)) {
+            //panic("double free @ 0x%p", ptr);
+            dprintf("%s:%d: double free @ 0x%p\n", __FILE__, __LINE__, ptr);
+            return;
+        }
         bitmap_clear(pmm_bitmap, page + i);
     }
     release(&pmm_lock);

@@ -47,6 +47,7 @@ long sys_gettid(struct registers *r) {
 long sys_arch_prctl(struct registers *r) {
     switch (r->rdi) {
         case 0x1002: /* ARCH_SET_FS */
+            // TODO: restore fs on context switches
             wrmsr(IA32_FS_BASE, r->rsi);
             break;
         default:
@@ -56,37 +57,29 @@ long sys_arch_prctl(struct registers *r) {
     return 0;
 }
 
+#define USER_VIRT(ptr) ((void *)((uintptr_t)(ptr) + (uintptr_t)(0x80000000)))
+
 long sys_mmap(struct registers *r) {
-    #define addr r->rdi
-    #define length r->rsi
-    #define prot r->rdx
-    #define flags r->r10
-    #define fd r->r8
-    #define offset r->r9
+    void *addr = (void *)r->rdi;
+    size_t length = r->rsi;
+    int prot = r->rdx;
+    int flags = r->r10;
+    int fd = r->r8;
+    off_t offset = r->r9;
 
-    uint64_t mmu_flags = PTE_USER;
-    if (prot & PROT_READ) mmu_flags |= PTE_PRESENT;
-    if (prot & PROT_WRITE) mmu_flags |= PTE_WRITABLE;
-    //if (!(prot & PROT_EXEC)) mmu_flags |= PTE_NX;
+    size_t pages = ALIGN_UP(length, PAGE_SIZE) / PAGE_SIZE;
 
-    bool anon = false;
-    if (flags & MAP_ANONYMOUS) {
-        if (offset != 0) return -EINVAL;
-        anon = true;
+    if (addr == NULL) {
+        addr = mmu_alloc(pages);
     }
-
-    dprintf("mmu_flags: 0x%lx\n", mmu_flags);
-
-    uintptr_t virt = this_core()->current_proc->mmap_base;
-    for (size_t i = 0; i < ALIGN_UP(length, PAGE_SIZE); i += PAGE_SIZE) {
-        uintptr_t phys = (uintptr_t)mmu_alloc(1);
-        mmu_map(virt + i, phys, mmu_flags);
-        if (anon) {
-            memset((void *)(virt + i), 0, PAGE_SIZE);
-        }
+    mmu_map_pages(pages, (uintptr_t)addr, (uintptr_t)USER_VIRT(addr), PTE_PRESENT | PTE_WRITABLE | PTE_USER); // TODO: support NX bit
+    if (fd == -1) {
+        // MAP_ANONYMOUS
+        memset(USER_VIRT(addr), 0, length);
     }
-    this_core()->current_proc->mmap_base = virt + ALIGN_UP(length, PAGE_SIZE);
-    return virt;
+    
+    dprintf("sys_mmap: addr=0x%lx\n", USER_VIRT(addr));
+    return (long)USER_VIRT(addr);
 }
 
 // [x ... y] = NULL,

@@ -103,8 +103,8 @@ void isr_handler(struct registers *r) {
     if ((r->cs & 3) == 0x3) {
         fprintf(1, "%s:%d: Segmentation fault\n", __FILE__, __LINE__);
         sched_kill(this_core()->current_proc, 11);
-        sched_yield();
-        return;
+        //sched_yield();
+        //return;
     }
     arch_prepare_fatal();
 
@@ -145,6 +145,12 @@ void isr_handler(struct registers *r) {
 
     char symbol[256];
     for (int i = 0; i < 12 && frame_ptr->rbp; i++) {
+        if (i == 0) {
+            elf_symbol_name(symbol, ksymtab, kstrtab, ksym_count, r->rip);
+            printf("#%d  0x%p in %s\n", i, r->rip, symbol);
+            frame_ptr = frame_ptr->rbp;
+            continue;
+        }
         elf_symbol_name(symbol, ksymtab, kstrtab, ksym_count, frame_ptr->rip);
         printf("#%d  0x%p in %s\n", i, frame_ptr->rip, symbol);
         frame_ptr = frame_ptr->rbp;

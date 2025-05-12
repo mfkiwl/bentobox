@@ -77,6 +77,6 @@ int main(int argc, char *argv[]) {
 #include <stdio.h>
 
 int main() {
-    printf("Hello, mlibc!");
+    puts("Hello, mlibc!");
     return 0;
 }
