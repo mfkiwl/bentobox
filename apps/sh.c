@@ -2,7 +2,7 @@
  * bentobox x86_64 userspace shell
  */
 
-/*
+#if 0
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -72,11 +72,6 @@ int main(int argc, char *argv[]) {
     }
     return 0;
 }
-*/
+#endif
 
-#include <stdio.h>
-
-int main() {
-    puts("Hello, mlibc!");
-    return 0;
-}
+int main() { return 0; }
