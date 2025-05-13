@@ -85,6 +85,7 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->heap = heap_create();
     proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
+    proc->vma = NULL;
 
     //dprintf("%s:%d: created task \"%s\" on CPU #%d\n", __FILE__, __LINE__, name, core->id);
     return proc;
@@ -124,10 +125,11 @@ struct task *sched_new_user_task(void *entry, const char *name) {
     proc->gs = 0;
     proc->state = RUNNING;
     proc->pid = max_pid++;
-    proc->heap = NULL;
     proc->user = true;
+    proc->heap = heap_create();
     proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
+    proc->vma = vma_create();
 
     //dprintf("%s:%d: created task \"%s\"\n", __FILE__, __LINE__, name);
     return proc;
@@ -202,16 +204,11 @@ void sched_kill(struct task *proc, int status) {
     sched_lock();
 
     max_pid = proc->pid;
+    proc->state = KILLED;
     proc->prev->next = proc->next;
     proc->next->prev = proc->prev;
     proc->next = this_core()->terminated_processes;
     this_core()->terminated_processes = proc;
-
-    proc->state = KILLED;
-    
-    //if (is_current) {
-    //    this_core()->current_proc = proc->next;
-    //}
     
     sched_unblock(this_core()->cleaner_proc);
     sched_unlock();
@@ -248,6 +245,8 @@ void sched_cleaner(void) {
             mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4);
             mmu_destroy_user_pm(proc->pml4);
             kfree(proc->name);
+            heap_delete(proc->heap);
+            vma_destroy(proc->vma);
         } else {
             mmu_unmap_pages(4, proc->stack_bottom);
             mmu_free(PHYSICAL(proc->stack_bottom), 4);

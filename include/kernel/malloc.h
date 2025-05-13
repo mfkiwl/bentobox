@@ -3,8 +3,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#define HEAP_MAGIC 0x58524332
-
 struct heap_block {
     struct heap_block *next;
     struct heap_block *prev;

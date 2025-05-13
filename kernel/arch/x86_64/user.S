@@ -27,7 +27,7 @@ syscall_entry:
     push r14
     push r15
 
-    push qword [gs:176]
+    push qword [gs:184]
     popf
 
     mov rdi, rsp

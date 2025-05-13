@@ -49,6 +49,7 @@ uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, boo
         return NULL;
     }
 
+    // TODO: use a temporary pml buffer, we need to map the pml somehow too
     uintptr_t *pml = (uintptr_t *)mmu_alloc(1);
     memset(pml, 0, PAGE_SIZE);
     lvl[entry] = (uintptr_t)pml | flags;

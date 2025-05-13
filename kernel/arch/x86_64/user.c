@@ -73,20 +73,23 @@ long sys_mmap(struct registers *r) {
     (void)flags;
     (void)offset;
 
+    // TODO: properly implement this messy shit code
+
     size_t pages = ALIGN_UP(length, PAGE_SIZE) / PAGE_SIZE;
 
     if (addr == NULL) {
         //dprintf("mmap: %d pages\n", pages);
-        addr = mmu_alloc(pages);
+        //addr = mmu_alloc(pages);
+        addr = vma_map(this_core()->current_proc->vma, pages, 0, 0, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     }
-    mmu_map_pages(pages, (uintptr_t)addr, (uintptr_t)USER_VIRT(addr), PTE_PRESENT | PTE_WRITABLE | PTE_USER); // TODO: support NX bit
+    //mmu_map_pages(pages, (uintptr_t)addr, (uintptr_t)USER_VIRT(addr), PTE_PRESENT | PTE_WRITABLE | PTE_USER); // TODO: support NX bit
     if (fd == -1) {
         // MAP_ANONYMOUS
-        memset(USER_VIRT(addr), 0, length);
+        memset(addr, 0, length);
     }
     
     //dprintf("sys_mmap: addr=0x%lx\n", USER_VIRT(addr));
-    return (long)USER_VIRT(addr);
+    return (long)addr;
 }
 
 // [x ... y] = NULL,

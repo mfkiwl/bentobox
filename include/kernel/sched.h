@@ -7,6 +7,7 @@
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/fd.h>
 #include <kernel/vfs.h>
+#include <kernel/vma.h>
 #include <kernel/elf64.h>
 #include <kernel/malloc.h>
 
@@ -34,6 +35,7 @@ struct task {
     uint64_t stack;
     uint64_t kernel_stack;
     uint64_t gs;
+    uint64_t fs;
     struct registers ctx;
     struct task *next;
     struct task *prev;
@@ -49,6 +51,7 @@ struct task {
     uint64_t stack_bottom;
     uint64_t stack_bottom_phys;
     uint64_t kernel_stack_bottom;
+    struct vma_head *vma;
 };
 
 void sched_install(void);

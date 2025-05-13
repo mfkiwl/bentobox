@@ -211,7 +211,8 @@ int32_t ext2_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t
 }
 
 void ext2_mount(ext2_fs *fs, struct vfs_node *parent, uint32_t inode_num) {
-    ext2_inode *inode = (ext2_inode *)kmalloc(fs->inode_size);
+    uint8_t in[ext2fs.inode_size];
+    ext2_inode *inode = (ext2_inode *)in;
     ext2_read_inode(fs, inode_num, inode);
     
     uint32_t block_size = fs->block_size;
@@ -268,8 +269,6 @@ void ext2_mount(ext2_fs *fs, struct vfs_node *parent, uint32_t inode_num) {
             kfree(child);
         }
     }
-    
-    kfree(inode);
 }
 
 int init() {

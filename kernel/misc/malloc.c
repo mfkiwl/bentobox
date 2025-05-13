@@ -3,6 +3,8 @@
 #include <kernel/malloc.h>
 #include <kernel/printf.h>
 
+#define HEAP_MAGIC 0x58524332
+
 struct heap *kernel_heap;
 
 void *kmalloc(size_t n) {
@@ -22,7 +24,7 @@ struct heap *heap_create(void) {
     struct heap *h = (struct heap *)VIRTUAL(mmu_alloc(1));
     mmu_map((uintptr_t)h, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     h->head = (struct heap_block *)VIRTUAL (mmu_alloc(1));
-    mmu_map((uintptr_t)h->head, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map((uintptr_t)h->head, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE | PTE_USER); // TODO: does this need fixing?
     h->head->next = h->head;
     h->head->prev = h->head;
     h->head->size = 0;
@@ -32,7 +34,6 @@ struct heap *heap_create(void) {
 
 __attribute__((no_sanitize("undefined")))
 void heap_delete(struct heap *h) {
-    dprintf("malloc: deleting heap @ %lx\n", h);
     struct heap_block *current = h->head->next;
     struct heap_block *next;
 
