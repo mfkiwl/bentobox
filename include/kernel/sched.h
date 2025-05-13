@@ -37,7 +37,7 @@ struct task {
     struct registers ctx;
     struct task *next;
     struct task *prev;
-    const char *name;
+    char *name;
     uint64_t *pml4;
     long pid;
     bool user;
@@ -47,8 +47,8 @@ struct task {
     struct fd fd_table[16];
     struct task_section sections[16];
     uint64_t stack_bottom;
+    uint64_t stack_bottom_phys;
     uint64_t kernel_stack_bottom;
-    uint64_t mmap_base;
 };
 
 void sched_install(void);
@@ -62,5 +62,5 @@ void sched_sleep(int us);
 void sched_kill(struct task *proc, int status);
 void sched_idle(void);
 void sched_add_task(struct task *proc, struct cpu *core);
-struct task *sched_new_task(void *entry, const char *name, int cpu);
-struct task *sched_new_user_task(void *entry, const char *name, int cpu);
+struct task *sched_new_task(void *entry, const char *name);
+struct task *sched_new_user_task(void *entry, const char *name);

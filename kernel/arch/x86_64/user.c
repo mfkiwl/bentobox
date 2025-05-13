@@ -69,6 +69,10 @@ long sys_mmap(struct registers *r) {
     int fd = r->r8;
     off_t offset = r->r9;
 
+    (void)prot;
+    (void)flags;
+    (void)offset;
+
     size_t pages = ALIGN_UP(length, PAGE_SIZE) / PAGE_SIZE;
 
     if (addr == NULL) {

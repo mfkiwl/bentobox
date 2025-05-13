@@ -237,8 +237,8 @@ void mmu_free_page_table(uintptr_t *table, int level) {
 
     //dprintf("level %d\n", level);
 
-    int max = level == 4 ? 511 : 512;
-    for (int i = 0; i < max; i++) {
+    int count = level == 4 ? 256 : 512;
+    for (int i = 0; i < count; i++) {
         if (!(table[i] & PTE_PRESENT))
             continue;
 
@@ -265,11 +265,11 @@ uintptr_t *mmu_create_user_pm(struct task *proc) {
     uintptr_t *pml4 = (uintptr_t *)mmu_alloc(1);
     mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     memset(pml4, 0, PAGE_SIZE);
+    
     this_core()->pml4 = pml4;
-    pml4[511] = kernel_pd[511];
-
-    //for (uintptr_t addr = 0x0; addr < 0x4000000; addr += 0x200000)
-    //    mmu_map_huge(addr, addr, PTE_PRESENT | PTE_WRITABLE);
+    for (int i = 256; i < 512; i++) {
+        pml4[i] = kernel_pd[i];
+    }
     mmu_map_huge(0x000000, 0x000000, PTE_PRESENT | PTE_WRITABLE);
     mmu_map_huge(0x200000, 0x200000, PTE_PRESENT | PTE_WRITABLE);
 
@@ -278,12 +278,6 @@ uintptr_t *mmu_create_user_pm(struct task *proc) {
 
 void mmu_destroy_user_pm(uintptr_t *pml4) {
     this_core()->pml4 = pml4;
-
-    //for (uintptr_t addr = 0x0; addr < 0x4000000; addr += 0x200000)
-    //    mmu_unmap_huge(addr);
-    //mmu_unmap_huge(0x000000);
-    //mmu_unmap_huge(0x200000);
-    // TODO: recursively unmap everything
     mmu_free_page_table(pml4, 4);
 
     this_core()->pml4 = kernel_pd;

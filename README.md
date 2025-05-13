@@ -66,6 +66,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] Simplify the PCI driver
 - [X] FIFO queues
 - [ ] Write a more efficient heap
+    - [ ] Implement a VMA
 - [ ] Make an OS specific toolchain
 - [ ] General VFS improvements
 - [X] Module metadata headers
@@ -90,7 +91,6 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] Recursively unmap pagemaps in VMM
 - [ ] Fix keyboard driver bugs
 - [ ] Higher half modules (map kernel to higher half)
-- [ ] Implement a VMA
 - [ ] Implement task threading
 
 ## Screenshot

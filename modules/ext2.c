@@ -194,11 +194,9 @@ void ext2_read_inode_blocks(ext2_fs *fs, ext2_inode *in, uint8_t *buf, uint32_t 
 }
 
 int32_t ext2_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
-    ext2_inode *inode = (ext2_inode *)kmalloc(ext2fs.inode_size);
+    uint8_t in[ext2fs.inode_size];
+    ext2_inode *inode = (ext2_inode *)in;
     ext2_read_inode(&ext2fs, node->inode, inode);
-    if (!inode) {
-        return -ENOENT;
-    }
 
     if (offset + len > inode->size) {
         len = inode->size - offset;
@@ -209,7 +207,6 @@ int32_t ext2_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t
     memcpy(buffer, buf + offset, len);
 
     kfree(buf);
-    kfree(inode);
     return len;
 }
 

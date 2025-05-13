@@ -158,8 +158,8 @@ int elf_exec(const char *file) {
         return -1;
     }
 
-    struct task *proc = sched_new_user_task((void *)ehdr->e_entry, "elf64", -2); // TODO: copy name
-    
+    struct task *proc = sched_new_user_task((void *)ehdr->e_entry, file);
+
     sched_lock();
     vmm_switch_pm(proc->pml4);
     dprintf("%s:%d: mapping sections\n", __FILE__, __LINE__);

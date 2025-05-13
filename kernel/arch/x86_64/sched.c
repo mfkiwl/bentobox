@@ -54,9 +54,7 @@ void sched_add_task(struct task *proc, struct cpu *core) {
     sched_unlock();
 }
 
-struct task *sched_new_task(void *entry, const char *name, int cpu) {
-    struct cpu *core = cpu == -2 ? this_core() : get_core(cpu == -1 ? next_cpu : cpu);
-
+struct task *sched_new_task(void *entry, const char *name) {
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
     memset(proc, 0, sizeof(struct task));
     proc->pml4 = this_core()->pml4;
@@ -77,7 +75,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->ctx.cs = 0x8;
     proc->ctx.ss = 0x10;
     proc->ctx.rflags = 0x202;
-    proc->name = name;
+    proc->name = (char *)name;
     proc->stack = (uint64_t)stack + (4 * PAGE_SIZE);
     proc->stack_bottom = (uint64_t)stack;
     proc->gs = 0;
@@ -87,30 +85,27 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->heap = heap_create();
     proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
-    proc->mmap_base = 0;
 
-    sched_add_task(proc, core);
-
-    dprintf("%s:%d: created task \"%s\" on CPU #%d\n", __FILE__, __LINE__, name, core->id);
+    //dprintf("%s:%d: created task \"%s\" on CPU #%d\n", __FILE__, __LINE__, name, core->id);
     return proc;
 }
 
-struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
-    struct cpu *core = cpu == -2 ? this_core() : get_core(cpu == -1 ? next_cpu : cpu);
-
+struct task *sched_new_user_task(void *entry, const char *name) {
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
     memset(proc, 0, sizeof(struct task));
     proc->pml4 = mmu_create_user_pm(proc);
 
-    uint64_t *user_stack = VIRTUAL(mmu_alloc(USER_STACK_SIZE));
+    uintptr_t stack_top = 0x00007ffffffff000;
+    uintptr_t stack_bottom = stack_top - (USER_STACK_SIZE * PAGE_SIZE);
+    uintptr_t stack_bottom_phys = (uintptr_t)mmu_alloc(USER_STACK_SIZE);
     uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
-    mmu_map_pages(USER_STACK_SIZE, (uintptr_t)PHYSICAL(user_stack), (uintptr_t)user_stack, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map_pages(USER_STACK_SIZE, stack_bottom_phys, stack_bottom, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map_pages(4, (uintptr_t)PHYSICAL(kernel_stack), (uintptr_t)kernel_stack, PTE_PRESENT | PTE_WRITABLE);
     
     proc->ctx.rdi = 0;
     proc->ctx.rsi = 0;
     proc->ctx.rbp = 0;
-    proc->ctx.rsp = (uint64_t)user_stack + (USER_STACK_SIZE * PAGE_SIZE) - 32;
+    proc->ctx.rsp = stack_top - 32;
     proc->ctx.rbx = 0;
     proc->ctx.rdx = 0;
     proc->ctx.rcx = 0;
@@ -119,9 +114,11 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     proc->ctx.cs = 0x23;
     proc->ctx.ss = 0x1b;
     proc->ctx.rflags = 0x202;
-    proc->name = name;
-    proc->stack = (uint64_t)user_stack + (USER_STACK_SIZE * PAGE_SIZE);
-    proc->stack_bottom = (uint64_t)user_stack;
+    proc->name = kmalloc(strlen(name) + 1);
+    strcpy(proc->name, name);
+    proc->stack = stack_top;
+    proc->stack_bottom = (uint64_t)stack_bottom;
+    proc->stack_bottom_phys = (uint64_t)stack_bottom_phys;
     proc->kernel_stack = (uint64_t)kernel_stack + (4 * PAGE_SIZE);
     proc->kernel_stack_bottom = (uint64_t)kernel_stack;
     proc->gs = 0;
@@ -131,11 +128,8 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     proc->user = true;
     proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
-    proc->mmap_base = 0x80000000;
 
-    //sched_add_task(proc, core);
-
-    dprintf("%s:%d: created task \"%s\" on CPU #%d\n", __FILE__, __LINE__, name, core->id);
+    //dprintf("%s:%d: created task \"%s\"\n", __FILE__, __LINE__, name);
     return proc;
 }
 
@@ -215,7 +209,6 @@ void sched_kill(struct task *proc, int status) {
 
     proc->state = KILLED;
     
-    bool is_current = proc == this_core()->current_proc;
     //if (is_current) {
     //    this_core()->current_proc = proc->next;
     //}
@@ -223,7 +216,7 @@ void sched_kill(struct task *proc, int status) {
     sched_unblock(this_core()->cleaner_proc);
     sched_unlock();
 
-    if (is_current) {
+    if (proc == this_core()->current_proc) {
         sched_yield();
         __builtin_unreachable();
     }
@@ -251,9 +244,10 @@ void sched_cleaner(void) {
 
             mmu_unmap_pages(USER_STACK_SIZE, proc->stack_bottom);
             mmu_unmap_pages(4, proc->kernel_stack_bottom);
-            mmu_free(PHYSICAL(proc->stack_bottom), USER_STACK_SIZE);
+            mmu_free((void *)proc->stack_bottom_phys, USER_STACK_SIZE);
             mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4);
             mmu_destroy_user_pm(proc->pml4);
+            kfree(proc->name);
         } else {
             mmu_unmap_pages(4, proc->stack_bottom);
             mmu_free(PHYSICAL(proc->stack_bottom), 4);
@@ -274,7 +268,8 @@ void sched_start_all_cores(void) {
 
 void sched_install(void) {
     for (uint32_t i = 0; i < madt_lapics; i++) {
-        struct task *cleaner = sched_new_task(sched_cleaner, "System", i);
+        struct task *cleaner = sched_new_task(sched_cleaner, "System");
+        sched_add_task(cleaner, get_core(i));
         cleaner->state = PAUSED;
         get_core(i)->cleaner_proc = cleaner;
     }
