@@ -107,7 +107,7 @@ void isr_handler(struct registers *r) {
         //return;
     }
 
-    faults++;
+    //faults++;
     if (r->int_no == 0x02 || faults > 3) {
         asm ("cli");
 	    for (;;) asm ("hlt");

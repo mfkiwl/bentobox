@@ -66,7 +66,9 @@ void putchar(char c) {
 	if (!ft_ctx) {
 		vga_putchar(c);
 	} else {
+		acquire(&flanterm_lock);
 		flanterm_write(ft_ctx, &c, 1);
+		release(&flanterm_lock);
 	}
 }
 

@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/idt.h>
+#include <kernel/arch/x86_64/smp.h>
 #include <kernel/fd.h>
 #include <kernel/vfs.h>
 #include <kernel/elf64.h>
@@ -60,5 +61,6 @@ void sched_unblock(struct task *proc);
 void sched_sleep(int us);
 void sched_kill(struct task *proc, int status);
 void sched_idle(void);
+void sched_add_task(struct task *proc, struct cpu *core);
 struct task *sched_new_task(void *entry, const char *name, int cpu);
 struct task *sched_new_user_task(void *entry, const char *name, int cpu);

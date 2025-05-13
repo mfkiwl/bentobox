@@ -158,10 +158,11 @@ int elf_exec(const char *file) {
         return -1;
     }
 
+    struct task *proc = sched_new_user_task((void *)ehdr->e_entry, "elf64", -2); // TODO: copy name
+    
     sched_lock();
-    struct task *proc = sched_new_user_task((void *)ehdr->e_entry, "elf64", -1); // TODO: copy name
     vmm_switch_pm(proc->pml4);
-    dprintf("Loading sections!!\n");
+    dprintf("%s:%d: mapping sections\n", __FILE__, __LINE__);
     
     Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
 
@@ -198,12 +199,10 @@ int elf_exec(const char *file) {
     }
 
     vmm_switch_pm(kernel_pd);
-    dprintf("Done\n");
+    sched_unlock();
+    
     kfree(buffer);
-    //sched_yield();
+    sched_add_task(proc, NULL);
+    sched_yield();
     return 0;
-}
-
-int exec(const char *path, int argc, const char *argv[], const char *env[]) {
-    return elf_exec(path);
 }

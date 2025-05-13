@@ -54,7 +54,7 @@ run: all
 
 .PHONY: run-kvm
 run-kvm: all
-	@qemu-system-$(ARCH) $(QEMUFLAGS) -smp 4 #-accel kvm
+	@qemu-system-$(ARCH) $(QEMUFLAGS) -smp 4 -accel kvm
 
 .PHONY: run-gdb
 run-gdb: all

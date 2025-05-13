@@ -31,6 +31,29 @@ void sched_unlock(void) {
     lapic_oneshot(0x79, 5);
 }
 
+void sched_add_task(struct task *proc, struct cpu *core) {
+    sched_lock();
+    if (!core) {
+        core = get_core(next_cpu);
+    }
+    if (!core->processes) {
+        proc->prev = proc;
+        proc->next = proc;
+        core->processes = proc;
+    } else {
+        proc->prev = core->processes->prev;
+        core->processes->prev->next = proc;
+        proc->next = core->processes;
+        core->processes->prev = proc;
+    }
+    next_cpu++;
+    if (next_cpu >= madt_lapics)
+        next_cpu = 0;
+    else if (next_cpu < 0)
+        next_cpu = madt_lapics - 1;
+    sched_unlock();
+}
+
 struct task *sched_new_task(void *entry, const char *name, int cpu) {
     struct cpu *core = cpu == -2 ? this_core() : get_core(cpu == -1 ? next_cpu : cpu);
 
@@ -66,23 +89,7 @@ struct task *sched_new_task(void *entry, const char *name, int cpu) {
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
     proc->mmap_base = 0;
 
-    sched_lock();
-    if (!core->processes) {
-        proc->prev = proc;
-        proc->next = proc;
-        core->processes = proc;
-    } else {
-        proc->prev = core->processes->prev;
-        core->processes->prev->next = proc;
-        proc->next = core->processes;
-        core->processes->prev = proc;
-    }
-    next_cpu++;
-    if (next_cpu >= madt_lapics)
-        next_cpu = 0;
-    else if (next_cpu < 0)
-        next_cpu = madt_lapics - 1;
-    sched_unlock();
+    sched_add_task(proc, core);
 
     dprintf("%s:%d: created task \"%s\" on CPU #%d\n", __FILE__, __LINE__, name, core->id);
     return proc;
@@ -126,23 +133,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int cpu) {
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
     proc->mmap_base = 0x80000000;
 
-    sched_lock();
-    if (!core->processes) {
-        proc->prev = proc;
-        proc->next = proc;
-        core->processes = proc;
-    } else {
-        proc->prev = core->processes->prev;
-        core->processes->prev->next = proc;
-        proc->next = core->processes;
-        core->processes->prev = proc;
-    }
-    next_cpu++;
-    if (next_cpu >= madt_lapics)
-        next_cpu = 0;
-    else if (next_cpu < 0)
-        next_cpu = madt_lapics - 1;
-    sched_unlock();
+    //sched_add_task(proc, core);
 
     dprintf("%s:%d: created task \"%s\" on CPU #%d\n", __FILE__, __LINE__, name, core->id);
     return proc;
@@ -195,7 +186,8 @@ void sched_schedule(struct registers *r) {
 }
 
 void sched_yield(void) {
-    lapic_ipi(this_core()->lapic_id, 0x79);
+    //lapic_ipi(this_core()->lapic_id, 0x79);
+    asm volatile ("int $0x79\n");
 }
 
 void sched_block(enum task_state reason) {
@@ -224,9 +216,9 @@ void sched_kill(struct task *proc, int status) {
     proc->state = KILLED;
     
     bool is_current = proc == this_core()->current_proc;
-    if (is_current) {
-        this_core()->current_proc = proc->next;
-    }
+    //if (is_current) {
+    //    this_core()->current_proc = proc->next;
+    //}
     
     sched_unblock(this_core()->cleaner_proc);
     sched_unlock();
