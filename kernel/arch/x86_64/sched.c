@@ -185,8 +185,9 @@ void sched_schedule(struct registers *r) {
     this->current_proc->time.start = hpet_ticks;
 
     memcpy(r, &(this->current_proc->ctx), sizeof(struct registers));
-    if (this_core()->pml4 != this->current_proc->pml4)
+    if (this_core()->pml4 != this->current_proc->pml4) {
         vmm_switch_pm(this->current_proc->pml4);
+    }
     write_kernel_gs((uint64_t)this->current_proc);
     set_kernel_stack(this->current_proc->kernel_stack);
 

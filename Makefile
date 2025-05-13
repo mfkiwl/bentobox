@@ -54,7 +54,7 @@ run: all
 
 .PHONY: run-kvm
 run-kvm: all
-	@qemu-system-$(ARCH) $(QEMUFLAGS) -smp 4 -accel kvm
+	@qemu-system-$(ARCH) $(QEMUFLAGS) -smp 4 #-accel kvm
 
 .PHONY: run-gdb
 run-gdb: all
@@ -62,12 +62,16 @@ run-gdb: all
 
 .PHONY: mlibc-setup
 mlibc-setup:
-	cd mlibc && meson setup build --cross-file ../crossfile.txt -Dheaders_only=false -Ddefault_library=static -Dbuild_tests=false -Dposix_option=disabled -Dlinux_option=disabled -Dglibc_option=disabled -Dbsd_option=disabled
+	cd mlibc && meson setup build --cross-file ../crossfile.txt -Dheaders_only=false -Ddefault_library=static -Dbuild_tests=false -Dposix_option=disabled -Dlinux_option=disabled -Dglibc_option=disabled -Dbsd_option=disabled --wipe
 	make mlibc
 
 .PHONY: mlibc
 mlibc:
 	cd mlibc && ninja -C build
+
+.PHONY: mlibc-clean
+mlibc-clean:
+	cd mlibc && ninja -C build clean
 
 .PHONY: apps
 apps:

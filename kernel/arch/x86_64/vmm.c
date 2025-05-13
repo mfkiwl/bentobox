@@ -36,6 +36,7 @@ void vmm_switch_pm(uintptr_t *pm) {
     if (pm == NULL)
         panic("Attempted to load a NULL pagemap!");
     asm volatile("mov %0, %%cr3" ::"r"((uint64_t)pm) : "memory");
+    //printf("Loading pml4 on cpu %d!!\n", this_core()->id);
     this_core()->pml4 = pm;
 }
 
@@ -231,9 +232,39 @@ uintptr_t mmu_get_physical(uintptr_t *pml4, uintptr_t virt) {
     return PTE_GET_ADDR(pt[pt_index]) | (virt & (PAGE_SIZE - 1));
 }
 
+void mmu_free_page_table(uintptr_t *table, int level) {
+    if (level == 0 || !table) return;
+
+    //dprintf("level %d\n", level);
+
+    int max = level == 4 ? 511 : 512;
+    for (int i = 0; i < max; i++) {
+        if (!(table[i] & PTE_PRESENT))
+            continue;
+
+        uintptr_t entry = table[i];
+
+        if (level == 2 && (entry & (1 << 7))) {
+            /* 2 MiB huge page */
+            table[i] = 0;
+            continue;
+        }
+
+        uintptr_t *next = (uintptr_t *)PTE_GET_ADDR(entry);
+        //dprintf("%d | 0x%lx -> next=0x%lx\n", i, entry, next);
+        if (level > 1) {
+            mmu_free_page_table(next, level - 1);
+            mmu_free(next, 1);
+        }
+
+        table[i] = 0;
+    }
+}
+
 uintptr_t *mmu_create_user_pm(struct task *proc) {
     uintptr_t *pml4 = (uintptr_t *)mmu_alloc(1);
     mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    memset(pml4, 0, PAGE_SIZE);
     this_core()->pml4 = pml4;
     pml4[511] = kernel_pd[511];
 
@@ -250,9 +281,10 @@ void mmu_destroy_user_pm(uintptr_t *pml4) {
 
     //for (uintptr_t addr = 0x0; addr < 0x4000000; addr += 0x200000)
     //    mmu_unmap_huge(addr);
-    mmu_unmap_huge(0x000000);
-    mmu_unmap_huge(0x200000);
+    //mmu_unmap_huge(0x000000);
+    //mmu_unmap_huge(0x200000);
     // TODO: recursively unmap everything
+    mmu_free_page_table(pml4, 4);
 
     this_core()->pml4 = kernel_pd;
     mmu_unmap((uintptr_t)pml4);

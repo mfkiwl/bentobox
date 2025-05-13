@@ -14,7 +14,7 @@ MLIBC_INCLUDE = -I../mlibc/ -I../mlibc/build/ -I../mlibc/options/ansi/libmlibc-m
 MLIBC_OBJ = ../mlibc/build/sysdeps/bentobox/crt0.o ../mlibc/build/sysdeps/bentobox/crti.o ../mlibc/build/sysdeps/bentobox/crtn.o ../mlibc/build/libc.a
 
 # Flags
-CFLAGS = -ffreestanding -nostdlib -fno-pic -nostdlib -fno-stack-protector -mcmodel=large $(MLIBC_INCLUDE)
+CFLAGS = -ffreestanding -nostdlib -fno-pic -nostdlib -fno-stack-protector -mcmodel=large -mno-sse -mno-sse2 -mno-mmx $(MLIBC_INCLUDE)
 ASFLAGS = -f elf64
 LDFLAGS =
 

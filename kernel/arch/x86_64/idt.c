@@ -106,7 +106,6 @@ void isr_handler(struct registers *r) {
         //sched_yield();
         //return;
     }
-    arch_prepare_fatal();
 
     faults++;
     if (r->int_no == 0x02 || faults > 3) {
@@ -156,6 +155,7 @@ void isr_handler(struct registers *r) {
         frame_ptr = frame_ptr->rbp;
     }
 
+    arch_prepare_fatal();
     arch_fatal();
 }
 

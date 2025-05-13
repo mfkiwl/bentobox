@@ -200,7 +200,7 @@ int elf_exec(const char *file) {
     vmm_switch_pm(kernel_pd);
     dprintf("Done\n");
     kfree(buffer);
-    sched_yield();
+    //sched_yield();
     return 0;
 }
 

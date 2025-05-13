@@ -60,6 +60,8 @@ long sys_arch_prctl(struct registers *r) {
 #define USER_VIRT(ptr) ((void *)((uintptr_t)(ptr) + (uintptr_t)(0x80000000)))
 
 long sys_mmap(struct registers *r) {
+    //return -ENOSYS;
+
     void *addr = (void *)r->rdi;
     size_t length = r->rsi;
     int prot = r->rdx;
@@ -70,6 +72,7 @@ long sys_mmap(struct registers *r) {
     size_t pages = ALIGN_UP(length, PAGE_SIZE) / PAGE_SIZE;
 
     if (addr == NULL) {
+        //dprintf("mmap: %d pages\n", pages);
         addr = mmu_alloc(pages);
     }
     mmu_map_pages(pages, (uintptr_t)addr, (uintptr_t)USER_VIRT(addr), PTE_PRESENT | PTE_WRITABLE | PTE_USER); // TODO: support NX bit
@@ -78,7 +81,7 @@ long sys_mmap(struct registers *r) {
         memset(USER_VIRT(addr), 0, length);
     }
     
-    dprintf("sys_mmap: addr=0x%lx\n", USER_VIRT(addr));
+    //dprintf("sys_mmap: addr=0x%lx\n", USER_VIRT(addr));
     return (long)USER_VIRT(addr);
 }
 
