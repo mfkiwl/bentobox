@@ -113,9 +113,10 @@ int elf_module(struct multiboot_tag_module *mod) {
             size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
 
             for (size_t page = 0; page < pages; page++) {
+                uintptr_t paddr = (uintptr_t)mmu_alloc(1);
                 uintptr_t vaddr = phdr[i].p_vaddr + page * PAGE_SIZE;
 
-                mmu_mark_used((void *)vaddr, 1);
+                mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE);
             }
 
             if (phdr[i].p_filesz > 0) {

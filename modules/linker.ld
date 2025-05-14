@@ -20,8 +20,11 @@ SECTIONS
     }
 
     . = load_addr;
-    . : { bin/module.elf(.text) } :text
-    . : { bin/module.elf(.rodata) } :rodata
-    . : { bin/module.elf(.data) } :data
-    . : { bin/module.elf(.bss) } :data
+    .text : { bin/module.elf(.text) } :text
+    . = ALIGN(4K);
+    .rodata : { bin/module.elf(.rodata) } :rodata
+    . = ALIGN(4K);
+    .data : { bin/module.elf(.data) } :data
+    . = ALIGN(4K);
+    .bss : { bin/module.elf(.bss) } :data
 }

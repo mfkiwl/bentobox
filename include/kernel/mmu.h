@@ -9,7 +9,8 @@
 #include <kernel/arch/riscv/mmu.h>
 #endif
 
-#define PAGE_SIZE 4096
+#define PAGE_SIZE 0x1000
+#define HUGE_PAGE_SIZE 0x200000
 
 #define VIRTUAL(ptr) ((void *)((uintptr_t)(ptr) + (uintptr_t)KERNEL_VIRT_BASE))
 #define PHYSICAL(ptr) ((void *)((uintptr_t)(ptr) - (uintptr_t)KERNEL_VIRT_BASE))

@@ -42,8 +42,7 @@ MODULE_OBJS := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.o))
 MODULE_BINARIES := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.elf))
 
 # Module base load address
-# TODO: fix module system
-LOAD_ADDR := 0x300000
+LOAD_ADDR := 0xFFFF800001000000
 
 .PHONY: all
 all: kernel/target_arch.c kernel ubsan modules apps iso hdd
@@ -98,7 +97,7 @@ bin/.target:
 bin/modules/%.o: modules/%.c $(KERNEL_OBJS)
 	@echo " CC $<"
 	@mkdir -p "$$(dirname $@)"
-	@$(CC) $(CCFLAGS) -c $< -o $@
+	@$(CC) $(CCFLAGS) -mcmodel=large -c $< -o $@
 
 .PHONY: kernel
 kernel: $(KERNEL_OBJS)
@@ -121,7 +120,7 @@ modules: kernel $(MODULE_OBJS)
 		echo " LD $$obj"; \
 		cp $$obj bin/module.elf; \
 		ld -Tbin/mod.ld --defsym=load_addr=$$LOAD_ADDR $(UBSAN) -o $${obj%.o}.elf; \
-		LOAD_ADDR=$$(printf '0x%X' $$(( $$LOAD_ADDR + 0x80000 ))); \
+		LOAD_ADDR=$$(printf '0x%X' $$(( $$LOAD_ADDR + 0x1000000 ))); \
 	done
 
 .PHONY: iso

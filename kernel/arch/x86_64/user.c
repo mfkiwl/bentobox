@@ -81,12 +81,13 @@ long sys_mmap(struct registers *r) {
         //dprintf("mmap: %d pages\n", pages);
         //addr = mmu_alloc(pages);
         addr = vma_map(this_core()->current_proc->vma, pages, 0, 0, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    }
-    //mmu_map_pages(pages, (uintptr_t)addr, (uintptr_t)USER_VIRT(addr), PTE_PRESENT | PTE_WRITABLE | PTE_USER); // TODO: support NX bit
-    if (fd == -1) {
-        // MAP_ANONYMOUS
         memset(addr, 0, length);
     }
+    //mmu_map_pages(pages, (uintptr_t)addr, (uintptr_t)USER_VIRT(addr), PTE_PRESENT | PTE_WRITABLE | PTE_USER); // TODO: support NX bit
+    //if (fd == -1) {
+        // MAP_ANONYMOUS
+        //memset(addr, 0, length);
+    //}
     
     //dprintf("sys_mmap: addr=0x%lx\n", USER_VIRT(addr));
     return (long)addr;

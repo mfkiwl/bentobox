@@ -66,7 +66,7 @@ void pmm_install(void) {
     }
 
 	mmu_mark_used(mboot, 2);
-
+    
     dprintf("%s:%d: initialized bitmap at 0x%p\n", __FILE__, __LINE__, (uint64_t)pmm_bitmap);
     dprintf("%s:%d: usable memory: %luK\n", __FILE__, __LINE__, mmu_usable_mem / 1024 - mmu_used_pages * 4);
 }

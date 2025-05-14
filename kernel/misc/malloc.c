@@ -24,7 +24,7 @@ struct heap *heap_create(void) {
     struct heap *h = (struct heap *)VIRTUAL(mmu_alloc(1));
     mmu_map((uintptr_t)h, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     h->head = (struct heap_block *)VIRTUAL (mmu_alloc(1));
-    mmu_map((uintptr_t)h->head, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE | PTE_USER); // TODO: does this need fixing?
+    mmu_map((uintptr_t)h->head, (uintptr_t)PHYSICAL(h->head), PTE_PRESENT | PTE_WRITABLE | PTE_USER); // TODO: does this need fixing?
     h->head->next = h->head;
     h->head->prev = h->head;
     h->head->size = 0;

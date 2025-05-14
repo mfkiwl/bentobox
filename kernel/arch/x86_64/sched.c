@@ -16,7 +16,7 @@
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
-#define USER_STACK_SIZE 16
+#define USER_STACK_SIZE 256 // 1024
 
 // TODO: implement task threading
 
@@ -102,6 +102,13 @@ struct task *sched_new_user_task(void *entry, const char *name) {
     uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
     mmu_map_pages(USER_STACK_SIZE, stack_bottom_phys, stack_bottom, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map_pages(4, (uintptr_t)PHYSICAL(kernel_stack), (uintptr_t)kernel_stack, PTE_PRESENT | PTE_WRITABLE);
+
+    sched_lock();
+    vmm_switch_pm(proc->pml4);
+    memset((void *)stack_bottom, 0, (USER_STACK_SIZE * PAGE_SIZE));
+    vmm_switch_pm(kernel_pd);
+    //asm ("jmp .");
+    sched_unlock();
     
     proc->ctx.rdi = 0;
     proc->ctx.rsi = 0;
