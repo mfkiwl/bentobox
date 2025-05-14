@@ -25,6 +25,8 @@ void vma_destroy(struct vma_head *h) {
         next = current->next;
         mmu_unmap_pages(current->size, current->virt);
         mmu_free((void *)current->phys, current->size);
+        mmu_unmap((uintptr_t)current);
+        mmu_free(PHYSICAL(current), 1);
         current = next;
     }
 

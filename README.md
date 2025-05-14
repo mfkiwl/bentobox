@@ -84,7 +84,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] Better task killing
 - [ ] Implement CoW
 - [X] Fix mmap(2)
-- [ ] Fix memory issues with large elf64 executables
+- [X] Fix memory issues with large elf64 executables
 - [ ] Restore `fs` on context switches
 - [ ] SSE support
 - [X] Recursively unmap pagemaps in VMM
