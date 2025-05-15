@@ -22,9 +22,9 @@ void create_kernel_heap(void) {
 __attribute__((no_sanitize("undefined")))
 struct heap *heap_create(void) {
     struct heap *h = (struct heap *)VIRTUAL(mmu_alloc(1));
-    mmu_map((uintptr_t)h, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    h->head = (struct heap_block *)VIRTUAL (mmu_alloc(1));
-    mmu_map((uintptr_t)h->head, (uintptr_t)PHYSICAL(h->head), PTE_PRESENT | PTE_WRITABLE | PTE_USER); // TODO: does this need fixing?
+    mmu_map(h, PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    h->head = (struct heap_block *)VIRTUAL(mmu_alloc(1));
+    mmu_map(h->head, PHYSICAL(h->head), PTE_PRESENT | PTE_WRITABLE | PTE_USER); // TODO: does this need fixing?
     h->head->next = h->head;
     h->head->prev = h->head;
     h->head->size = 0;
@@ -39,16 +39,16 @@ void heap_delete(struct heap *h) {
 
     while (current != h->head) {
         next = current->next;
-        uint32_t pages = DIV_CEILING(sizeof(struct heap_block) + current->size, PAGE_SIZE);
+        size_t pages = DIV_CEILING(sizeof(struct heap_block) + current->size, PAGE_SIZE);
         mmu_free(PHYSICAL(current), pages);
-        mmu_unmap_pages(pages, (uintptr_t)current);
+        mmu_unmap_pages(pages, (void *)current);
         current = next;
     }
 
     mmu_free(PHYSICAL(h->head), 1);
-    mmu_unmap((uintptr_t)h->head);
+    mmu_unmap(h->head);
     mmu_free(PHYSICAL(h), 1);
-    mmu_unmap((uintptr_t)h);
+    mmu_unmap(h);
 }
 
 __attribute__((no_sanitize("undefined")))
@@ -64,7 +64,7 @@ void *heap_alloc(struct heap *h, uint64_t n) {
         printf("%s:%d: allocation failed\n", __FILE__, __LINE__);
         return NULL;
     }
-    mmu_map_pages(pages, (uintptr_t)PHYSICAL(block), (uintptr_t)block, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map_pages(pages, block, PHYSICAL(block), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     block->next = h->head;
     block->prev = h->head->prev;
     block->size = n;
@@ -87,5 +87,5 @@ void heap_free(void *ptr) {
     uint64_t pages = DIV_CEILING(sizeof(struct heap_block) + block->size, PAGE_SIZE);
 
     mmu_free(PHYSICAL(block), pages);
-    mmu_unmap_pages(pages, (uintptr_t)block);
+    mmu_unmap_pages(pages, block);
 }

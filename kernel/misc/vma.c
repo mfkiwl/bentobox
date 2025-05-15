@@ -5,9 +5,9 @@
 
 struct vma_head *vma_create(void) {
     struct vma_head *h = (struct vma_head *)VIRTUAL(mmu_alloc(1));
-    mmu_map((uintptr_t)h, (uintptr_t)PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map(h, PHYSICAL(h), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     h->head = (struct vma_block *)VIRTUAL(mmu_alloc(1));
-    mmu_map((uintptr_t)h->head, (uintptr_t)PHYSICAL(h->head), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map(h->head, PHYSICAL(h->head), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     h->head->next = h->head;
     h->head->prev = h->head;
     h->head->size = 0;
@@ -23,22 +23,22 @@ void vma_destroy(struct vma_head *h) {
 
     while (current != h->head) {
         next = current->next;
-        mmu_unmap_pages(current->size, current->virt);
+        mmu_unmap_pages(current->size, (void *)current->virt);
         mmu_free((void *)current->phys, current->size);
-        mmu_unmap((uintptr_t)current);
+        mmu_unmap(current);
         mmu_free(PHYSICAL(current), 1);
         current = next;
     }
 
     mmu_free(PHYSICAL(h->head), 1);
-    mmu_unmap((uintptr_t)h->head);
+    mmu_unmap(h->head);
     mmu_free(PHYSICAL(h), 1);
-    mmu_unmap((uintptr_t)h);
+    mmu_unmap(h);
 }
 
 void *vma_map(struct vma_head *h, uint64_t pages, uint64_t phys, uint64_t virt, uint64_t flags) {
     struct vma_block *block = VIRTUAL(mmu_alloc(1));
-    mmu_map((uintptr_t)block, (uintptr_t)PHYSICAL(block), PTE_PRESENT | PTE_WRITABLE);
+    mmu_map(block, PHYSICAL(block), PTE_PRESENT | PTE_WRITABLE);
     block->next = h->head;
     block->prev = h->head->prev;
     h->head->prev->next = block;
@@ -51,7 +51,7 @@ void *vma_map(struct vma_head *h, uint64_t pages, uint64_t phys, uint64_t virt, 
         block->phys = phys;
         block->virt = virt;
     }
-    mmu_map_pages(pages, block->phys, block->virt, flags);
+    mmu_map_pages(pages, (void *)block->virt, (void *)block->phys, flags);
 
     block->checksum = block->phys + block->virt;
 
@@ -67,8 +67,8 @@ void vma_unmap(struct vma_block *block) {
     block->prev->next = block->next;
     block->next->prev = block->prev;
 
-    mmu_unmap_pages(block->size, block->virt);
+    mmu_unmap_pages(block->size, (void *)block->virt);
     mmu_free((void *)block->phys, block->size);
-    mmu_unmap((uintptr_t)block);
+    mmu_unmap(block);
     mmu_free(PHYSICAL(block), 1);
 }

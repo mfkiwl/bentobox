@@ -17,11 +17,11 @@ void *acpi_find_table(const char *signature) {
     if (!acpi_use_xsdt) {
         struct acpi_rsdt *rsdt = (struct acpi_rsdt*)acpi_root_sdt;
         uint32_t entries = (rsdt->sdt.length - sizeof(rsdt->sdt)) / 4;
-        mmu_map((uintptr_t)rsdt->table, (uintptr_t)rsdt->table, PTE_PRESENT);
+        mmu_map(rsdt->table, rsdt->table, PTE_PRESENT);
 
         for (uint32_t i = 0; i < entries; i++) {
             struct acpi_sdt *sdt = (struct acpi_sdt*)(uintptr_t)(*((uint32_t*)rsdt->table + i));
-            mmu_map((uintptr_t)VIRTUAL(ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE)), (uintptr_t)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+            mmu_map(VIRTUAL(ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE)), (void *)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
             if (!memcmp(sdt->signature, signature, 4)) {
                 return VIRTUAL(sdt);
             }
@@ -37,7 +37,7 @@ void *acpi_find_table(const char *signature) {
         
     for (uint32_t i = 0; i < entries; i++) {
         struct acpi_sdt *sdt = (struct acpi_sdt*)(uintptr_t)(*((uint32_t*)rsdt->table + i));
-        mmu_map((uintptr_t)VIRTUAL(ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE)), (uintptr_t)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+        mmu_map(VIRTUAL(ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE)), (void *)ALIGN_DOWN((uintptr_t)sdt, PAGE_SIZE), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
         if (!memcmp(sdt->signature, signature, 4)) {
             return VIRTUAL(sdt);
         }
@@ -91,7 +91,7 @@ void acpi_install() {
     }
     dprintf("%s:%d: ACPI version %s\n", __FILE__, __LINE__, acpi_use_xsdt ? "2.0" : "1.0");
 
-    mmu_map((uintptr_t)acpi_root_sdt, (uintptr_t)acpi_root_sdt, PTE_PRESENT);
+    mmu_map(acpi_root_sdt, acpi_root_sdt, PTE_PRESENT);
     fadt_init();
     madt_init();
 

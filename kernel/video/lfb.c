@@ -23,7 +23,7 @@ void lfb_initialize(void) {
     }
     dprintf("%s:%d: found framebuffer at 0x%p\n", __FILE__, __LINE__, fb->common.framebuffer_addr);
 
-    mmu_map_pages((ALIGN_UP((fb->common.framebuffer_pitch * fb->common.framebuffer_height), PAGE_SIZE) / PAGE_SIZE), (uintptr_t)fb->common.framebuffer_addr, (uintptr_t)VIRTUAL(fb->common.framebuffer_addr), PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map_pages((ALIGN_UP((fb->common.framebuffer_pitch * fb->common.framebuffer_height), PAGE_SIZE) / PAGE_SIZE), VIRTUAL(fb->common.framebuffer_addr), (void *)fb->common.framebuffer_addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     //memset((void *)fb->common.framebuffer_addr, 0x00, fb->common.framebuffer_pitch * fb->common.framebuffer_height);
 
     lfb.addr = (uint64_t)VIRTUAL(fb->common.framebuffer_addr);

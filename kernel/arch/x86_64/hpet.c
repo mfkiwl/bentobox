@@ -40,11 +40,11 @@ void hpet_install(void) {
 
     if (args_contains("hpet_mhz")) {
         hpet_address = (uint64_t)VIRTUAL(0xFED00000);
-        mmu_map(hpet_address, 0xFED00000, PTE_PRESENT | PTE_WRITABLE);
+        mmu_map((void *)hpet_address, (void *)0xFED00000, PTE_PRESENT | PTE_WRITABLE);
         hpet_period = atoi(args_value("hpet_mhz")) * 1000000;
     } else if (hpet) {
         hpet_address = (uint64_t)VIRTUAL(hpet->address);
-        mmu_map(hpet_address, hpet->address, PTE_PRESENT | PTE_WRITABLE);
+        mmu_map((void *)hpet_address, (void *)hpet->address, PTE_PRESENT | PTE_WRITABLE);
         uint64_t cap = hpet_read(HPET_REG_CAP);
         hpet_period = (cap >> 32);
     } else {

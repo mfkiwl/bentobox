@@ -60,7 +60,7 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->pml4 = this_core()->pml4;
 
     uint64_t *stack = VIRTUAL(mmu_alloc(4));
-    mmu_map_pages(4, (uintptr_t)PHYSICAL(stack), (uintptr_t)stack, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map_pages(4, stack, PHYSICAL(stack), PTE_PRESENT | PTE_WRITABLE);
     memset(stack, 0, 4 * PAGE_SIZE);
 
     proc->ctx.rdi = 0;
@@ -101,15 +101,15 @@ struct task *sched_new_user_task(void *entry, const char *name) {
     uintptr_t stack_bottom = stack_top - (USER_STACK_SIZE * PAGE_SIZE);
     uintptr_t stack_bottom_phys = (uintptr_t)mmu_alloc(USER_STACK_SIZE);
     uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
-    mmu_map_pages(USER_STACK_SIZE, stack_bottom_phys, stack_bottom, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_map_pages(4, (uintptr_t)PHYSICAL(kernel_stack), (uintptr_t)kernel_stack, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map_pages(USER_STACK_SIZE, (void *)stack_bottom, (void *)stack_bottom_phys, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    mmu_map_pages(4, kernel_stack, PHYSICAL(kernel_stack), PTE_PRESENT | PTE_WRITABLE);
 
     //sched_lock();
     //vmm_switch_pm(proc->pml4);
     //vmm_switch_pm(kernel_pd);
     //sched_unlock();
 
-    memset((void *)UPPER(stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE));
+    memset(VIRTUAL_IDENT(stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE));
     asm volatile ("sti" : : : "memory");
     
     proc->ctx.rdi = 0;
@@ -245,12 +245,12 @@ void sched_cleaner(void) {
             if (proc->sections[0].length > 0) {
                 for (int i = 0; proc->sections[i].length; i++) {
                     mmu_free((void *)mmu_get_physical(proc->pml4, proc->sections[i].ptr), ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE);
-                    mmu_unmap_pages(ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE, proc->sections[i].ptr);
+                    mmu_unmap_pages(ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE, (void *)proc->sections[i].ptr);
                 }
             }
 
-            mmu_unmap_pages(USER_STACK_SIZE, proc->stack_bottom);
-            mmu_unmap_pages(4, proc->kernel_stack_bottom);
+            mmu_unmap_pages(USER_STACK_SIZE, (void *)proc->stack_bottom);
+            mmu_unmap_pages(4, (void *)proc->kernel_stack_bottom);
             mmu_free((void *)proc->stack_bottom_phys, USER_STACK_SIZE);
             mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4);
             mmu_destroy_user_pm(proc->pml4);
@@ -259,7 +259,7 @@ void sched_cleaner(void) {
             vma_destroy(proc->vma);
             sched_unlock();
         } else {
-            mmu_unmap_pages(4, proc->stack_bottom);
+            mmu_unmap_pages(4, (void *)proc->stack_bottom);
             mmu_free(PHYSICAL(proc->stack_bottom), 4);
             heap_delete(proc->heap);
         }

@@ -21,6 +21,3 @@ extern uintptr_t *kernel_pd;
 void pmm_install(void);
 void vmm_install(void);
 void vmm_switch_pm(uintptr_t *pm);
-
-#define UPPER(ptr) ((uintptr_t *)((uintptr_t)(ptr) + (uintptr_t)0xFFFFFFFF80000000))
-#define LOWER(ptr) ((uintptr_t *)((uintptr_t)(ptr) - (uintptr_t)0xFFFFFFFF80000000))

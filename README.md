@@ -77,7 +77,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [ ] Write an RTC driver
 - [X] Fix ring 3 processes in SMP
 - [X] Fix memory leaks
-- [ ] Refactor VMM to take pml4's and `void *` instead of `uintptr_t`
+- [X] Refactor VMM to take pml4's and `void *` instead of `uintptr_t`
 - [X] Fix real hardware triple faults
 - [X] Fix HPET math
 - [X] Better cmdline parsing

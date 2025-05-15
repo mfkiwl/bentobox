@@ -71,6 +71,7 @@ long sys_mmap(struct registers *r) {
 
     (void)prot;
     (void)flags;
+    (void)fd;
     (void)offset;
 
     // TODO: properly implement this messy shit code

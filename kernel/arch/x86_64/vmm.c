@@ -38,22 +38,22 @@ void vmm_switch_pm(uintptr_t *pm) {
     uint64_t flags;
     __asm__ volatile ("pushfq\n\tpopq %0\n\t" : "=r" (flags) : : "memory");
     __asm__ volatile ("cli" : : : "memory");
-    __asm__ volatile("mov %0, %%cr3" ::"r"((uint64_t)LOWER(pm)) : "memory");
+    __asm__ volatile("mov %0, %%cr3" ::"r"((uint64_t)PHYSICAL_IDENT(pm)) : "memory");
     this_core()->pml4 = pm;
 
     if (flags & (1 << 9)) __asm__ volatile ("sti" : : : "memory");
 }
 
 uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, bool alloc) {
-    if (lvl[entry] & PTE_PRESENT) return UPPER(PTE_GET_ADDR(lvl[entry]));
+    if (lvl[entry] & PTE_PRESENT) return VIRTUAL_IDENT(PTE_GET_ADDR(lvl[entry]));
     if (!alloc) {
         dprintf("%s:%d: \033[33mwarning:\033[0m couldn't get next pml\n", __FILE__, __LINE__);
         return NULL;
     }
 
-    uintptr_t *pml = UPPER(mmu_alloc(1));
+    uintptr_t *pml = VIRTUAL_IDENT(mmu_alloc(1));
     memset(pml, 0, PAGE_SIZE);
-    lvl[entry] = (uintptr_t)LOWER(pml) | flags;
+    lvl[entry] = (uintptr_t)PHYSICAL_IDENT(pml) | flags;
     return pml;
 }
 
@@ -69,34 +69,23 @@ void mmu_map_huge(uintptr_t virt, uintptr_t phys, uint64_t flags) {
 }
 
 void mmu_unmap_huge(uintptr_t virt) {
-    acquire(&this_core()->vmm_lock);
-
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index   = (virt >> 21) & 0x1ff;
 
-    uint64_t *pml4 = this_core()->pml4;
-    uint64_t *pdpt = vmm_get_next_lvl(pml4, pml4_index, 0, false);
-    if (!pdpt) {
-        release(&this_core()->vmm_lock);
-        return;
-    }
-    
-    uint64_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, 0, false);
-    if (!pd) {
-        release(&this_core()->vmm_lock);
-        return;
-    }
+    uintptr_t *pml4 = this_core()->pml4, *pdpt, *pd;
+    if ((pdpt = vmm_get_next_lvl(pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false)) == NULL) return;
+    if ((pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false)) == NULL) return;
 
     /* check if the page directory entry is present */
-    if (UPPER(pd)[pd_index] & PTE_PRESENT) {
+    if (pd[pd_index] & PTE_PRESENT) {
         /* clear the page directory entry */
-        UPPER(pd)[pd_index] = 0;
+        pd[pd_index] = 0;
 
         /* check if the page directory is empty */
         bool pd_empty = true;
         for (int i = 0; i < 512; i++) {
-            if (UPPER(pd)[i] & PTE_PRESENT) {
+            if (pd[i] & PTE_PRESENT) {
                 pd_empty = false;
                 break;
             }
@@ -105,14 +94,14 @@ void mmu_unmap_huge(uintptr_t virt) {
         /* free it if it's empty */
         if (pd_empty) {
             mmu_free(pd, 1);
-            UPPER(pdpt)[pdpt_index] = 0;
+            pdpt[pdpt_index] = 0;
         }
     }
 
     /* check if the page directory pointer table entry is present */
     bool pdpt_empty = true;
     for (int i = 0; i < 512; i++) {
-        if (UPPER(pdpt)[i] & PTE_PRESENT) {
+        if (pdpt[i] & PTE_PRESENT) {
             pdpt_empty = false;
             break;
         }
@@ -121,57 +110,38 @@ void mmu_unmap_huge(uintptr_t virt) {
     /* free it if it's empty */
     if (pdpt_empty) {
         mmu_free(pdpt, 1);
-        UPPER(pml4)[pml4_index] = 0;
+        pml4[pml4_index] = 0;
     }
 
     vmm_flush_tlb(virt);
-    release(&this_core()->vmm_lock);
 }
 
 __attribute__((no_sanitize("undefined")))
-void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
-    acquire(&this_core()->vmm_lock);
-
-    uintptr_t pml4_index = (virt >> 39) & 0x1ff;
-    uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
-    uintptr_t pd_index = (virt >> 21) & 0x1ff;
-    uintptr_t pt_index = (virt >> 12) & 0x1ff;
+void mmu_map(void *virt, void *phys, uint64_t flags) {
+    uintptr_t pml4_index = ((uintptr_t)virt >> 39) & 0x1ff;
+    uintptr_t pdpt_index = ((uintptr_t)virt >> 30) & 0x1ff;
+    uintptr_t pd_index = ((uintptr_t)virt >> 21) & 0x1ff;
+    uintptr_t pt_index = ((uintptr_t)virt >> 12) & 0x1ff;
     
     uintptr_t *pdpt = vmm_get_next_lvl(this_core()->pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
     uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
     uintptr_t *pt = vmm_get_next_lvl(pd, pd_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
 
-    pt[pt_index] = phys | flags; /* map the page */
+    pt[pt_index] = (uintptr_t)phys | flags; /* map the page */
     
-    vmm_flush_tlb(virt); /* flush the tlb entry */
-    release(&this_core()->vmm_lock);
+    vmm_flush_tlb((uintptr_t)virt); /* flush the tlb entry */
 }
 
-void mmu_unmap(uintptr_t virt) {
-    acquire(&this_core()->vmm_lock);
+void mmu_unmap(void *virt) {
+    uintptr_t pml4_index = ((uintptr_t)virt >> 39) & 0x1ff;
+    uintptr_t pdpt_index = ((uintptr_t)virt >> 30) & 0x1ff;
+    uintptr_t pd_index   = ((uintptr_t)virt >> 21) & 0x1ff;
+    uintptr_t pt_index   = ((uintptr_t)virt >> 12) & 0x1ff;
 
-    uintptr_t pml4_index = (virt >> 39) & 0x1ff;
-    uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
-    uintptr_t pd_index   = (virt >> 21) & 0x1ff;
-    uintptr_t pt_index   = (virt >> 12) & 0x1ff;
-
-    uintptr_t *pml4 = this_core()->pml4;
-    assert(pml4);
-    uintptr_t *pdpt = vmm_get_next_lvl(pml4, pml4_index, 0, false);
-    if (!pdpt) {
-        release(&this_core()->vmm_lock);
-        return;
-    }
-    uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, 0, false);
-    if (!pd) {
-        release(&this_core()->vmm_lock);
-        return;
-    }
-    uintptr_t *pt = vmm_get_next_lvl(pd, pd_index, 0, false);
-    if (!pt) {
-        release(&this_core()->vmm_lock);
-        return;
-    }
+    uintptr_t *pml4 = this_core()->pml4, *pdpt, *pd, *pt;
+    if ((pdpt = vmm_get_next_lvl(pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false)) == NULL) return;
+    if ((pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false)) == NULL) return;
+    if ((pt = vmm_get_next_lvl(pd, pd_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false)) == NULL) return;
 
     pt[pt_index] = 0;
 
@@ -186,7 +156,7 @@ void mmu_unmap(uintptr_t virt) {
 
     /* free it if it's empty */
     if (pt_empty) {
-        mmu_free(LOWER(pt), 1);
+        mmu_free(PHYSICAL_IDENT(pt), 1);
         pd[pd_index] = 0;
     }
 
@@ -201,7 +171,7 @@ void mmu_unmap(uintptr_t virt) {
 
     /* free it if it's empty */
     if (pd_empty) {
-        mmu_free(LOWER(pd), 1);
+        mmu_free(PHYSICAL_IDENT(pd), 1);
         pdpt[pdpt_index] = 0;
     }
 
@@ -216,47 +186,41 @@ void mmu_unmap(uintptr_t virt) {
 
     /* free it if it's empty */
     if (pdpt_empty) {
-        mmu_free(LOWER(pdpt), 1);
+        mmu_free(PHYSICAL_IDENT(pdpt), 1);
         pml4[pml4_index] = 0;
     }
 
-    vmm_flush_tlb(virt);
-    release(&this_core()->vmm_lock);
+    vmm_flush_tlb((uintptr_t)virt);
 }
 
-void mmu_map_pages(uint32_t count, uintptr_t phys, uintptr_t virt, uint64_t flags) {
+void mmu_map_pages(size_t count, void *virt, void *phys, uint64_t flags) {
     for (uint32_t i = 0; i < count * PAGE_SIZE; i += PAGE_SIZE) {
-        mmu_map(virt + i, phys + i, flags);
+        mmu_map((void *)((uintptr_t)virt + i), (void *)((uintptr_t)phys + i), flags);
     }
 }
 
-void mmu_unmap_pages(uint32_t count, uintptr_t virt) {
+void mmu_unmap_pages(size_t count, void *virt) {
     for (uint32_t i = 0; i < count * PAGE_SIZE; i += PAGE_SIZE) {
-        mmu_unmap(virt + i);
+        mmu_unmap((void *)((uintptr_t)virt + i));
     }
 }
 
 uintptr_t mmu_get_physical(uintptr_t *pml4, uintptr_t virt) {
-    dprintf("WARNING: mmu_get_physical may be broken   virt=0x%lx\n", virt);
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
     uintptr_t pt_index = (virt >> 12) & 0x1ff;
-    
-    uintptr_t *pdpt = vmm_get_next_lvl(pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false);
-    if (!pdpt) return 0;
-    uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false);
-    if (!pd) return 0;
-    uintptr_t *pt = vmm_get_next_lvl(pd, pd_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false);
-    if (!pt) return 0;
+
+    uintptr_t *pdpt, *pd, *pt;
+    if ((pdpt = vmm_get_next_lvl(pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false)) == NULL) return 0;
+    if ((pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false)) == NULL) return 0;
+    if ((pt = vmm_get_next_lvl(pd, pd_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false)) == NULL) return 0;
 
     return (uintptr_t)PTE_GET_ADDR(pt[pt_index]) | (virt & (PAGE_SIZE - 1));
 }
 
 void mmu_free_page_table(uintptr_t *table, int level) {
     if (level == 0 || !table) return;
-
-    //dprintf("level %d\n", level);
 
     int count = level == 4 ? 256 : 512;
     for (int i = 0; i < count; i++) {
@@ -272,7 +236,6 @@ void mmu_free_page_table(uintptr_t *table, int level) {
         }
 
         uintptr_t *next = (uintptr_t *)PTE_GET_ADDR(entry);
-        //dprintf("%d | 0x%lx -> next=0x%lx\n", i, entry, next);
         if (level > 1) {
             mmu_free_page_table(next, level - 1);
             mmu_free(next, 1);
@@ -283,8 +246,7 @@ void mmu_free_page_table(uintptr_t *table, int level) {
 }
 
 uintptr_t *mmu_create_user_pm(struct task *proc) {
-    uintptr_t *pml4 = (uintptr_t *)UPPER(mmu_alloc(1));
-    //mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    uintptr_t *pml4 = (uintptr_t *)VIRTUAL_IDENT(mmu_alloc(1));
     memset(pml4, 0, PAGE_SIZE);
     
     this_core()->pml4 = pml4;
@@ -298,12 +260,8 @@ uintptr_t *mmu_create_user_pm(struct task *proc) {
 }
 
 void mmu_destroy_user_pm(uintptr_t *pml4) {
-    this_core()->pml4 = pml4;
     mmu_free_page_table(pml4, 4);
-
-    this_core()->pml4 = kernel_pd;
-    //mmu_unmap((uintptr_t)pml4);
-    mmu_free(LOWER(pml4), 1);
+    mmu_free(PHYSICAL_IDENT(pml4), 1);
 }
 
 void vmm_direct_map_huge(uintptr_t *pml4, uintptr_t virt, uintptr_t phys, uint64_t flags) {
@@ -331,9 +289,9 @@ void vmm_direct_map_huge(uintptr_t *pml4, uintptr_t virt, uintptr_t phys, uint64
 
 void vmm_install(void) {
     for (uintptr_t addr = 0x0; addr < 0x10000000 /* 256MiB */; addr += 0x200000)
-        vmm_direct_map_huge(kernel_pd, (uintptr_t)UPPER(addr), addr, PTE_PRESENT | PTE_WRITABLE);
+        vmm_direct_map_huge(kernel_pd, (uintptr_t)VIRTUAL_IDENT(addr), addr, PTE_PRESENT | PTE_WRITABLE);
 
-    kernel_pd = (uintptr_t *)UPPER(mmu_alloc(1));
+    kernel_pd = (uintptr_t *)VIRTUAL_IDENT(mmu_alloc(1));
     this_core()->pml4 = kernel_pd;
     memcpy(kernel_pd, initial_pml[0], PAGE_SIZE);
 

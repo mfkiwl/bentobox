@@ -37,7 +37,7 @@ __attribute__((no_sanitize("undefined")))
 void ioapic_redirect_gsi(uint32_t lapic_id, uint8_t vector, uint32_t gsi, uint16_t flags, bool mask) {
     struct madt_ioapic* ioapic = ioapic_get_gsi(gsi);
     
-    mmu_map((uintptr_t)ioapic->address, (uintptr_t)ioapic->address, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map((void *)(uintptr_t)ioapic->address, (void *)(uintptr_t)ioapic->address, PTE_PRESENT | PTE_WRITABLE);
 
     uint64_t redirect = vector;
 
@@ -72,7 +72,7 @@ void ioapic_redirect_irq(uint32_t lapic_id, uint8_t vector, uint8_t irq, bool ma
 void ioapic_install(void) {
     struct madt_ioapic* ioapic = madt_ioapic_list[0];
 
-    mmu_map((uintptr_t)ioapic->address, (uintptr_t)ioapic->address, PTE_PRESENT | PTE_WRITABLE);
+    mmu_map((void *)(uintptr_t)ioapic->address, (void *)(uintptr_t)ioapic->address, PTE_PRESENT | PTE_WRITABLE);
 
     uint32_t id = ioapic_read(ioapic, IOAPIC_ID) >> 24;
     uint32_t count = ioapic_gsi_count(ioapic);
