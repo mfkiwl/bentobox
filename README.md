@@ -5,14 +5,19 @@ bentobox is a 64-bit SMP-enabled operating system targeting x86_64 and RISC-V
 - Multiboot 2 boot & module support
 - 4-level paging
 - VGA text mode and serial driver
-- ACPI table parsing
+- Framebuffer console
+- PS/2 keyboard driver
+- ACPI table parsing (MADT & FADT)
 - LAPIC & IOAPIC support
 - HPET timer support
+- PCI driver
 - SMP-aware scheduler
-- Node Graph VFS
-- ELf64 loading
+- Unix-style VFS
+- Elf64 loading
 - ATA driver and ext2fs support
 - Userspace processes
+- SSE support
+- mlibc port
 
 ## Features on RISC-V
 - Virtio UART driver
@@ -93,7 +98,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [ ] Implement task threading
 - [X] Implement a VMA
 - [ ] Support NX bit
-- [ ] Fix VMA
+- [X] Fix VMA
 
 ## Screenshot
 ![image](https://github.com/user-attachments/assets/8829074f-8e42-47a8-b2aa-e2340813cc8e)
