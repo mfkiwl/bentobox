@@ -8,6 +8,8 @@
 #define IA32_LSTAR          0xC0000082
 #define IA32_CSTAR          0xC0000083
 
+uint64_t rdmsr(uint32_t msr);
+void wrmsr(uint32_t msr, uint64_t val);
 void write_kernel_gs(uint64_t value);
 uint64_t read_kernel_gs(void);
 void syscall_handler(struct registers *);

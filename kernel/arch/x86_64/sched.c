@@ -16,7 +16,7 @@
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
-#define USER_STACK_SIZE 256 // 1024
+#define USER_STACK_SIZE 256
 
 // TODO: implement task threading
 
@@ -87,7 +87,6 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
     proc->vma = NULL;
 
-    //dprintf("%s:%d: created task \"%s\" on CPU #%d\n", __FILE__, __LINE__, name, core->id);
     return proc;
 }
 
@@ -103,11 +102,6 @@ struct task *sched_new_user_task(void *entry, const char *name) {
     uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
     mmu_map_pages(USER_STACK_SIZE, (void *)stack_bottom, (void *)stack_bottom_phys, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map_pages(4, kernel_stack, PHYSICAL(kernel_stack), PTE_PRESENT | PTE_WRITABLE);
-
-    //sched_lock();
-    //vmm_switch_pm(proc->pml4);
-    //vmm_switch_pm(kernel_pd);
-    //sched_unlock();
 
     memset(VIRTUAL_IDENT(stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE));
     asm volatile ("sti" : : : "memory");
@@ -135,24 +129,23 @@ struct task *sched_new_user_task(void *entry, const char *name) {
     proc->state = RUNNING;
     proc->pid = max_pid++;
     proc->user = true;
-    //proc->heap = heap_create();
+    proc->heap = heap_create();
     proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
     proc->vma = vma_create();
 
-    //dprintf("%s:%d: created task \"%s\"\n", __FILE__, __LINE__, name);
     return proc;
 }
 
 void sched_schedule(struct registers *r) {
     sched_lock();
-    vmm_switch_pm(kernel_pd);
 
     struct cpu *this = this_core();
 
     if (this->current_proc) {
         memcpy(&(this->current_proc->ctx), r, sizeof(struct registers));
         this->current_proc->gs = read_kernel_gs();
+        asm volatile ("fxsave %0 " : : "m"(this->current_proc->fxsave));
     } else {
         this->current_proc = this->processes;
     }
@@ -181,11 +174,12 @@ void sched_schedule(struct registers *r) {
     this->current_proc->time.start = hpet_ticks;
 
     memcpy(r, &(this->current_proc->ctx), sizeof(struct registers));
-    if (this_core()->pml4 != this->current_proc->pml4) {
+    if (this_core()->pml4 != this->current_proc->pml4)
         vmm_switch_pm(this->current_proc->pml4);
-    }
     write_kernel_gs((uint64_t)this->current_proc);
     set_kernel_stack(this->current_proc->kernel_stack);
+    asm volatile ("fxrstor %0 " : : "m"(this->current_proc->fxsave));
+    wrmsr(IA32_FS_BASE, this->current_proc->fs);
 
     sched_unlock();
 }
@@ -255,7 +249,7 @@ void sched_cleaner(void) {
             mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4);
             mmu_destroy_user_pm(proc->pml4);
             kfree(proc->name);
-            //heap_delete(proc->heap);
+            heap_delete(proc->heap);
             vma_destroy(proc->vma);
             sched_unlock();
         } else {

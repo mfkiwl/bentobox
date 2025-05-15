@@ -90,6 +90,14 @@ gdt2:
     mov fs, ax
     mov gs, ax
 
+    mov rax, cr0
+    and ax, 0xFFFB  ; CR0.EM
+    or ax, 0x2      ; CR0.MP
+    mov cr0, rax
+    mov rax, cr4
+    or ax, 3 << 9   ; CR4.OSFXSR and CR4.OSXMMEXCPT
+    mov cr4, rax
+
     pop rdi
     pop rsi
     call kmain

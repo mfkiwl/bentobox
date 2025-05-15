@@ -7,6 +7,7 @@
 #include <kernel/mmu.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
+#include <kernel/syscall.h>
 
 extern void syscall_entry(void);
 
@@ -36,10 +37,6 @@ void user_initialize(void) {
     wrmsr(IA32_CSTAR + 1, 0x200);
 }
 
-extern long sys_read(struct registers *);
-extern long sys_write(struct registers *);
-extern long sys_exit(struct registers *);
-
 long sys_gettid(struct registers *r) {
     return this_core()->current_proc->pid;
 }
@@ -49,6 +46,7 @@ long sys_arch_prctl(struct registers *r) {
         case 0x1002: /* ARCH_SET_FS */
             // TODO: restore fs on context switches
             wrmsr(IA32_FS_BASE, r->rsi);
+            this_core()->current_proc->fs = r->rsi;
             break;
         default:
             dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, r->rdi);
@@ -57,11 +55,7 @@ long sys_arch_prctl(struct registers *r) {
     return 0;
 }
 
-#define USER_VIRT(ptr) ((void *)((uintptr_t)(ptr) + (uintptr_t)(0x80000000)))
-
 long sys_mmap(struct registers *r) {
-    //return -ENOSYS;
-
     void *addr = (void *)r->rdi;
     size_t length = r->rsi;
     int prot = r->rdx;
@@ -79,18 +73,10 @@ long sys_mmap(struct registers *r) {
     size_t pages = ALIGN_UP(length, PAGE_SIZE) / PAGE_SIZE;
 
     if (addr == NULL) {
-        //dprintf("mmap: %d pages\n", pages);
-        //addr = mmu_alloc(pages);
         addr = vma_map(this_core()->current_proc->vma, pages, 0, 0, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
         memset(addr, 0, length);
     }
-    //mmu_map_pages(pages, (uintptr_t)addr, (uintptr_t)USER_VIRT(addr), PTE_PRESENT | PTE_WRITABLE | PTE_USER); // TODO: support NX bit
-    //if (fd == -1) {
-        // MAP_ANONYMOUS
-        //memset(addr, 0, length);
-    //}
-    
-    //dprintf("sys_mmap: addr=0x%lx\n", USER_VIRT(addr));
+
     return (long)addr;
 }
 
