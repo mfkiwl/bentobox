@@ -2,7 +2,6 @@
  * bentobox x86_64 userspace shell
  */
 
-#if 0
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -25,7 +24,7 @@ const void *handlers[] = {
 };
 
 int clear(char input[]) {
-    puts("\033[2J\033[H");
+    printf("\033[2J\033[H");
     return 0;
 }
 
@@ -35,12 +34,12 @@ int echo(char input[]) {
 }
 
 int help(char input[]) {
-    puts("Commands: ");
+    printf("Commands: ");
     size_t count = sizeof(handlers) / sizeof(uintptr_t);
     for (size_t i = 0; i < count; i++) {
         printf("%s%s", commands[i], i < count - 1 ? ", " : "");
     }
-    puts("\n");
+    printf("\n");
     return 0;
 }
 
@@ -61,17 +60,14 @@ void parse(char input[]) {
     printf("%s: not found\n", input);
 }
 
-void __dso_handle() __attribute__((weak));
-
 int main(int argc, char *argv[]) {
-    char input[100];
     for (;;) {
         printf("# ");
+        
+        char input[100] = {0};
         fgets(input, sizeof(input), stdin);
+        input[strcspn(input, "\n")] = '\0';
         parse(input);
     }
     return 0;
 }
-#endif
-
-int main() { return 0; }

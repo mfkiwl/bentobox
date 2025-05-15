@@ -84,6 +84,7 @@ int32_t serial_write(struct vfs_node *node, void *buffer, uint32_t offset, uint3
 }
 
 int32_t serial_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
+    // TODO: handle like in ps2.c
     char c = serial_read_char();
     memcpy(buffer, &c, 1);
     return 1;

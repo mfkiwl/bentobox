@@ -80,13 +80,44 @@ long sys_mmap(struct registers *r) {
     return (long)addr;
 }
 
+long sys_ioctl(struct registers *r) {
+    int fd = r->rdi;
+    int op = r->rsi;
+
+    switch (op) {
+        case 0x5401: /* TCGETS */
+            if (fd < 3) {
+                return 0;
+            } else {
+                return -ENOTTY;
+            }
+            break;
+        default:
+            dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, r->rdi);
+            return -EINVAL;
+    }
+}
+
+long sys_lseek(struct registers *r) {
+    int fd = r->rdi;
+
+    if (fd < 3) {
+        return -ESPIPE;
+    } else {
+        return -EINVAL;
+    }
+}
+
 // [x ... y] = NULL,
 long (*syscalls[256])(struct registers *) = {
     sys_read,
     sys_write,
-    [2 ... 8] = NULL,
+    [2 ... 7] = NULL,
+    sys_lseek,
     sys_mmap,
-    [10 ... 59] = NULL,
+    [10 ... 15] = NULL,
+    sys_ioctl,
+    [17 ... 59] = NULL,
     sys_exit,
     [61 ... 157] = NULL,
     sys_arch_prctl,

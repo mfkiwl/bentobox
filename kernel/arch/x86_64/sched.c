@@ -132,6 +132,7 @@ struct task *sched_new_user_task(void *entry, const char *name) {
     proc->heap = heap_create();
     proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
+    proc->fd_table[2] = fd_open(vfs_open(vfs_root, "/dev/serial0"), 0);
     proc->vma = vma_create();
 
     return proc;
