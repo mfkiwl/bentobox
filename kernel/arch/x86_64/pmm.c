@@ -120,8 +120,8 @@ void mmu_free(void *ptr, size_t page_count) {
     uint64_t page = (uint64_t)ptr / PAGE_SIZE;
 
     if ((uintptr_t)ptr < KERNEL_PHYS_BASE || page > pmm_bitmap_size * 8) {
-        //panic("invalid deallocation @ 0x%p", ptr);
-        dprintf("%s:%d: invalid deallocation @ 0x%p\n", __FILE__, __LINE__, ptr);
+        panic("invalid deallocation @ 0x%p", ptr);
+        printf("%s:%d: invalid deallocation @ 0x%p\n", __FILE__, __LINE__, ptr);
         return;
     }
 

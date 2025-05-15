@@ -34,29 +34,26 @@ __attribute__((no_sanitize("undefined")))
 void vmm_switch_pm(uintptr_t *pm) {
     if (pm == NULL)
         panic("Attempted to load a NULL pagemap!");
-    asm volatile("mov %0, %%cr3" ::"r"((uint64_t)pm) : "memory");
+
+    uint64_t flags;
+    __asm__ volatile ("pushfq\n\tpopq %0\n\t" : "=r" (flags) : : "memory");
+    __asm__ volatile ("cli" : : : "memory");
+    __asm__ volatile("mov %0, %%cr3" ::"r"((uint64_t)LOWER(pm)) : "memory");
     this_core()->pml4 = pm;
+
+    if (flags & (1 << 9)) __asm__ volatile ("sti" : : : "memory");
 }
 
-#define UPPER(ptr) ((uintptr_t *)((uintptr_t)(ptr) + (uintptr_t)0xFFFFFFFF80000000))
-#define LOWER(ptr) ((uintptr_t *)((uintptr_t)(ptr) - (uintptr_t)0xFFFFFFFF80000000))
-
-uintptr_t *vmm_get_next_lvl(uintptr_t *lvl1, uintptr_t entry, uint64_t flags, bool alloc) {
-    uintptr_t *lvl = UPPER(lvl1);
-    
-    if (lvl[entry] & PTE_PRESENT) {
-        uintptr_t phys = PTE_GET_ADDR(lvl[entry]);
-        return (uintptr_t *)phys;
-    }
-    
+uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, bool alloc) {
+    if (lvl[entry] & PTE_PRESENT) return UPPER(PTE_GET_ADDR(lvl[entry]));
     if (!alloc) {
         dprintf("%s:%d: \033[33mwarning:\033[0m couldn't get next pml\n", __FILE__, __LINE__);
         return NULL;
     }
 
-    uintptr_t *pml = mmu_alloc(1);
-    memset(UPPER(pml), 0, PAGE_SIZE);
-    lvl[entry] = (uintptr_t)pml | flags;
+    uintptr_t *pml = UPPER(mmu_alloc(1));
+    memset(pml, 0, PAGE_SIZE);
+    lvl[entry] = (uintptr_t)LOWER(pml) | flags;
     return pml;
 }
 
@@ -68,8 +65,7 @@ void mmu_map_huge(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     uintptr_t *pdpt = vmm_get_next_lvl(this_core()->pml4, pml4_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
     uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
  
-    // Use UPPER to access the physical address
-    UPPER(pd)[pd_index] = phys | flags | (1 << 7);
+    pd[pd_index] = phys | flags | (1 << 7);
 }
 
 void mmu_unmap_huge(uintptr_t virt) {
@@ -145,7 +141,7 @@ void mmu_map(uintptr_t virt, uintptr_t phys, uint64_t flags) {
     uintptr_t *pd = vmm_get_next_lvl(pdpt, pdpt_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
     uintptr_t *pt = vmm_get_next_lvl(pd, pd_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, true);
 
-    UPPER(pt)[pt_index] = phys | flags; /* map the page */
+    pt[pt_index] = phys | flags; /* map the page */
     
     vmm_flush_tlb(virt); /* flush the tlb entry */
     release(&this_core()->vmm_lock);
@@ -177,12 +173,12 @@ void mmu_unmap(uintptr_t virt) {
         return;
     }
 
-    UPPER(pt)[pt_index] = 0;
+    pt[pt_index] = 0;
 
     /* check if the page table entry is present */
     bool pt_empty = true;
     for (int i = 0; i < 512; i++) {
-        if (UPPER(pt)[i] & PTE_PRESENT) {
+        if (pt[i] & PTE_PRESENT) {
             pt_empty = false;
             break;
         }
@@ -190,14 +186,14 @@ void mmu_unmap(uintptr_t virt) {
 
     /* free it if it's empty */
     if (pt_empty) {
-        mmu_free(pt, 1);
-        UPPER(pd)[pd_index] = 0;
+        mmu_free(LOWER(pt), 1);
+        pd[pd_index] = 0;
     }
 
     /* check if the page directory entry is present */
     bool pd_empty = true;
     for (int i = 0; i < 512; i++) {
-        if (UPPER(pd)[i] & PTE_PRESENT) {
+        if (pd[i] & PTE_PRESENT) {
             pd_empty = false;
             break;
         }
@@ -205,14 +201,14 @@ void mmu_unmap(uintptr_t virt) {
 
     /* free it if it's empty */
     if (pd_empty) {
-        mmu_free(pd, 1);
-        UPPER(pdpt)[pdpt_index] = 0;
+        mmu_free(LOWER(pd), 1);
+        pdpt[pdpt_index] = 0;
     }
 
     /* check if the page directory pointer table entry is present */
     bool pdpt_empty = true;
     for (int i = 0; i < 512; i++) {
-        if (UPPER(pdpt)[i] & PTE_PRESENT) {
+        if (pdpt[i] & PTE_PRESENT) {
             pdpt_empty = false;
             break;
         }
@@ -220,8 +216,8 @@ void mmu_unmap(uintptr_t virt) {
 
     /* free it if it's empty */
     if (pdpt_empty) {
-        mmu_free(pdpt, 1);
-        UPPER(pml4)[pml4_index] = 0;
+        mmu_free(LOWER(pdpt), 1);
+        pml4[pml4_index] = 0;
     }
 
     vmm_flush_tlb(virt);
@@ -241,6 +237,7 @@ void mmu_unmap_pages(uint32_t count, uintptr_t virt) {
 }
 
 uintptr_t mmu_get_physical(uintptr_t *pml4, uintptr_t virt) {
+    dprintf("WARNING: mmu_get_physical may be broken   virt=0x%lx\n", virt);
     uintptr_t pml4_index = (virt >> 39) & 0x1ff;
     uintptr_t pdpt_index = (virt >> 30) & 0x1ff;
     uintptr_t pd_index = (virt >> 21) & 0x1ff;
@@ -253,7 +250,7 @@ uintptr_t mmu_get_physical(uintptr_t *pml4, uintptr_t virt) {
     uintptr_t *pt = vmm_get_next_lvl(pd, pd_index, PTE_PRESENT | PTE_WRITABLE | PTE_USER, false);
     if (!pt) return 0;
 
-    return PTE_GET_ADDR(pt[pt_index]) | (virt & (PAGE_SIZE - 1));
+    return (uintptr_t)PTE_GET_ADDR(pt[pt_index]) | (virt & (PAGE_SIZE - 1));
 }
 
 void mmu_free_page_table(uintptr_t *table, int level) {
@@ -286,8 +283,8 @@ void mmu_free_page_table(uintptr_t *table, int level) {
 }
 
 uintptr_t *mmu_create_user_pm(struct task *proc) {
-    uintptr_t *pml4 = (uintptr_t *)mmu_alloc(1);
-    mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+    uintptr_t *pml4 = (uintptr_t *)UPPER(mmu_alloc(1));
+    //mmu_map((uintptr_t)pml4, (uintptr_t)pml4, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     memset(pml4, 0, PAGE_SIZE);
     
     this_core()->pml4 = pml4;
@@ -305,8 +302,8 @@ void mmu_destroy_user_pm(uintptr_t *pml4) {
     mmu_free_page_table(pml4, 4);
 
     this_core()->pml4 = kernel_pd;
-    mmu_unmap((uintptr_t)pml4);
-    mmu_free(pml4, 1);
+    //mmu_unmap((uintptr_t)pml4);
+    mmu_free(LOWER(pml4), 1);
 }
 
 void vmm_direct_map_huge(uintptr_t *pml4, uintptr_t virt, uintptr_t phys, uint64_t flags) {
@@ -333,14 +330,12 @@ void vmm_direct_map_huge(uintptr_t *pml4, uintptr_t virt, uintptr_t phys, uint64
 }
 
 void vmm_install(void) {
-    for (uintptr_t addr = 0x0; addr < 0x10000000; addr += 0x200000)
-        vmm_direct_map_huge(kernel_pd, 0xFFFFFFFF80000000 + addr, addr, PTE_PRESENT | PTE_WRITABLE);
+    for (uintptr_t addr = 0x0; addr < 0x10000000 /* 256MiB */; addr += 0x200000)
+        vmm_direct_map_huge(kernel_pd, (uintptr_t)UPPER(addr), addr, PTE_PRESENT | PTE_WRITABLE);
 
-    kernel_pd = (uintptr_t *)mmu_alloc(1);
+    kernel_pd = (uintptr_t *)UPPER(mmu_alloc(1));
     this_core()->pml4 = kernel_pd;
     memcpy(kernel_pd, initial_pml[0], PAGE_SIZE);
-
-    mmu_mark_used((void *)0x400000, 256); /* I give up. */
 
     dprintf("%s:%d: done mapping kernel regions\n", __FILE__, __LINE__);
 

@@ -96,6 +96,7 @@ struct task *sched_new_user_task(void *entry, const char *name) {
     memset(proc, 0, sizeof(struct task));
     proc->pml4 = mmu_create_user_pm(proc);
 
+    asm volatile ("cli" : : : "memory");
     uintptr_t stack_top = 0x00007ffffffff000;
     uintptr_t stack_bottom = stack_top - (USER_STACK_SIZE * PAGE_SIZE);
     uintptr_t stack_bottom_phys = (uintptr_t)mmu_alloc(USER_STACK_SIZE);
@@ -103,12 +104,13 @@ struct task *sched_new_user_task(void *entry, const char *name) {
     mmu_map_pages(USER_STACK_SIZE, stack_bottom_phys, stack_bottom, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map_pages(4, (uintptr_t)PHYSICAL(kernel_stack), (uintptr_t)kernel_stack, PTE_PRESENT | PTE_WRITABLE);
 
-    sched_lock();
-    vmm_switch_pm(proc->pml4);
-    memset((void *)stack_bottom, 0, (USER_STACK_SIZE * PAGE_SIZE));
-    vmm_switch_pm(kernel_pd);
-    //asm ("jmp .");
-    sched_unlock();
+    //sched_lock();
+    //vmm_switch_pm(proc->pml4);
+    //vmm_switch_pm(kernel_pd);
+    //sched_unlock();
+
+    memset((void *)UPPER(stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE));
+    asm volatile ("sti" : : : "memory");
     
     proc->ctx.rdi = 0;
     proc->ctx.rsi = 0;
@@ -133,7 +135,7 @@ struct task *sched_new_user_task(void *entry, const char *name) {
     proc->state = RUNNING;
     proc->pid = max_pid++;
     proc->user = true;
-    proc->heap = heap_create();
+    //proc->heap = heap_create();
     proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
     proc->vma = vma_create();
@@ -238,6 +240,7 @@ void sched_cleaner(void) {
         this_core()->terminated_processes = proc->next;
         
         if (proc->user) {
+            sched_lock();
             this_core()->pml4 = proc->pml4;
             if (proc->sections[0].length > 0) {
                 for (int i = 0; proc->sections[i].length; i++) {
@@ -252,8 +255,9 @@ void sched_cleaner(void) {
             mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4);
             mmu_destroy_user_pm(proc->pml4);
             kfree(proc->name);
-            heap_delete(proc->heap);
+            //heap_delete(proc->heap);
             vma_destroy(proc->vma);
+            sched_unlock();
         } else {
             mmu_unmap_pages(4, proc->stack_bottom);
             mmu_free(PHYSICAL(proc->stack_bottom), 4);
