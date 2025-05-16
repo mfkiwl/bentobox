@@ -11,7 +11,7 @@ ifeq ($(ARCH),x86_64)
 	LD = ld
     ARCH_DIR := kernel/arch/x86_64
     ASFLAGS := -f elf64 -g -F dwarf
-    CCFLAGS := -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone
+    CCFLAGS := -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Ibase/usr/include/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone
     LDFLAGS := -m elf_x86_64 -Tkernel/arch/x86_64/linker.ld -z noexecstack
     QEMUFLAGS := -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -drive file=bin/$(IMAGE_NAME).hdd,format=raw
 else ifeq ($(ARCH),riscv64)
@@ -20,7 +20,7 @@ else ifeq ($(ARCH),riscv64)
 	LD = riscv64-elf-ld
     ARCH_DIR := kernel/arch/riscv
     ASFLAGS :=
-    CCFLAGS := -mcmodel=medany -ffreestanding -Wall -Wextra -nostdlib -Iinclude/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto
+    CCFLAGS := -mcmodel=medany -ffreestanding -Wall -Wextra -nostdlib -Ibase/usr/include/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto
     LDFLAGS := -m elf64lriscv -Tkernel/arch/riscv/linker.ld -z noexecstack
     QEMUFLAGS := -machine virt -bios none -kernel bin/$(IMAGE_NAME).elf -mon chardev=mon0,mode=readline,id=mon0 -chardev null,id=mon0 -display gtk
 else
@@ -151,8 +151,7 @@ endif
 
 .PHONY: hdd
 hdd:
-	@mkdir -p bin/base/usr/include
-	@cp -r base bin/base
+	@cp -r base bin/
 	@cp -r /opt/mlibc/include bin/base/usr/
 	@genext2fs -d bin/base -b 65536 -L bentobox bin/$(IMAGE_NAME).hdd 2>&1 >/dev/null | grep -v copying | cat
 
