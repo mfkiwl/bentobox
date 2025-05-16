@@ -48,6 +48,8 @@ void vga_puts(const char *str) {
 }
 
 void vga_putchar(const char c) {
+    vga_toggle_cursor();
+
     if (vga_ansi_index >= 16) {
         vga_ansi_index = 0;
         memset(vga_ansi_code, 0, sizeof(vga_ansi_code));
@@ -58,6 +60,7 @@ void vga_putchar(const char c) {
             case '[':
                 vga_ansi_code[1] = '[';
                 vga_ansi_index = 2;
+                vga_toggle_cursor();
                 return;
             case 'J':
                 if (vga_ansi_code[2] == '2') {
@@ -65,12 +68,12 @@ void vga_putchar(const char c) {
                 }
                 vga_ansi_index = 0;
                 memset(vga_ansi_code, 0, sizeof(vga_ansi_code));
+                vga_toggle_cursor();
                 return;
             case 'H':
                 vga_x = 0, vga_y = 0, vga_ansi_index = 0;
-                vga_update_cursor();
                 memset(vga_ansi_code, 0, sizeof(vga_ansi_code));
-                return;
+                break;
             case 'm':
                 vga_ansi_code[vga_ansi_index] = 0;
                 vga_ansi_index = 0;
@@ -83,9 +86,11 @@ void vga_putchar(const char c) {
                     vga_color = (vga_color & 0x0F) | ((ansi_to_vga(code) & 0x0F) << 4);
                 }
                 memset(vga_ansi_code, 0, sizeof(vga_ansi_code));
+                vga_toggle_cursor();
                 return;
             default:
                 vga_ansi_code[vga_ansi_index++] = c;
+                vga_toggle_cursor();
                 return;
         }
     }
@@ -108,7 +113,6 @@ void vga_putchar(const char c) {
             vga_x = 0;
             break;
         case '\t':
-            vga_puts("    ");
             break;
         default:
             vga_buffer[vga_y * 80 + vga_x] = (vga_color << 8) | c;
@@ -124,7 +128,7 @@ void vga_putchar(const char c) {
     if (vga_y >= 25)
         vga_scroll();
 
-    vga_update_cursor();
+    vga_toggle_cursor();
 }
 
 void vga_scroll(void) {
@@ -135,23 +139,21 @@ void vga_scroll(void) {
     vga_y--;
 }
 
-void vga_enable_cursor(void) {
-    outb(0x3D4, 0x0A);
-    outb(0x3D5, (inb(0x3D5) & 0xC0) | (16 - CURSOR_SIZE));
-    outb(0x3D4, 0x0B);
-    outb(0x3D5, (inb(0x3D5) & 0xE0) | 15);
-}
-
 void vga_disable_cursor(void) {
     outb(0x3D4, 0x0A);
     outb(0x3D5, 0x20);
 }
 
-void vga_update_cursor(void) {
-	uint16_t pos = vga_y * 80 + vga_x;
- 
-	outb(0x3D4, 0x0F);
-	outb(0x3D5, pos & 0xFF);
-	outb(0x3D4, 0x0E);
-	outb(0x3D5, (pos >> 8) & 0xFF);
+void vga_toggle_cursor(void) {
+    static _Bool first = 1;
+    if (first) {
+        first = 0;
+        return;
+    }
+
+    uint8_t high = vga_buffer[vga_y * 80 + vga_x] >> 8, low = vga_buffer[vga_y * 80 + vga_x] & 0xFF;
+
+    uint8_t swapped = (high << 4) | (high >> 4);
+
+    vga_buffer[vga_y * 80 + vga_x] = (swapped << 8) | low;
 }

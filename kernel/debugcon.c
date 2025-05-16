@@ -19,7 +19,7 @@ void debugcon_entry(void) {
 
         if (!input[0]) {
             continue;
-        } else if (!strncmp(input, "clear", 6)) {
+        } else if (!strncmp(input, "clear\n", 6)) {
             fprintf(stdout, "\033[2J\033[H");
             continue;
         } else if (!strncmp(input, "ls", 2)) {
@@ -62,7 +62,7 @@ void debugcon_entry(void) {
             }
             fprintf(stdout, "\033[0m\n");
             continue;
-        } else if (!strncmp(input, "ps", 3)) {
+        } else if (!strncmp(input, "ps\n", 3)) {
             struct task *i = this_core()->current_proc;
             do {
                 printf("%d %s\n", i->pid, i->name);
@@ -85,9 +85,9 @@ void debugcon_entry(void) {
             continue;
         } else if (!strncmp(input, ".", 1)) {
             elf_exec(input + 1);
-        } else if (!strncmp(input, "exit", 5)) {
+        } else if (!strncmp(input, "exit\n", 5)) {
             break;
-        } else if (!strncmp(input, "ram", 4)) {
+        } else if (!strncmp(input, "ram\n", 4)) {
             printf("Total memory: %lu\n", mmu_usable_mem / 1024);
             printf("Used pages: %lu\n", mmu_used_pages);
             printf("Free pages: %lu\n", mmu_page_count - mmu_used_pages);

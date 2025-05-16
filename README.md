@@ -99,7 +99,8 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] Implement a VMA
 - [ ] Support NX bit
 - [X] Fix VMA
-- [ ] Fix read()
+- [X] Fix read()
+- [ ] TSC timing
 
 ## Screenshot
 ![image](https://github.com/user-attachments/assets/8829074f-8e42-47a8-b2aa-e2340813cc8e)

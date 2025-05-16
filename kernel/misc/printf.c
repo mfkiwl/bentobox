@@ -115,33 +115,7 @@ int fprintf(int stream, const char *fmt, ...) {
 }
 
 char *fgets(char *str, int n, int stream) {
-    int i = 0;
-    while (i < n) {
-        vfs_read(this_core()->current_proc->fd_table[stream].node, str + i, 0, 1);
-
-        switch (str[i]) {
-            case '\0':
-                break;
-            case '\n':
-            case '\r':
-                fprintf(stdout, "\n");
-                str[i] = '\0';
-                return str;
-            case '\b':
-            case 127:
-                if (i > 0) {
-                    fprintf(stdout, "\b \b");
-                    str[i] = '\0';
-                    i--;
-                }
-                break;
-            default:
-                fprintf(stdout, "%c", str[i]);
-                i++;
-                break;
-        }
-    }
-
+    vfs_read(this_core()->current_proc->fd_table[stream].node, str, 0, n);
     return str;
 }
 

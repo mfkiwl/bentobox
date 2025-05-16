@@ -120,6 +120,7 @@ void mubsan_log(const char* fmt, ...) {
 }
 
 void kmain(void *mboot_info, uint32_t mboot_magic) {
+    vga_clear();
     serial_install();
     
     dprintf("%s %d.%d-%s %s %s %s\n",

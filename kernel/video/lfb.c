@@ -16,15 +16,13 @@ void lfb_initialize(void) {
     struct multiboot_tag_framebuffer *fb = mboot2_find_tag(mboot, MULTIBOOT_TAG_TYPE_FRAMEBUFFER);
 
     if (!fb || fb->common.framebuffer_addr == 0xB8000) {
-        dprintf("%s:%d: framebuffer not found, falling back to VGA text mode...\n", __FILE__, __LINE__);
-        vga_clear();
-        vga_enable_cursor();
+        dprintf("%s:%d: framebuffer not found\n", __FILE__, __LINE__);
+        vga_disable_cursor();
         return;
     }
     dprintf("%s:%d: found framebuffer at 0x%p\n", __FILE__, __LINE__, fb->common.framebuffer_addr);
 
     mmu_map_pages((ALIGN_UP((fb->common.framebuffer_pitch * fb->common.framebuffer_height), PAGE_SIZE) / PAGE_SIZE), VIRTUAL(fb->common.framebuffer_addr), (void *)fb->common.framebuffer_addr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    //memset((void *)fb->common.framebuffer_addr, 0x00, fb->common.framebuffer_pitch * fb->common.framebuffer_height);
 
     lfb.addr = (uint64_t)VIRTUAL(fb->common.framebuffer_addr);
     lfb.width = fb->common.framebuffer_width;
