@@ -61,8 +61,12 @@ run-gdb: all
 
 .PHONY: mlibc-setup
 mlibc-setup:
-	cd mlibc && meson setup build --cross-file ../crossfile.txt -Dheaders_only=false -Ddefault_library=static -Dbuild_tests=false -Dposix_option=disabled -Dlinux_option=disabled -Dglibc_option=disabled -Dbsd_option=disabled --wipe
+	cd mlibc && meson setup build --cross-file ../crossfile.txt -Dheaders_only=false -Ddefault_library=static -Dbuild_tests=false -Dposix_option=enabled -Dlinux_option=disabled -Dglibc_option=enabled -Dbsd_option=enabled -Dprefix=/opt/mlibc/ --wipe
 	make mlibc
+
+.PHONY: mlibc-headers
+mlibc-headers:
+	cd mlibc && ninja -C build install
 
 .PHONY: mlibc
 mlibc:
@@ -147,7 +151,10 @@ endif
 
 .PHONY: hdd
 hdd:
-	@genext2fs -d base -b 65536 -L bentobox bin/$(IMAGE_NAME).hdd 2>&1 >/dev/null | grep -v copying | cat
+	@mkdir -p bin/base/usr/include
+	@cp -r base bin/base
+	@cp -r /opt/mlibc/include bin/base/usr/
+	@genext2fs -d bin/base -b 65536 -L bentobox bin/$(IMAGE_NAME).hdd 2>&1 >/dev/null | grep -v copying | cat
 
 .PHONY: clean
 clean:

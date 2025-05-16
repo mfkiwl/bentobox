@@ -9,27 +9,26 @@ S_SRCS = $(wildcard *.S)
 C_EXES = $(C_SRCS:.c=)
 S_EXES = $(S_SRCS:.S=)
 
-# Mlibc stuff
-MLIBC_INCLUDE = -I../mlibc/ -I../mlibc/build/ -I../mlibc/options/ansi/libmlibc-musl-math.a.p -I../mlibc/options/ansi -I../mlibc/options/ansi -I../mlibc/options/internal/include -I../mlibc/options/elf/include -I../mlibc/options/lsb/include -I../mlibc/options/rtld/include -I../mlibc/options/rtld/x86_64 -I../mlibc/options/internal/x86_64-I../mlibc/nclude -I../mlibc/sysdeps/generic-helpers/include -I../mlibc/sysdeps/bentobox/include -I../mlibc/options/ansi/include -I../mlibc/subprojects/freestnd-c-hdrs/x86_64/include -I../mlibc/subprojects/freestnd-cxx-hdrs/x86_64/include -I../mlibc/subprojects/frigg/include
-MLIBC_OBJ = ../mlibc/build/sysdeps/bentobox/crt0.o ../mlibc/build/sysdeps/bentobox/crti.o ../mlibc/build/sysdeps/bentobox/crtn.o ../mlibc/build/libc.a
+SYSROOT = /opt/mlibc
+OBJ = $(SYSROOT)/lib/crt0.o $(SYSROOT)/lib/crti.o $(SYSROOT)/lib/crtn.o $(SYSROOT)/lib/libc.a
 
 # Flags
-CFLAGS = -ffreestanding -nostdlib -fno-pic -nostdlib -fno-stack-protector -mcmodel=large -mno-sse -mno-sse2 -mno-mmx $(MLIBC_INCLUDE)
+CFLAGS = -I$(SYSROOT)/include -ffreestanding -nostdlib -fno-pic -fno-stack-protector -mcmodel=large
 ASFLAGS = -f elf64
 LDFLAGS =
 
 # Output directory
-OUT = ../base/bin
+OUT = ../bin/base/bin
 
 all: dirs $(addprefix $(OUT)/, $(S_EXES)) $(addprefix $(OUT)/, $(C_EXES))
 
 dirs:
-	@mkdir -p ../base/bin
+	@mkdir -p $(OUT)
 
 $(OUT)/%: %.c
 	@echo " CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@.o
-	@$(LD) $(LDFLAGS) $@.o $(MLIBC_OBJ) -o $@
+	@$(LD) $(LDFLAGS) $@.o $(OBJ) -o $@
 	@rm $@.o
 
 $(OUT)/%: %.S
