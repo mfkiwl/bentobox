@@ -89,7 +89,8 @@ void debugcon_entry(void) {
             kfree(buf);
             continue;
         } else if (!strncmp(input, ".", 1)) {
-            elf_exec(input + 1);
+            char *argv[] = { "hello", "world", "test123", NULL };
+            elf_exec(input + 1, 3, argv, NULL);
         } else if (!strncmp(input, "exit", 5)) {
             sched_kill(this, 0);
         } else if (!strncmp(input, "ram", 4)) {

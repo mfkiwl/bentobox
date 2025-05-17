@@ -1,3 +1,4 @@
+#include "kernel/vfs.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <sys/mman.h>
@@ -5,6 +6,7 @@
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/user.h>
 #include <kernel/mmu.h>
+#include <kernel/assert.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/syscall.h>
@@ -44,7 +46,6 @@ long sys_gettid(struct registers *r) {
 long sys_arch_prctl(struct registers *r) {
     switch (r->rdi) {
         case 0x1002: /* ARCH_SET_FS */
-            // TODO: restore fs on context switches
             wrmsr(IA32_FS_BASE, r->rsi);
             this->fs = r->rsi;
             break;
@@ -63,17 +64,20 @@ long sys_mmap(struct registers *r) {
     int fd = r->r8;
     off_t offset = r->r9;
 
-    (void)prot;
-    (void)flags;
-    (void)fd;
-    (void)offset;
-
-    // TODO: properly implement this messy shit code
+    uint64_t vma_flags = PTE_USER;
+    if (prot & PROT_READ) vma_flags |= PTE_PRESENT;
+    if (prot & PROT_WRITE) vma_flags |= PTE_WRITABLE;
 
     size_t pages = ALIGN_UP(length, PAGE_SIZE) / PAGE_SIZE;
 
     if (addr == NULL) {
-        addr = vma_map(this->vma, pages, 0, 0, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+        addr = vma_map(this->vma, pages, 0, 0, vma_flags);
+    }
+
+    if (flags & MAP_ANONYMOUS) {
+        if (offset != 0 || fd != -1) {
+            return -EINVAL;
+        }
         memset(addr, 0, length);
     }
 
@@ -98,21 +102,49 @@ long sys_ioctl(struct registers *r) {
     }
 }
 
-long sys_lseek(struct registers *r) {
-    int fd = r->rdi;
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
 
-    if (fd < 3) {
+long sys_lseek(struct registers *r) {
+    struct fd *fd = &this->fd_table[r->rdi];
+    off_t offset = r->rsi;
+    int whence = r->rdx;
+
+    if (fd->node->type == VFS_CHARDEVICE) {
         return -ESPIPE;
-    } else {
-        return -EINVAL;
     }
+
+    switch (whence) {
+        case SEEK_SET:
+            fd->offset = offset;
+            break;
+        case SEEK_CUR:
+            fd->offset += offset;
+            break;
+        case SEEK_END:
+            fd->offset = fd->node->size + offset;
+            break;
+    }
+
+    return fd->offset;
+}
+
+long sys_open(struct registers *r) {
+    const char *pathname = (const char *)r->rdi;
+    int flags = r->rsi;
+    mode_t mode = r->rdx;
+    (void)mode;
+
+    return fd_open(pathname, flags);
 }
 
 // [x ... y] = NULL,
 long (*syscalls[256])(struct registers *) = {
     sys_read,
     sys_write,
-    [2 ... 7] = NULL,
+    sys_open,
+    [3 ... 7] = NULL,
     sys_lseek,
     sys_mmap,
     [10 ... 15] = NULL,

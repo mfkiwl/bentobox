@@ -71,4 +71,4 @@ void sched_kill(struct task *proc, int status);
 void sched_idle(void);
 void sched_add_task(struct task *proc, struct cpu *core);
 struct task *sched_new_task(void *entry, const char *name);
-struct task *sched_new_user_task(void *entry, const char *name);
+struct task *sched_new_user_task(void *entry, const char *name, int argc, char *argv[], char *env[]);

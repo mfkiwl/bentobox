@@ -1,4 +1,5 @@
 #pragma once
+#include <stddef.h>
 #include <kernel/vfs.h>
 
 #define stdin  0
@@ -7,8 +8,9 @@
 
 struct fd {
     struct vfs_node *node;
-    uint16_t flags;
-    uint64_t offset;
+    int flags;
+    size_t offset;
 };
 
-struct fd fd_open(struct vfs_node *node, uint16_t flags);
+struct fd fd_new(struct vfs_node *node, int flags);
+int fd_open(const char *path, int flags);

@@ -119,13 +119,13 @@ void vfs_resolve_path(char *s, struct vfs_node *node) {
 }
 
 long vfs_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
-    if (!node) return -1;
+    if (!node || !node->open) return -1;
     if (node->read) return node->read(node, buffer, offset, len);
     return -1;
 }
 
 long vfs_write(struct vfs_node *node, void *buffer, long offset, size_t len) {
-    if (!node) return -1;
+    if (!node || !node->open) return -1;
     if (node->write) return node->write(node, buffer, offset, len);
     return -1;
 }

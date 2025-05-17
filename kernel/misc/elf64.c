@@ -135,7 +135,7 @@ int elf_module(struct multiboot_tag_module *mod) {
     return metadata->init();
 }
 
-int elf_exec(const char *file) {
+int elf_exec(const char *file, int argc, char *argv[], char *env[]) {
     struct vfs_node *fptr = vfs_open(NULL, file);
     if (!fptr) {
         printf("%s:%d: cannot open file \"%s\"\n", __FILE__, __LINE__, file);
@@ -159,7 +159,7 @@ int elf_exec(const char *file) {
         return -1;
     }
 
-    struct task *proc = sched_new_user_task((void *)ehdr->e_entry, file);
+    struct task *proc = sched_new_user_task((void *)ehdr->e_entry, file, argc, argv, env);
 
     sched_lock();
     vmm_switch_pm(proc->pml4);

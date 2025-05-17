@@ -84,15 +84,15 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->pid = max_pid++;
     proc->user = false;
     proc->heap = heap_create();
-    proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
-    proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
-    proc->fd_table[2] = fd_open(vfs_open(vfs_root, "/dev/serial0"), 0);
+    proc->fd_table[0] = fd_new(vfs_open(vfs_root, "/dev/keyboard"), 0);
+    proc->fd_table[1] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
+    proc->fd_table[2] = fd_new(vfs_open(vfs_root, "/dev/serial0"), 0);
     proc->vma = NULL;
 
     return proc;
 }
 
-struct task *sched_new_user_task(void *entry, const char *name) {
+struct task *sched_new_user_task(void *entry, const char *name, int argc, char *argv[], char *env[]) {
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
     memset(proc, 0, sizeof(struct task));
     proc->pml4 = mmu_create_user_pm(proc);
@@ -101,17 +101,41 @@ struct task *sched_new_user_task(void *entry, const char *name) {
     uintptr_t stack_top = 0x00007ffffffff000;
     uintptr_t stack_bottom = stack_top - (USER_STACK_SIZE * PAGE_SIZE);
     uintptr_t stack_bottom_phys = (uintptr_t)mmu_alloc(USER_STACK_SIZE);
+    uintptr_t stack_top_phys = stack_bottom_phys + (USER_STACK_SIZE * PAGE_SIZE);
     uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
     mmu_map_pages(USER_STACK_SIZE, (void *)stack_bottom, (void *)stack_bottom_phys, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
     mmu_map_pages(4, kernel_stack, PHYSICAL(kernel_stack), PTE_PRESENT | PTE_WRITABLE);
 
     memset(VIRTUAL_IDENT(stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE));
+    long depth = 16;
+
+    uint64_t argv_ptrs[argc + 1];
+    argv_ptrs[argc] = 0;
+
+    int i = 0;
+    for (i = 0; i < argc; i++) {
+        depth += ALIGN_UP(strlen(argv[i]), 16);
+        argv_ptrs[i] = (uint64_t)(stack_top - depth);
+        strcpy((char *)VIRTUAL_IDENT(stack_top_phys - depth), argv[i]);
+    }
+
+    depth += 8;
+    *VIRTUAL_IDENT(stack_top_phys - depth) = 0;
+
+    for (i = argc; i >= 0; i--) {
+        depth += 8;
+        *VIRTUAL_IDENT(stack_top_phys - depth) = argv_ptrs[i];
+    }
+
+    depth += 8;
+    *VIRTUAL_IDENT(stack_top_phys - depth) = argc;
+
     asm volatile ("sti" : : : "memory");
     
     proc->ctx.rdi = 0;
     proc->ctx.rsi = 0;
     proc->ctx.rbp = 0;
-    proc->ctx.rsp = stack_top - 32;
+    proc->ctx.rsp = stack_top - depth;
     proc->ctx.rbx = 0;
     proc->ctx.rdx = 0;
     proc->ctx.rcx = 0;
@@ -133,9 +157,9 @@ struct task *sched_new_user_task(void *entry, const char *name) {
     proc->pid = max_pid++;
     proc->user = true;
     proc->heap = heap_create();
-    proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
-    proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
-    proc->fd_table[2] = fd_open(vfs_open(vfs_root, "/dev/serial0"), 0);
+    proc->fd_table[0] = fd_new(vfs_open(vfs_root, "/dev/keyboard"), 0);
+    proc->fd_table[1] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
+    proc->fd_table[2] = fd_new(vfs_open(vfs_root, "/dev/serial0"), 0);
     proc->vma = vma_create();
 
     return proc;

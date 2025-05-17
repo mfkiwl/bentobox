@@ -8,7 +8,7 @@ long sys_read(struct registers *r) {
         return -1;
     }
     if (fd.node->read) {
-        return fd.node->read(fd.node, (void *)r->rsi, 0, r->rdx);
+        return fd.node->read(fd.node, (void *)r->rsi, fd.offset, r->rdx);
     }
     return 0;
 }
@@ -19,7 +19,7 @@ long sys_write(struct registers *r) {
         return -1;
     }
     if (fd.node->write) {
-        return fd.node->write(fd.node, (void *)r->rsi, 0, r->rdx);
+        return fd.node->write(fd.node, (void *)r->rsi, fd.offset, r->rdx);
     }
     return 0;
 }
