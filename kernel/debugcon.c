@@ -75,6 +75,10 @@ void debugcon_entry(void) {
                 printf("cat: cannot access '%s': No such file or directory\n", input + 4);
                 continue;
             }
+            if (file->type == VFS_DIRECTORY) {
+                printf("cat: %s: is a directory\n", input + 4);
+                continue;
+            }
 
             char *buf = kmalloc(file->size);
             int len = vfs_read(file, buf, 0, file->size);

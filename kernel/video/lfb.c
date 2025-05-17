@@ -88,6 +88,8 @@ void lfb_change_font(const char *path) {
     font = kmalloc(file->size);
     vfs_read(file, font, 0, file->size);
 
+    printf("\033[37;44mHello world!\n");
+
     struct psf1_header *psf1 = font;
     struct psf2_header *psf2 = font;
     void *vga = NULL;
@@ -138,14 +140,16 @@ void lfb_change_font(const char *path) {
 
     for (int i = 0; i < grid_size / (signed)sizeof(struct flanterm_fb_char) - 1; i++) {
         if (copy[i].c) {
+            uint32_t bg = ((copy[i].bg >> 24) & 0xFF) ? 0 : copy[i].bg;
             printf("\033[48;2;%d;%d;%dm\033[38;2;%d;%d;%dm%c",
-                (uint8_t)(((copy[i].bg >> 16) & 0xFF) + 1),
-                (uint8_t)(((copy[i].bg >> 16) & 0xFF) + 1),
-                (uint8_t)((copy[i].bg & 0xFF) + 1),
+                (bg >> 16) & 0xFF,
+                (bg >> 8) & 0xFF,
+                bg & 0xFF,
                 (copy[i].fg >> 16) & 0xFF, (copy[i].fg >> 8) & 0xFF, copy[i].fg & 0xFF,
                 copy[i].c);
         }
     }
+
     kfree(copy);
     vfs_close(file);
 
