@@ -1,6 +1,8 @@
 #include "kernel/arch/x86_64/smp.h"
 #include "kernel/arch/x86_64/vmm.h"
+#include "kernel/malloc.h"
 #include "kernel/sched.h"
+#include "kernel/vma.h"
 #include <stdbool.h>
 #include <kernel/mmu.h>
 #include <kernel/elf64.h>
@@ -136,6 +138,7 @@ int elf_module(struct multiboot_tag_module *mod) {
 }
 
 int elf_exec(const char *file, int argc, char *argv[], char *env[]) {
+    // rename to elf_spawn?
     struct vfs_node *fptr = vfs_open(NULL, file);
     if (!fptr) {
         printf("%s:%d: cannot open file \"%s\"\n", __FILE__, __LINE__, file);
@@ -204,6 +207,96 @@ int elf_exec(const char *file, int argc, char *argv[], char *env[]) {
     
     kfree(buffer);
     sched_add_task(proc, NULL);
+    sched_yield();
+    return 0;
+}
+
+int exec(const char *file, int argc, char *const argv[], char *const env[]) {
+    struct vfs_node *fptr = vfs_open(NULL, file);
+    if (!fptr) {
+        printf("%s:%d: cannot open file \"%s\"\n", __FILE__, __LINE__, file);
+        return -1;
+    }
+
+    void *buffer = kmalloc(fptr->size);
+    vfs_read(fptr, buffer, 0, fptr->size);
+    
+    Elf64_Ehdr *ehdr = (Elf64_Ehdr *)buffer;
+
+    if (memcmp(ehdr->e_ident, "\x7f""ELF", 4)) {
+        printf("%s:%d: invalid elf file\n", __FILE__, __LINE__);
+        kfree(buffer);
+        return -1;
+    }
+
+    if (ehdr->e_ident[EI_CLASS] != ELFCLASS64) {
+        printf("%s:%d: unsupported elf class\n", __FILE__, __LINE__);
+        kfree(buffer);
+        return -1;
+    }
+
+    struct task *proc = this;
+    kfree(this->name);
+    this->name = kmalloc(strlen(argv[0]) + 1);
+    strcpy(this->name, argv[0]);
+    heap_delete(this->heap);
+    vma_destroy(this->vma);
+    if (this->sections[0].length > 0) {
+        for (int i = 0; this->sections[i].length; i++) {
+            mmu_free((void *)mmu_get_physical(this->pml4, this->sections[i].ptr), ALIGN_UP(this->sections[i].length, PAGE_SIZE) / PAGE_SIZE);
+            mmu_unmap_pages(ALIGN_UP(this->sections[i].length, PAGE_SIZE) / PAGE_SIZE, (void *)this->sections[i].ptr);
+            this->sections[i].length = 0;
+        }
+    }
+    
+    this->heap = heap_create();
+    this->vma = vma_create();
+    this->ctx.rsp = 0x00007ffffffff000 - 32; // TODO: push arguments onto stack
+    this->ctx.rip = ehdr->e_entry;
+    this->state = FRESH;
+    memset(VIRTUAL_IDENT(this->stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE));
+
+    sched_lock();
+    dprintf("%s:%d: mapping sections\n", __FILE__, __LINE__);
+
+    // TODO: maybe make this into a separate function? copy pasting it is ultra ugly    
+    Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
+
+    int i, section = 0;
+    for (i = 0; i < ehdr->e_phnum; i++) {
+        if (phdr[i].p_type == PT_LOAD) {
+            if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
+                continue;
+
+            size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
+
+            for (size_t page = 0; page < pages; page++) {
+                void *paddr = mmu_alloc(1);
+                void *vaddr = (void *)(phdr[i].p_vaddr + page * PAGE_SIZE);
+
+                mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+            }
+
+            proc->sections[section].ptr = phdr[i].p_vaddr;
+            proc->sections[section].length = pages * PAGE_SIZE;
+            section++;
+
+            if (phdr[i].p_filesz > 0) {
+                uintptr_t src = (uintptr_t)(uintptr_t)buffer + phdr[i].p_offset;
+                uintptr_t dest = phdr[i].p_vaddr;
+
+                memcpy((void *)dest, (void *)src, phdr[i].p_filesz);
+            }
+
+            if (phdr[i].p_memsz > phdr[i].p_filesz) {
+                memset((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
+            }
+        }
+    }
+
+    sched_unlock();
+    
+    kfree(buffer);
     sched_yield();
     return 0;
 }

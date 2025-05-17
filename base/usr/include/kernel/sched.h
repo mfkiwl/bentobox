@@ -11,13 +11,16 @@
 #include <kernel/elf64.h>
 #include <kernel/malloc.h>
 
+#define USER_STACK_SIZE 256
+
 // TODO: rename to SCHED_*
 enum task_state {
     RUNNING,
     PAUSED,
     SLEEPING,
     KILLED,
-    FREEABLE
+    FREEABLE,
+    FRESH
 };
 
 struct task_time {

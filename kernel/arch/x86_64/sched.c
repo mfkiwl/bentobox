@@ -16,8 +16,6 @@
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
-#define USER_STACK_SIZE 256
-
 // TODO: implement task threading
 
 long max_pid = 0, next_cpu = 0;
@@ -169,7 +167,10 @@ void sched_schedule(struct registers *r) {
     sched_lock();
 
     if (this) {
-        memcpy(&(this->ctx), r, sizeof(struct registers));
+        if (this->state != FRESH)
+            memcpy(&(this->ctx), r, sizeof(struct registers));
+        else
+            this->state = RUNNING;
         this->gs = read_kernel_gs();
         asm volatile ("fxsave %0 " : : "m"(this->fxsave));
     } else {
@@ -273,10 +274,10 @@ void sched_cleaner(void) {
             mmu_unmap_pages(4, (void *)proc->kernel_stack_bottom);
             mmu_free((void *)proc->stack_bottom_phys, USER_STACK_SIZE);
             mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4);
-            mmu_destroy_user_pm(proc->pml4);
             kfree(proc->name);
             heap_delete(proc->heap);
             vma_destroy(proc->vma);
+            mmu_destroy_user_pm(proc->pml4);
             sched_unlock();
         } else {
             mmu_unmap_pages(4, (void *)proc->stack_bottom);

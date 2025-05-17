@@ -63,7 +63,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
     - [X] TSS
     - [X] Ring 3 in the scheduler
     - [X] Syscall handler
-    - [ ] Port a libc
+    - [X] Port a libc
 - [X] ELF loading
 - [X] Symbol table
 - [ ] Initial filesystem
@@ -72,7 +72,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] FIFO queues
 - [ ] Write a more efficient heap
 - [ ] Make an OS specific toolchain
-- [ ] 64-bit VFS
+- [X] 64-bit VFS
 - [X] Module metadata headers
 - [X] Allow use of symbols in debugcon.c
 - [X] Use spinlocks in FIFO queues and mutexes in the ATA driver
@@ -101,6 +101,8 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] Fix VMA
 - [X] Fix read()
 - [ ] TSC timing
+- [X] exec() (needs cleanup)
+- [ ] fork()
 
 ## Screenshot
 ![image](https://github.com/user-attachments/assets/8829074f-8e42-47a8-b2aa-e2340813cc8e)

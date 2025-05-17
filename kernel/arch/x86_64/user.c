@@ -139,6 +139,18 @@ long sys_open(struct registers *r) {
     return fd_open(pathname, flags);
 }
 
+long sys_execve(struct registers *r) {
+    const char *pathname = (const char *)r->rdi;
+    char *const *argv = (char *const *)r->rsi;
+    char *const *envp = (char *const *)r->rdx;
+    
+    int argc;
+    for (argc = 0; argv[argc]; argc++);
+
+    exec(pathname, argc, argv, envp);
+    return 0;
+}
+
 // [x ... y] = NULL,
 long (*syscalls[256])(struct registers *) = {
     sys_read,
@@ -149,7 +161,8 @@ long (*syscalls[256])(struct registers *) = {
     sys_mmap,
     [10 ... 15] = NULL,
     sys_ioctl,
-    [17 ... 59] = NULL,
+    [17 ... 58] = NULL,
+    sys_execve,
     sys_exit,
     [61 ... 157] = NULL,
     sys_arch_prctl,
