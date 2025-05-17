@@ -141,46 +141,44 @@ struct task *sched_new_user_task(void *entry, const char *name) {
 void sched_schedule(struct registers *r) {
     sched_lock();
 
-    struct cpu *this = this_core();
-
-    if (this->current_proc) {
-        memcpy(&(this->current_proc->ctx), r, sizeof(struct registers));
-        this->current_proc->gs = read_kernel_gs();
-        asm volatile ("fxsave %0 " : : "m"(this->current_proc->fxsave));
+    if (this) {
+        memcpy(&(this->ctx), r, sizeof(struct registers));
+        this->gs = read_kernel_gs();
+        asm volatile ("fxsave %0 " : : "m"(this->fxsave));
     } else {
-        this->current_proc = this->processes;
+        this = process_list;
     }
 
     size_t hpet_ticks = hpet_get_ticks();
-    if (this->current_proc->state == RUNNING)
-        this->current_proc->time.last = hpet_ticks - this->current_proc->time.start;
+    if (this->state == RUNNING)
+        this->time.last = hpet_ticks - this->time.start;
 
-    if (!this->current_proc->next) {
-        this->current_proc = this->processes;
+    if (!this->next) {
+        this = process_list;
     } else {
-        this->current_proc = this->current_proc->next;
+        this = this->next;
     }
 
-    while (this->current_proc->state != RUNNING) {
-        if (this->current_proc->state == PAUSED
-         && hpet_ticks >= this->current_proc->time.end) {
-            this->current_proc->state = RUNNING;
-            this->current_proc->time.last = this->current_proc->time.end - this->current_proc->time.start;
+    while (this->state != RUNNING) {
+        if (this->state == PAUSED
+         && hpet_ticks >= this->time.end) {
+            this->state = RUNNING;
+            this->time.last = this->time.end - this->time.start;
             break;
         }
 
-        this->current_proc = this->current_proc->next;
+        this = this->next;
     }
 
-    this->current_proc->time.start = hpet_ticks;
+    this->time.start = hpet_ticks;
 
-    memcpy(r, &(this->current_proc->ctx), sizeof(struct registers));
-    if (this_core()->pml4 != this->current_proc->pml4)
-        vmm_switch_pm(this->current_proc->pml4);
-    write_kernel_gs((uint64_t)this->current_proc);
-    set_kernel_stack(this->current_proc->kernel_stack);
-    asm volatile ("fxrstor %0 " : : "m"(this->current_proc->fxsave));
-    wrmsr(IA32_FS_BASE, this->current_proc->fs);
+    memcpy(r, &(this->ctx), sizeof(struct registers));
+    if (this_core()->pml4 != this->pml4)
+        vmm_switch_pm(this->pml4);
+    write_kernel_gs((uint64_t)this);
+    set_kernel_stack(this->kernel_stack);
+    asm volatile ("fxrstor %0 " : : "m"(this->fxsave));
+    wrmsr(IA32_FS_BASE, this->fs);
 
     sched_unlock();
 }
@@ -191,7 +189,7 @@ void sched_yield(void) {
 }
 
 void sched_block(enum task_state reason) {
-    this_core()->current_proc->state = reason;
+    this->state = reason;
     sched_yield();
 }
 
@@ -200,7 +198,7 @@ void sched_unblock(struct task *proc) {
 }
 
 void sched_sleep(int us) {
-    this_core()->current_proc->time.end = hpet_get_ticks() + us * (hpet_period / 1000000);
+    this->time.end = hpet_get_ticks() + us * (hpet_period / 1000000);
     sched_block(PAUSED);
 }
 
@@ -217,7 +215,7 @@ void sched_kill(struct task *proc, int status) {
     sched_unblock(this_core()->cleaner_proc);
     sched_unlock();
 
-    if (proc == this_core()->current_proc) {
+    if (proc == this) {
         sched_yield();
         __builtin_unreachable();
     }

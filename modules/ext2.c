@@ -193,7 +193,7 @@ void ext2_read_inode_blocks(ext2_fs *fs, ext2_inode *in, uint8_t *buf, uint32_t 
     }
 }
 
-int32_t ext2_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
+long ext2_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
     uint8_t in[ext2fs.inode_size];
     ext2_inode *inode = (ext2_inode *)in;
     ext2_read_inode(&ext2fs, node->inode, inode);
@@ -272,8 +272,7 @@ void ext2_mount(ext2_fs *fs, struct vfs_node *parent, uint32_t inode_num) {
 }
 
 int init() {
-    extern char load_addr[];
-    dprintf("%s:%d: ext2 driver v1.0 @ 0x%lx\n", __FILE__, __LINE__, &load_addr);
+    dprintf("%s:%d: starting ext2 driver\n", __FILE__, __LINE__);
 
     hda = vfs_open(NULL, "/dev/hda");
 

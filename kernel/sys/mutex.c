@@ -12,15 +12,14 @@ void mutex_init(mutex_t *m) {
 }
 
 void mutex_lock(mutex_t *m) {
-    struct cpu *this = this_core();
-    if (!this->current_proc) return;
+    if (!this) return;
 
     for (;;) {
         acquire(&m->lock);
 
         if (!m->locked) {
             m->locked = 1;
-            m->owner = this->current_proc;
+            m->owner = this;
             release(&m->lock);
             return;
         }
@@ -28,7 +27,7 @@ void mutex_lock(mutex_t *m) {
         mutex_list_t *i = m->queue;
         int already_queued = 0;
         while (i) {
-            if (i->proc == this->current_proc) {
+            if (i->proc == this) {
                 already_queued = 1;
                 break;
             }
@@ -37,7 +36,7 @@ void mutex_lock(mutex_t *m) {
 
         if (!already_queued) {
             mutex_list_t *node = kmalloc(sizeof(mutex_list_t));
-            node->proc = this->current_proc;
+            node->proc = this;
             node->next = NULL;
 
             if (!m->queue) {
@@ -56,9 +55,8 @@ void mutex_lock(mutex_t *m) {
 
 void mutex_unlock(mutex_t *m) {
     acquire(&m->lock);
-    struct cpu *this = this_core();
 
-    if (!this->current_proc || m->owner != this->current_proc) {
+    if (!this || m->owner != this) {
         release(&m->lock);
         return;
     }

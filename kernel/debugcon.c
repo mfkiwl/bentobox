@@ -16,11 +16,12 @@ void debugcon_entry(void) {
         fprintf(stdout, "# ");
         memset(input, 0, sizeof(input));
         fgets(input, sizeof(input), stdin);
+        *strchr(input, '\n') = '\0';
 
         if (!input[0]) {
             continue;
-        } else if (!strncmp(input, "clear\n", 6)) {
-            fprintf(stdout, "\033[2J\033[H");
+        } else if (!strncmp(input, "clear", 6)) {
+            fprintf(stdout, "\033[H\033[2J");
             continue;
         } else if (!strncmp(input, "ls", 2)) {
             struct vfs_node *dir = vfs_open(NULL, input + 3);
@@ -62,12 +63,12 @@ void debugcon_entry(void) {
             }
             fprintf(stdout, "\033[0m\n");
             continue;
-        } else if (!strncmp(input, "ps\n", 3)) {
-            struct task *i = this_core()->current_proc;
+        } else if (!strncmp(input, "ps", 3)) {
+            struct task *i = this;
             do {
                 printf("%d %s\n", i->pid, i->name);
                 i = i->next;
-            } while (i != this_core()->current_proc);
+            } while (i != this);
         } else if (!strncmp(input, "cat ", 4)) {
             struct vfs_node *file = vfs_open(NULL, input + 4);
             if (!file) {
@@ -85,10 +86,10 @@ void debugcon_entry(void) {
             continue;
         } else if (!strncmp(input, ".", 1)) {
             elf_exec(input + 1);
-        } else if (!strncmp(input, "exit\n", 5)) {
-            break;
-        } else if (!strncmp(input, "ram\n", 4)) {
-            printf("Total memory: %lu\n", mmu_usable_mem / 1024);
+        } else if (!strncmp(input, "exit", 5)) {
+            sched_kill(this, 0);
+        } else if (!strncmp(input, "ram", 4)) {
+            printf("Total memory: %luK\n", mmu_usable_mem / 1024);
             printf("Used pages: %lu\n", mmu_used_pages);
             printf("Free pages: %lu\n", mmu_page_count - mmu_used_pages);
         } else {

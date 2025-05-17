@@ -1,9 +1,9 @@
 #include <stdint.h>
-#include <kernel/arch/x86_64/idt.h>
+#include <stddef.h>
 #include <kernel/vfs.h>
 #include <kernel/printf.h>
 
-int32_t console_write(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
+long console_write(struct vfs_node *node, void *buffer, long offset, size_t len) {
     char *buf = (char *)buffer;
     for (uint32_t i = offset; i < len; i++) {
         putchar(buf[i]);

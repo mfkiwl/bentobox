@@ -102,10 +102,8 @@ void isr_handler(struct registers *r) {
     }
     if ((r->cs & 3) == 0x3) {
         fprintf(1, "%s:%d: Segmentation fault\n", __FILE__, __LINE__);
-        //sched_kill(this_core()->current_proc, 11);
-        //sched_lock();
-        //sched_yield();
-        //return;
+        sched_kill(this, 11);
+        return;
     }
 
     faults++;

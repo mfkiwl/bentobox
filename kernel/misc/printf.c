@@ -109,13 +109,13 @@ int fprintf(int stream, const char *fmt, ...) {
     int ret = vsprintf(buf, fmt, args);
     va_end(args);
 
-    vfs_write(this_core()->current_proc->fd_table[stream].node, buf, 0, strlen(buf));
+    vfs_write(this->fd_table[stream].node, buf, 0, strlen(buf));
 
     return ret;
 }
 
 char *fgets(char *str, int n, int stream) {
-    vfs_read(this_core()->current_proc->fd_table[stream].node, str, 0, n);
+    vfs_read(this->fd_table[stream].node, str, 0, n);
     return str;
 }
 

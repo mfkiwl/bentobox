@@ -38,7 +38,7 @@ void user_initialize(void) {
 }
 
 long sys_gettid(struct registers *r) {
-    return this_core()->current_proc->pid;
+    return this->pid;
 }
 
 long sys_arch_prctl(struct registers *r) {
@@ -46,7 +46,7 @@ long sys_arch_prctl(struct registers *r) {
         case 0x1002: /* ARCH_SET_FS */
             // TODO: restore fs on context switches
             wrmsr(IA32_FS_BASE, r->rsi);
-            this_core()->current_proc->fs = r->rsi;
+            this->fs = r->rsi;
             break;
         default:
             dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, r->rdi);
@@ -73,7 +73,7 @@ long sys_mmap(struct registers *r) {
     size_t pages = ALIGN_UP(length, PAGE_SIZE) / PAGE_SIZE;
 
     if (addr == NULL) {
-        addr = vma_map(this_core()->current_proc->vma, pages, 0, 0, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+        addr = vma_map(this->vma, pages, 0, 0, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
         memset(addr, 0, length);
     }
 

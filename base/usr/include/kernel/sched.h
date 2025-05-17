@@ -56,6 +56,9 @@ struct task {
     struct vma_head *vma;
 };
 
+#define this this_core()->current_proc
+#define process_list this_core()->processes
+
 void sched_install(void);
 void sched_start_all_cores(void);
 void sched_yield(void);

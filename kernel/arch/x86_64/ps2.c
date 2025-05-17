@@ -65,7 +65,7 @@ int getchar(void) {
     return c;
 }
 
-int32_t ps2_keyboard_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
+long ps2_keyboard_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
     size_t i = 0;
     char *str = buffer + offset;
     while (i < len) {

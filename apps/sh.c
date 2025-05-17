@@ -1,63 +1,87 @@
-/*
- * bentobox x86_64 userspace shell
- */
-
+#include <ctype.h>
 #include <stdio.h>
-#include <stddef.h>
-#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
-int clear(char input[]);
-int echo(char input[]);
-int help(char input[]);
+int clear_(int argc, char *argv[]) {
+    printf("\033[H\033[J");
+    return 0;
+}
 
-const char *commands[] = {
-    "clear",
-    "echo",
-    "help"
+int exit_(int argc, char *argv[]) {
+    int code = argc > 1 ? atoi(argv[1]) : 0;
+    exit(code);
+    __builtin_unreachable();
+}
+
+struct command {
+    char *name;
+    void *function;
+} commands[] = {
+    {
+        .name = ":",
+        .function = NULL
+    },
+    {
+        .name = "clear",
+        .function = clear_
+    },
+    {
+        .name = "exit",
+        .function = exit_
+    },
 };
+typedef struct command command_t;
 
-const void *handlers[] = {
-    clear,
-    echo,
-    help
-};
-
-int clear(char input[]) {
-    printf("\033[2J\033[H");
-    return 0;
-}
-
-int echo(char input[]) {
-    printf("%s\n", input + 5);
-    return 0;
-}
-
-int help(char input[]) {
-    printf("Commands: ");
-    size_t count = sizeof(handlers) / sizeof(uintptr_t);
-    for (size_t i = 0; i < count; i++) {
-        printf("%s%s", commands[i], i < count - 1 ? ", " : "");
+int count_args(char *str) {
+    int count = 0, in_arg = 0;
+    while (*str) {
+        if (isspace(*str)) {
+            in_arg = 0;
+        } else if (!in_arg) {
+            count++;
+            in_arg = 1;
+        }
+        str++;
     }
-    printf("\n");
-    return 0;
+    return count;
 }
 
-void parse(char input[]) {
-    if (!input[0]) {
-        return;
+void parse_line(char *input) {
+    if (!input[0]) return;
+
+    int argc = count_args(input);
+    char *argv[argc + 1];
+
+    char *p = input;
+    for (int i = 0; i < argc; i++) {
+        while (*p == ' ') p++;
+        if (*p == '\0') break;
+
+        argv[i] = p;
+        p = strchr(p, ' ');
+        if (!p) break;
+        
+        *p++ = 0;
     }
+    argv[argc] = NULL;
 
-    for (size_t i = 0; i < sizeof(handlers) / sizeof(uintptr_t); i++) {
-        if (!strncmp(input, commands[i], strlen(commands[i]))) {
-            void(*handler)() = handlers[i];
-
-            if (handlers[i] != NULL)
-                handler();
+    for (int i = 0; i < sizeof commands / sizeof(command_t); i++) {
+        if (!strncmp(input, commands[i].name, strlen(commands[i].name))) {
+            int (*function)(int argc, char *argv[]) = commands[i].function;
+            if (function) function(argc, argv);
             return;
         }
     }
-    printf("%s: not found\n", input);
+    printf("%s: not found\n", argv[0]);
+}
+
+void parse(char *input) {
+    parse_line(input);
+    char *current = input, *next = NULL;
+    if ((next = strchr(current, ';')) || (next = strchr(current, '\\')) || (next = strchr(current, '\n'))) {
+        printf("line break!\n");
+    }
 }
 
 int main(int argc, char *argv[]) {

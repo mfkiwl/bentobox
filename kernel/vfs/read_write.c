@@ -3,7 +3,7 @@
 #include <kernel/printf.h>
 
 long sys_read(struct registers *r) {
-    struct fd fd = this_core()->current_proc->fd_table[r->rdi];
+    struct fd fd = this->fd_table[r->rdi];
     if (!fd.node) {
         return -1;
     }
@@ -14,7 +14,7 @@ long sys_read(struct registers *r) {
 }
 
 long sys_write(struct registers *r) {
-    struct fd fd = this_core()->current_proc->fd_table[r->rdi];
+    struct fd fd = this->fd_table[r->rdi];
     if (!fd.node) {
         return -1;
     }

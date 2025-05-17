@@ -137,7 +137,7 @@ uint8_t ata_identify(uint16_t base, uint8_t type, char *name) {
     return ATA_OK;
 }
 
-int32_t hda_write(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
+long hda_write(struct vfs_node *node, void *buffer, long offset, size_t len) {
     if (len == 0 || offset % 512 != 0 || len % 512 != 0) {
         return -1;
     }
@@ -148,7 +148,7 @@ int32_t hda_write(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t
     return ata_write(sector, buffer, num_sectors) ? -1 : len;
 }
 
-int32_t hda_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
+long hda_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
     if (len == 0 || offset % 512 != 0 || len % 512 != 0) {
         return -1;
     }
@@ -161,7 +161,7 @@ int32_t hda_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t 
 
 int init() {
     extern char load_addr[];
-    dprintf("%s:%d: ATA driver v1.0 @ 0x%lx\n", __FILE__, __LINE__, &load_addr);
+    dprintf("%s:%d: starting ATA driver\n", __FILE__, __LINE__);
 
     mutex_init(&ata_mutex);
 

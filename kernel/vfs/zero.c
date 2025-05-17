@@ -3,12 +3,12 @@
 #include <kernel/vfs.h>
 #include <kernel/string.h>
 
-int32_t zero_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
+long zero_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
     memset(buffer, 0, len);
     return (int32_t)len;
 }
 
-int32_t null_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
+long null_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
     return 0;
 }
 
