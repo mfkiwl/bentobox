@@ -18,7 +18,7 @@ static void *font = NULL;
 
 static void *lfb_malloc(size_t count) {
     void *ptr = kmalloc(count);
-    dprintf("allocating %d\n", count);
+    /* dirty hacks*/
     if (alloc_n == 0) {
         fb_ctx = ptr;
     }
@@ -88,13 +88,24 @@ void lfb_change_font(const char *path) {
     font = kmalloc(file->size);
     vfs_read(file, font, 0, file->size);
 
-    struct psf1_header *psf = font;
-    void *bitmap = NULL;
-    if (psf->magic[0] == 0x36 &&
-        psf->magic[1] == 0x04) {
-        bitmap = font + sizeof(struct psf1_header);
+    struct psf1_header *psf1 = font;
+    struct psf2_header *psf2 = font;
+    void *vga = NULL;
+    int font_width = 8, font_height = 16;
+
+    if (psf1->magic[0] == 0x36 &&
+        psf1->magic[1] == 0x04) {
+        vga = font + sizeof(struct psf1_header);
+    } else if (
+        psf2->magic[0] == 0x72 &&
+        psf2->magic[1] == 0xb5 &&
+        psf2->magic[2] == 0x4a &&
+        psf2->magic[3] == 0x86) {
+        font_height = psf2->height;
+        font_width = psf2->width;
+        vga = font + psf2->header_size;
     } else {
-        bitmap = font;
+        vga = font;
     }
 
     size_t x = fb_ctx->cursor_x, y = fb_ctx->cursor_y;
@@ -120,7 +131,7 @@ void lfb_change_font(const char *path) {
         NULL, NULL,
         NULL, NULL,
         NULL, NULL,
-        bitmap, 8, 16, 1,
+        vga, font_width, font_height, 1,
         0, 0,
         0
     );
