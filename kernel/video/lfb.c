@@ -1,6 +1,7 @@
 #include <kernel/arch/x86_64/vga.h>
 #include <kernel/mmu.h>
 #include <kernel/lfb.h>
+#include <kernel/psf.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
 #include <kernel/assert.h>
@@ -83,10 +84,18 @@ void lfb_change_font(const char *path) {
     struct vfs_node *file = vfs_open(NULL, path);
     if (!file) return;
 
-    int offset = strstr(path, ".psf") ? 4 : 0;
     if (font) kfree(font);
     font = kmalloc(file->size);
     vfs_read(file, font, 0, file->size);
+
+    struct psf1_header *psf = font;
+    void *bitmap = NULL;
+    if (psf->magic[0] == 0x36 &&
+        psf->magic[1] == 0x04) {
+        bitmap = font + sizeof(struct psf1_header);
+    } else {
+        bitmap = font;
+    }
 
     size_t x = fb_ctx->cursor_x, y = fb_ctx->cursor_y;
     struct flanterm_fb_char *copy = kmalloc(grid_size);
@@ -111,7 +120,7 @@ void lfb_change_font(const char *path) {
         NULL, NULL,
         NULL, NULL,
         NULL, NULL,
-        font + offset, 8, 16, 1,
+        bitmap, 8, 16, 1,
         0, 0,
         0
     );
