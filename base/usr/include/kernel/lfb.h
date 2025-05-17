@@ -1,12 +1,15 @@
 #pragma once
 #include <stdint.h>
+#include <stdatomic.h>
 #include <kernel/flanterm.h>
+#include <kernel/multiboot.h>
 
 struct framebuffer {
     uint64_t addr;
     uint32_t width;
     uint32_t height;
     uint32_t pitch;
+    struct multiboot_tag_framebuffer *fb;
 };
 
 extern struct framebuffer lfb;

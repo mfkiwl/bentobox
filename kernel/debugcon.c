@@ -92,6 +92,9 @@ void debugcon_entry(void) {
             printf("Total memory: %luK\n", mmu_usable_mem / 1024);
             printf("Used pages: %lu\n", mmu_used_pages);
             printf("Free pages: %lu\n", mmu_page_count - mmu_used_pages);
+        } else if (!strncmp(input, "setfont", 7)) {
+            extern void lfb_change_font(const char *);
+            lfb_change_font(input + 8);
         } else {
             fprintf(stdout, "Unknown command: %s\n", input);
         }

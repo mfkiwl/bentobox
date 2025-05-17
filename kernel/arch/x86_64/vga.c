@@ -2,8 +2,9 @@
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/io.h>
 #include <kernel/arch/x86_64/vga.h>
-#include <kernel/spinlock.h>
 #include <kernel/string.h>
+#include <kernel/printf.h>
+#include <kernel/spinlock.h>
 
 #define CURSOR_SIZE 2
 
@@ -145,15 +146,10 @@ void vga_disable_cursor(void) {
 }
 
 void vga_toggle_cursor(void) {
-    static _Bool first = 1;
-    if (first) {
-        first = 0;
-        return;
-    }
-
-    uint8_t high = vga_buffer[vga_y * 80 + vga_x] >> 8, low = vga_buffer[vga_y * 80 + vga_x] & 0xFF;
-
-    uint8_t swapped = (high << 4) | (high >> 4);
-
-    vga_buffer[vga_y * 80 + vga_x] = (swapped << 8) | low;
+    static _Bool skip = 1;
+    if (skip) { skip = 0; return; }
+    
+    uint16_t *cell = &vga_buffer[vga_y * 80 + vga_x];
+    uint8_t attr = *cell >> 8;
+    *cell = (*cell & 0xFF) | (((attr << 4) | (attr >> 4)) << 8);
 }
