@@ -79,12 +79,14 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->stack = (uint64_t)stack + (4 * PAGE_SIZE);
     proc->stack_bottom = (uint64_t)stack;
     proc->gs = 0;
+    proc->fs = 0;
     proc->state = RUNNING;
     proc->pid = max_pid++;
     proc->user = false;
     proc->heap = heap_create();
     proc->fd_table[0] = fd_open(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_open(vfs_open(vfs_root, "/dev/console"), 0);
+    proc->fd_table[2] = fd_open(vfs_open(vfs_root, "/dev/serial0"), 0);
     proc->vma = NULL;
 
     return proc;
@@ -126,6 +128,7 @@ struct task *sched_new_user_task(void *entry, const char *name) {
     proc->kernel_stack = (uint64_t)kernel_stack + (4 * PAGE_SIZE);
     proc->kernel_stack_bottom = (uint64_t)kernel_stack;
     proc->gs = 0;
+    proc->fs = 0;
     proc->state = RUNNING;
     proc->pid = max_pid++;
     proc->user = true;

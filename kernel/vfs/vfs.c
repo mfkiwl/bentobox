@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <stddef.h>
 #include <kernel/vfs.h>
 #include <kernel/malloc.h>
@@ -23,6 +24,7 @@ const char *vfs_types[] = {
 struct vfs_node *vfs_create_node(const char *name, enum vfs_node_type type) {
     struct vfs_node *node = (struct vfs_node *)kmalloc(sizeof(struct vfs_node));
     strcpy(node->name, name);
+    node->open = false;
     node->type = type;
     node->size = 0;
     node->perms = type == VFS_DIRECTORY ? 0755 : 0644;
@@ -32,8 +34,6 @@ struct vfs_node *vfs_create_node(const char *name, enum vfs_node_type type) {
     node->next = NULL;
     node->read = NULL;
     node->write = NULL;
-
-    //dprintf("%s:%d: created node '%s' with type %s\n", __FILE__, __LINE__, name, vfs_types[type]);
     return node;
 }
 
@@ -97,7 +97,14 @@ struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
     return node;
 }
 
-void vfs_get_path(char *s, struct vfs_node *node) {
+int vfs_close(struct vfs_node *node) {
+    uint8_t owner_perms = (node->perms >> 6) & 0x7;
+    if (!(owner_perms & 0x4)) return -EACCES;
+    node->open = false;
+    return 0;
+}
+
+void vfs_resolve_path(char *s, struct vfs_node *node) {
     if (!node) return;
 
     char path[MAX_PATH] = "";
@@ -111,13 +118,13 @@ void vfs_get_path(char *s, struct vfs_node *node) {
     strcpy(s, path);
 }
 
-int32_t vfs_read(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
+long vfs_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
     if (!node) return -1;
     if (node->read) return node->read(node, buffer, offset, len);
     return -1;
 }
 
-int32_t vfs_write(struct vfs_node *node, void *buffer, uint32_t offset, uint32_t len) {
+long vfs_write(struct vfs_node *node, void *buffer, long offset, size_t len) {
     if (!node) return -1;
     if (node->write) return node->write(node, buffer, offset, len);
     return -1;

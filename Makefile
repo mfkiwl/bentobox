@@ -152,7 +152,7 @@ endif
 .PHONY: hdd
 hdd:
 	@cp -r base bin/
-	@cp -r /opt/mlibc/include bin/base/usr/
+#	@cp -r /opt/mlibc/include bin/base/usr/
 	@genext2fs -d bin/base -b 65536 -L bentobox bin/$(IMAGE_NAME).hdd 2>&1 >/dev/null | grep -v copying | cat
 
 .PHONY: clean
