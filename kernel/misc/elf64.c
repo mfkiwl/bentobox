@@ -137,6 +137,40 @@ int elf_module(struct multiboot_tag_module *mod) {
     return metadata->init();
 }
 
+static void elf_load_sections(struct task *proc, Elf64_Ehdr *ehdr, Elf64_Phdr *phdr) {
+    int i, section = 0;
+    for (i = 0; i < ehdr->e_phnum; i++) {
+        if (phdr[i].p_type == PT_LOAD) {
+            if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
+                continue;
+
+            size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
+
+            for (size_t page = 0; page < pages; page++) {
+                void *paddr = mmu_alloc(1);
+                void *vaddr = (void *)(phdr[i].p_vaddr + page * PAGE_SIZE);
+
+                mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+            }
+
+            proc->sections[section].ptr = phdr[i].p_vaddr;
+            proc->sections[section].length = pages * PAGE_SIZE;
+            section++;
+
+            if (phdr[i].p_filesz > 0) {
+                uintptr_t src = (uintptr_t)(uintptr_t)ehdr + phdr[i].p_offset;
+                uintptr_t dest = phdr[i].p_vaddr;
+
+                memcpy((void *)dest, (void *)src, phdr[i].p_filesz);
+            }
+
+            if (phdr[i].p_memsz > phdr[i].p_filesz) {
+                memset((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
+            }
+        }
+    }
+}
+
 int elf_exec(const char *file, int argc, char *argv[], char *env[]) {
     // rename to elf_spawn?
     struct vfs_node *fptr = vfs_open(NULL, file);
@@ -169,38 +203,7 @@ int elf_exec(const char *file, int argc, char *argv[], char *env[]) {
     dprintf("%s:%d: mapping sections\n", __FILE__, __LINE__);
     
     Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
-
-    int i, section = 0;
-    for (i = 0; i < ehdr->e_phnum; i++) {
-        if (phdr[i].p_type == PT_LOAD) {
-            if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
-                continue;
-
-            size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
-
-            for (size_t page = 0; page < pages; page++) {
-                void *paddr = mmu_alloc(1);
-                void *vaddr = (void *)(phdr[i].p_vaddr + page * PAGE_SIZE);
-
-                mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-            }
-
-            proc->sections[section].ptr = phdr[i].p_vaddr;
-            proc->sections[section].length = pages * PAGE_SIZE;
-            section++;
-
-            if (phdr[i].p_filesz > 0) {
-                uintptr_t src = (uintptr_t)(uintptr_t)buffer + phdr[i].p_offset;
-                uintptr_t dest = phdr[i].p_vaddr;
-
-                memcpy((void *)dest, (void *)src, phdr[i].p_filesz);
-            }
-
-            if (phdr[i].p_memsz > phdr[i].p_filesz) {
-                memset((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
-            }
-        }
-    }
+    elf_load_sections(proc, ehdr, phdr);
 
     vmm_switch_pm(kernel_pd);
     sched_unlock();
@@ -258,41 +261,9 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
 
     sched_lock();
     dprintf("%s:%d: mapping sections\n", __FILE__, __LINE__);
-
-    // TODO: maybe make this into a separate function? copy pasting it is ultra ugly    
+ 
     Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
-
-    int i, section = 0;
-    for (i = 0; i < ehdr->e_phnum; i++) {
-        if (phdr[i].p_type == PT_LOAD) {
-            if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
-                continue;
-
-            size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
-
-            for (size_t page = 0; page < pages; page++) {
-                void *paddr = mmu_alloc(1);
-                void *vaddr = (void *)(phdr[i].p_vaddr + page * PAGE_SIZE);
-
-                mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-            }
-
-            proc->sections[section].ptr = phdr[i].p_vaddr;
-            proc->sections[section].length = pages * PAGE_SIZE;
-            section++;
-
-            if (phdr[i].p_filesz > 0) {
-                uintptr_t src = (uintptr_t)(uintptr_t)buffer + phdr[i].p_offset;
-                uintptr_t dest = phdr[i].p_vaddr;
-
-                memcpy((void *)dest, (void *)src, phdr[i].p_filesz);
-            }
-
-            if (phdr[i].p_memsz > phdr[i].p_filesz) {
-                memset((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
-            }
-        }
-    }
+    elf_load_sections(proc, ehdr, phdr);
 
     sched_unlock();
     

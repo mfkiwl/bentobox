@@ -101,7 +101,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] Fix VMA
 - [X] Fix read()
 - [ ] TSC timing
-- [X] exec() (needs cleanup)
+- [X] exec()
 - [ ] fork()
 
 ## Screenshot
