@@ -141,16 +141,15 @@ static void elf_load_sections(struct task *proc, Elf64_Ehdr *ehdr, Elf64_Phdr *p
     int i, section = 0;
     for (i = 0; i < ehdr->e_phnum; i++) {
         if (phdr[i].p_type == PT_LOAD) {
-            if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
-                continue;
-
             size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
+            uint64_t flags = PTE_PRESENT | PTE_USER;
+            if (phdr[i].p_flags & PF_W) flags |= PTE_WRITABLE;
 
             for (size_t page = 0; page < pages; page++) {
                 void *paddr = mmu_alloc(1);
                 void *vaddr = (void *)(phdr[i].p_vaddr + page * PAGE_SIZE);
 
-                mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+                mmu_map(vaddr, paddr, flags);
             }
 
             proc->sections[section].ptr = phdr[i].p_vaddr;
@@ -171,8 +170,7 @@ static void elf_load_sections(struct task *proc, Elf64_Ehdr *ehdr, Elf64_Phdr *p
     }
 }
 
-int elf_exec(const char *file, int argc, char *argv[], char *env[]) {
-    // rename to elf_spawn?
+int elf_spawn(const char *file, int argc, char *argv[], char *env[]) {
     struct vfs_node *fptr = vfs_open(NULL, file);
     if (!fptr) {
         printf("%s:%d: cannot open file \"%s\"\n", __FILE__, __LINE__, file);
@@ -197,6 +195,7 @@ int elf_exec(const char *file, int argc, char *argv[], char *env[]) {
     }
 
     struct task *proc = sched_new_user_task((void *)ehdr->e_entry, file, argc, argv, env);
+    printf("Spawning PID %d\n", proc->pid);
 
     sched_lock();
     vmm_switch_pm(proc->pml4);
@@ -254,10 +253,34 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     
     this->heap = heap_create();
     this->vma = vma_create();
-    this->ctx.rsp = 0x00007ffffffff000 - 32; // TODO: push arguments onto stack
     this->ctx.rip = ehdr->e_entry;
     this->state = FRESH;
+
+    uintptr_t stack_top_phys = this->stack_bottom_phys + (USER_STACK_SIZE * PAGE_SIZE);
     memset(VIRTUAL_IDENT(this->stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE));
+    long depth = 16;
+
+    uint64_t argv_ptrs[argc + 1];
+    argv_ptrs[argc] = 0;
+
+    int i = 0;
+    for (i = 0; i < argc; i++) {
+        depth += ALIGN_UP(strlen(argv[i]), 16);
+        argv_ptrs[i] = (uint64_t)(USER_STACK_TOP - depth);
+        strcpy((char *)VIRTUAL_IDENT(stack_top_phys - depth), argv[i]);
+    }
+
+    depth += 8;
+    *VIRTUAL_IDENT(stack_top_phys - depth) = 0;
+
+    for (i = argc; i >= 0; i--) {
+        depth += 8;
+        *VIRTUAL_IDENT(stack_top_phys - depth) = argv_ptrs[i];
+    }
+
+    depth += 8;
+    *VIRTUAL_IDENT(stack_top_phys - depth) = argc;
+    this->ctx.rsp = USER_STACK_TOP - depth;
 
     sched_lock();
     dprintf("%s:%d: mapping sections\n", __FILE__, __LINE__);

@@ -47,6 +47,7 @@ void vmm_switch_pm(uintptr_t *pm) {
 uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, bool alloc) {
     if (lvl[entry] & PTE_PRESENT) return VIRTUAL_IDENT(PTE_GET_ADDR(lvl[entry]));
     if (!alloc) {
+        panic("no pml!!\n");
         dprintf("%s:%d: \033[33mwarning:\033[0m couldn't get next pml\n", __FILE__, __LINE__);
         return NULL;
     }
@@ -285,6 +286,82 @@ void vmm_direct_map_huge(uintptr_t *pml4, uintptr_t virt, uintptr_t phys, uint64
     uintptr_t *pd = (uintptr_t *)PTE_GET_ADDR(pdpt[pdpt_index]);
     
     pd[pd_index] = phys | flags | (1 << 7);
+}
+
+uintptr_t *mmu_clone_pagetables(uintptr_t *src) {
+    // Allocate a new PML4 table
+    uintptr_t *pml4 = (uintptr_t *)VIRTUAL_IDENT(mmu_alloc(1));
+    memset(pml4, 0, PAGE_SIZE);
+    
+    // Copy kernel space mappings (entries 256-511)
+    for (int i = 256; i < 512; i++) {
+        pml4[i] = kernel_pd[i];
+    }
+    
+    // Clone user space mappings (entries 0-255)
+    for (int i = 0; i < 256; i++) {
+        if (!(src[i] & PTE_PRESENT))
+            continue;
+            
+        // Allocate a new PDPT
+        uintptr_t *src_pdpt = VIRTUAL_IDENT(PTE_GET_ADDR(src[i]));
+        uintptr_t *pdpt = VIRTUAL_IDENT(mmu_alloc(1));
+        memset(pdpt, 0, PAGE_SIZE);
+        
+        // Set flags from source
+        pml4[i] = (uintptr_t)PHYSICAL_IDENT(pdpt) | (src[i] & 0xFFF);
+        
+        // Copy PDPT entries
+        for (int j = 0; j < 512; j++) {
+            if (!(src_pdpt[j] & PTE_PRESENT))
+                continue;
+                
+            // Check if it's a 1GiB page (PDPT entry with PS bit set)
+            if (src_pdpt[j] & (1 << 7)) {
+                // Copy the huge page mapping directly
+                pdpt[j] = src_pdpt[j];
+                continue;
+            }
+            
+            // Allocate a new PD
+            uintptr_t *src_pd = VIRTUAL_IDENT(PTE_GET_ADDR(src_pdpt[j]));
+            uintptr_t *pd = VIRTUAL_IDENT(mmu_alloc(1));
+            memset(pd, 0, PAGE_SIZE);
+            
+            // Set flags from source
+            pdpt[j] = (uintptr_t)PHYSICAL_IDENT(pd) | (src_pdpt[j] & 0xFFF);
+            
+            // Copy PD entries
+            for (int k = 0; k < 512; k++) {
+                if (!(src_pd[k] & PTE_PRESENT))
+                    continue;
+                    
+                // Check if it's a 2MiB page (PD entry with PS bit set)
+                if (src_pd[k] & (1 << 7)) {
+                    // Copy the huge page mapping directly
+                    pd[k] = src_pd[k];
+                    continue;
+                }
+                
+                // Allocate a new PT
+                uintptr_t *src_pt = VIRTUAL_IDENT(PTE_GET_ADDR(src_pd[k]));
+                uintptr_t *pt = VIRTUAL_IDENT(mmu_alloc(1));
+                memset(pt, 0, PAGE_SIZE);
+                
+                // Set flags from source
+                pd[k] = (uintptr_t)PHYSICAL_IDENT(pt) | (src_pd[k] & 0xFFF);
+                
+                // Copy PT entries (actual page mappings)
+                for (int l = 0; l < 512; l++) {
+                    if (src_pt[l] & PTE_PRESENT) {
+                        pt[l] = src_pt[l];
+                    }
+                }
+            }
+        }
+    }
+    
+    return pml4;
 }
 
 void vmm_install(void) {

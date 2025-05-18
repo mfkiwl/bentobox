@@ -101,7 +101,7 @@ void isr_handler(struct registers *r) {
         return;
     }
     if ((r->cs & 3) == 0x3) {
-        fprintf(1, "%s:%d: Segmentation fault\n", __FILE__, __LINE__);
+        fprintf(1, "%s:%d: Segmentation fault on PID %d\n", __FILE__, __LINE__, this->pid);
         //sched_kill(this, 11);
         //return;
     }
@@ -137,12 +137,15 @@ void isr_handler(struct registers *r) {
             r->error_code & 0x04 ? "user mode" : "kernel mode");
     }
 
+    #include <kernel/arch/x86_64/user.h>
+    dprintf("FS base: 0x%lx\n", rdmsr(IA32_FS_BASE));
+
     struct stackframe *frame_ptr = __builtin_frame_address(0);
 
     dprintf("%s:%d: traceback:\n", __FILE__, __LINE__);
 
     char symbol[256];
-    for (int i = 0; i < 12 && frame_ptr->rbp; i++) {
+    for (int i = 0; i < 10 && frame_ptr->rbp; i++) {
         if (i == 0) {
             elf_symbol_name(symbol, ksymtab, kstrtab, ksym_count, r->rip);
             dprintf("#%d  0x%p in %s\n", i, r->rip, symbol);

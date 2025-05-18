@@ -151,6 +151,11 @@ long sys_execve(struct registers *r) {
     return 0;
 }
 
+long sys_clone(struct registers *r) {
+    extern long fork(struct registers *r);
+    return fork(r);
+}
+
 // [x ... y] = NULL,
 long (*syscalls[256])(struct registers *) = {
     sys_read,
@@ -161,7 +166,9 @@ long (*syscalls[256])(struct registers *) = {
     sys_mmap,
     [10 ... 15] = NULL,
     sys_ioctl,
-    [17 ... 58] = NULL,
+    [17 ... 55] = NULL,
+    sys_clone,
+    [57 ... 58] = NULL,
     sys_execve,
     sys_exit,
     [61 ... 157] = NULL,

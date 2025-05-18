@@ -119,5 +119,5 @@ typedef struct {
 Elf64_Addr elf_symbol_addr(Elf64_Sym *symtab, const char *strtab, int symbol_count, char *str, bool cast);
 int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_count, Elf64_Addr addr);
 int elf_module(struct multiboot_tag_module *mod);
-int elf_exec(const char *file, int argc, char *argv[], char *env[]);
+int elf_spawn(const char *file, int argc, char *argv[], char *env[]);
 int exec(const char *path, int argc, char *const argv[], char *const env[]);

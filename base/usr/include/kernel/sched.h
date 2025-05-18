@@ -12,6 +12,7 @@
 #include <kernel/malloc.h>
 
 #define USER_STACK_SIZE 256
+#define USER_STACK_TOP  0x00007ffffffff000
 
 // TODO: rename to SCHED_*
 enum task_state {

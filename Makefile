@@ -63,10 +63,10 @@ run-gdb: all
 mlibc-setup:
 	cd mlibc && meson setup build --cross-file ../crossfile.txt -Dheaders_only=false -Ddefault_library=static -Dbuild_tests=false -Dposix_option=enabled -Dlinux_option=disabled -Dglibc_option=enabled -Dbsd_option=enabled -Dprefix=/opt/mlibc/ --wipe
 	make mlibc
-	make mlibc-headers
+	make mlibc-install
 
-.PHONY: mlibc-headers
-mlibc-headers:
+.PHONY: mlibc-install
+mlibc-install:
 	cd mlibc && ninja -C build install
 
 .PHONY: mlibc
