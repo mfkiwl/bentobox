@@ -172,6 +172,7 @@ long fork(struct registers *r) {
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
     memset(proc, 0, sizeof(struct task));
     proc->pml4 = mmu_clone_pagetables(this->pml4);
+    //proc->pml4 = mmu_create_user_pm(proc);
     this_core()->pml4 = proc->pml4;
 
     asm volatile ("cli" : : : "memory");
@@ -194,11 +195,13 @@ long fork(struct registers *r) {
     proc->ctx.rbx = r->rbx;
     proc->ctx.rdx = r->rdx;
     proc->ctx.rcx = r->rcx;
-    proc->ctx.rax = r->rax;
+    proc->ctx.rax = 0;
     proc->ctx.rip = r->rcx;
     proc->ctx.cs = 0x23;
     proc->ctx.ss = 0x1b;
     proc->ctx.rflags = 0x202;
+    proc->name = kmalloc(strlen(this->name) + 1);
+    memcpy(proc->name, this->name, strlen(this->name) + 1);
     proc->stack = stack_top;
     proc->stack_bottom = (uint64_t)stack_bottom;
     proc->stack_bottom_phys = (uint64_t)stack_bottom_phys;
@@ -208,15 +211,16 @@ long fork(struct registers *r) {
     proc->pid = max_pid++;
     proc->user = true;
     proc->heap = heap_create();
+    proc->gs = this->gs;
+    proc->fs = this->fs;
     memcpy(proc->fd_table, this->fd_table, sizeof proc->fd_table);
-    proc->vma = vma_create();
+    //memcpy(proc->sections, this->sections, sizeof proc->sections);
+    memset(proc->sections, 0, sizeof proc->sections);
 
     vmm_switch_pm(proc->pml4);
 
-    printf("gs: %lx\n", this->gs);
-    printf("fs: %lx\n", this->fs);
-    proc->gs = this->gs;
-    proc->fs = this->fs;
+    proc->vma = vma_create();
+    vma_copy_mappings(proc->vma, this->vma);
 
     vmm_switch_pm(this->pml4);
 

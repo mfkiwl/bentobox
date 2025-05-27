@@ -13,7 +13,7 @@ SYSROOT = /opt/mlibc
 OBJ = $(SYSROOT)/lib/crt0.o $(SYSROOT)/lib/crti.o $(SYSROOT)/lib/crtn.o $(SYSROOT)/lib/libc.a
 
 # Flags
-CFLAGS = -I$(SYSROOT)/include -ffreestanding -nostdlib -fno-pic -fno-stack-protector -mcmodel=large
+CFLAGS = -I$(SYSROOT)/include -ffreestanding -nostdlib -fno-pic -fno-stack-protector -mcmodel=large -g
 ASFLAGS = -f elf64
 LDFLAGS =
 

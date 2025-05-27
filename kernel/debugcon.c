@@ -11,7 +11,7 @@
 #include <kernel/module.h>
 
 char *rc[] = {
-    //"./bin/fork"
+    "./bin/fork"
     //"./bin/hello"
 };
 int rc_lines = 1;

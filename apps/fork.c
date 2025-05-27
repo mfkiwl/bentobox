@@ -11,7 +11,14 @@ int main() {
         exit(1);
     }
 
-    printf("Spawned PID %d!\n", pid);
+    if (pid == 0) {
+        char *argv[] = { "/bin/hello",  NULL };
+        execvp(argv[0], argv);
+        for (;;);
+    } else {
+        printf("Spawned PID %d!\n", pid);
+    }
+    return 0;
 
 #if 0
     if (pid == 0) {

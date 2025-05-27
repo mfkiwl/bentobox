@@ -47,7 +47,7 @@ void vmm_switch_pm(uintptr_t *pm) {
 uintptr_t *vmm_get_next_lvl(uintptr_t *lvl, uintptr_t entry, uint64_t flags, bool alloc) {
     if (lvl[entry] & PTE_PRESENT) return VIRTUAL_IDENT(PTE_GET_ADDR(lvl[entry]));
     if (!alloc) {
-        panic("no pml!!\n");
+        panic("Couldn't get next PML\n");
         dprintf("%s:%d: \033[33mwarning:\033[0m couldn't get next pml\n", __FILE__, __LINE__);
         return NULL;
     }
@@ -332,7 +332,7 @@ uintptr_t *mmu_clone_pagetables(uintptr_t *src) {
             pdpt[j] = (uintptr_t)PHYSICAL_IDENT(pd) | (src_pdpt[j] & 0xFFF);
             
             // Copy PD entries
-            for (int k = 0; k < 512; k++) {
+            for (int k = 0; k < 8 /*512*/; k++) {
                 if (!(src_pd[k] & PTE_PRESENT))
                     continue;
                     
