@@ -79,6 +79,7 @@ void vma_copy_mappings(struct vma_head *dest, struct vma_head *src) {
 
         current = current->next;
     }
+    dprintf("--- DONE COPYING ---\n");
 }
 
 void vma_unmap(struct vma_block *block) {

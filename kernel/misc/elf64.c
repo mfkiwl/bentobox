@@ -112,15 +112,22 @@ int elf_module(struct multiboot_tag_module *mod) {
             if (phdr[i].p_filesz == 0 && phdr[i].p_memsz > 0)
                 continue;
 
-            size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
+            // Calculate page-aligned boundaries for the segment
+            uintptr_t seg_start = phdr[i].p_vaddr;
+            uintptr_t seg_end = seg_start + phdr[i].p_memsz;
+            uintptr_t page_start = ALIGN_DOWN(seg_start, PAGE_SIZE);
+            uintptr_t page_end = ALIGN_UP(seg_end, PAGE_SIZE);
+            size_t pages = (page_end - page_start) / PAGE_SIZE;
 
+            // Map all pages that contain any part of this segment
             for (size_t page = 0; page < pages; page++) {
                 void *paddr = mmu_alloc(1);
-                void *vaddr = (void *)(phdr[i].p_vaddr + page * PAGE_SIZE);
+                void *vaddr = (void *)(page_start + page * PAGE_SIZE);
 
                 mmu_map(vaddr, paddr, PTE_PRESENT | PTE_WRITABLE);
             }
 
+            // Copy file data if present
             if (phdr[i].p_filesz > 0) {
                 uintptr_t src = (uintptr_t)mod->mod_start + phdr[i].p_offset;
                 uintptr_t dest = phdr[i].p_vaddr;
@@ -128,6 +135,7 @@ int elf_module(struct multiboot_tag_module *mod) {
                 memcpy((void *)dest, (void *)src, phdr[i].p_filesz);
             }
 
+            // Zero out any remaining memory in the segment
             if (phdr[i].p_memsz > phdr[i].p_filesz) {
                 memset((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
             }
@@ -141,21 +149,30 @@ static void elf_load_sections(struct task *proc, Elf64_Ehdr *ehdr, Elf64_Phdr *p
     int i, section = 0;
     for (i = 0; i < ehdr->e_phnum; i++) {
         if (phdr[i].p_type == PT_LOAD) {
-            size_t pages = ALIGN_UP(phdr[i].p_memsz, PAGE_SIZE) / PAGE_SIZE;
+            // Calculate page-aligned boundaries for the segment
+            uintptr_t seg_start = phdr[i].p_vaddr;
+            uintptr_t seg_end = seg_start + phdr[i].p_memsz;
+            uintptr_t page_start = ALIGN_DOWN(seg_start, PAGE_SIZE);
+            uintptr_t page_end = ALIGN_UP(seg_end, PAGE_SIZE);
+            size_t pages = (page_end - page_start) / PAGE_SIZE;
+            
             uint64_t flags = PTE_PRESENT | PTE_USER;
             if (phdr[i].p_flags & PF_W) flags |= PTE_WRITABLE;
 
+            // Map all pages that contain any part of this segment
             for (size_t page = 0; page < pages; page++) {
                 void *paddr = mmu_alloc(1);
-                void *vaddr = (void *)(phdr[i].p_vaddr + page * PAGE_SIZE);
+                void *vaddr = (void *)(page_start + page * PAGE_SIZE);
 
                 mmu_map(vaddr, paddr, flags);
             }
 
-            proc->sections[section].ptr = phdr[i].p_vaddr;
+            // Store section info using the page-aligned boundaries
+            proc->sections[section].ptr = page_start;
             proc->sections[section].length = pages * PAGE_SIZE;
             section++;
 
+            // Copy file data if present
             if (phdr[i].p_filesz > 0) {
                 uintptr_t src = (uintptr_t)(uintptr_t)ehdr + phdr[i].p_offset;
                 uintptr_t dest = phdr[i].p_vaddr;
@@ -163,6 +180,7 @@ static void elf_load_sections(struct task *proc, Elf64_Ehdr *ehdr, Elf64_Phdr *p
                 memcpy((void *)dest, (void *)src, phdr[i].p_filesz);
             }
 
+            // Zero out any remaining memory in the segment
             if (phdr[i].p_memsz > phdr[i].p_filesz) {
                 memset((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 0, phdr[i].p_memsz - phdr[i].p_filesz);
             }

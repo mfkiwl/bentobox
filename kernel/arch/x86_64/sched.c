@@ -171,8 +171,8 @@ long fork(struct registers *r) {
 
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
     memset(proc, 0, sizeof(struct task));
-    proc->pml4 = mmu_clone_pagetables(this->pml4);
-    //proc->pml4 = mmu_create_user_pm(proc);
+    //proc->pml4 = mmu_clone_pagetables(this->pml4);
+    proc->pml4 = mmu_create_user_pm(proc);
     this_core()->pml4 = proc->pml4;
 
     asm volatile ("cli" : : : "memory");
@@ -185,7 +185,6 @@ long fork(struct registers *r) {
 
     memcpy(VIRTUAL_IDENT(stack_bottom_phys), VIRTUAL_IDENT(this->stack_bottom_phys), (USER_STACK_SIZE * PAGE_SIZE));
     memcpy(kernel_stack, (void *)this->kernel_stack_bottom, (4 * PAGE_SIZE));
-
     asm volatile ("sti" : : : "memory");
     
     proc->ctx.rdi = r->rdi;
@@ -214,14 +213,25 @@ long fork(struct registers *r) {
     proc->gs = this->gs;
     proc->fs = this->fs;
     memcpy(proc->fd_table, this->fd_table, sizeof proc->fd_table);
-    //memcpy(proc->sections, this->sections, sizeof proc->sections);
-    memset(proc->sections, 0, sizeof proc->sections);
+    memcpy(proc->sections, this->sections, sizeof proc->sections);
+
+    for (size_t i = 0; i < sizeof this->sections / sizeof(struct task_section); i++) {
+        if (this->sections[i].ptr == 0)
+            break;
+        for (size_t j = 0; j < ALIGN_UP(this->sections[i].length, PAGE_SIZE) / PAGE_SIZE; j++) {
+            void *phys = mmu_alloc(1);
+            dprintf("phys 0x%lx\n", phys);
+            void *virt = (void *)(this->sections[i].ptr + j * PAGE_SIZE);
+            mmu_map(virt, phys, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+            memcpy(VIRTUAL_IDENT(phys), virt, PAGE_SIZE);
+        }
+        //proc->sections[i].ptr = this->sections[i].ptr;
+        //proc->sections[i].length = this->sections[i].length;
+    }
 
     vmm_switch_pm(proc->pml4);
-
     proc->vma = vma_create();
     vma_copy_mappings(proc->vma, this->vma);
-
     vmm_switch_pm(this->pml4);
 
     sched_add_task(proc, this_core());
@@ -328,11 +338,14 @@ void sched_cleaner(void) {
         this_core()->terminated_processes = proc->next;
         
         if (proc->user) {
-            sched_lock();
+            printf("Killing %s!\n", proc->name);
             this_core()->pml4 = proc->pml4;
             if (proc->sections[0].length > 0) {
                 for (int i = 0; proc->sections[i].length; i++) {
-                    mmu_free((void *)mmu_get_physical(proc->pml4, proc->sections[i].ptr), ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE);
+                    //mmu_free((void *)mmu_get_physical(proc->pml4, proc->sections[i].ptr), ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE);
+                    for (size_t j = 0; j < ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE; i++) {
+                        mmu_free((void *)mmu_get_physical(proc->pml4, proc->sections[i].ptr + j * PAGE_SIZE), 1);
+                    }
                     mmu_unmap_pages(ALIGN_UP(proc->sections[i].length, PAGE_SIZE) / PAGE_SIZE, (void *)proc->sections[i].ptr);
                 }
             }
@@ -347,7 +360,6 @@ void sched_cleaner(void) {
             vma_destroy(proc->vma);
             vmm_switch_pm(kernel_pd);
             mmu_destroy_user_pm(proc->pml4);
-            sched_unlock();
         } else {
             mmu_unmap_pages(4, (void *)proc->stack_bottom);
             mmu_free(PHYSICAL(proc->stack_bottom), 4);
