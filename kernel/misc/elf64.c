@@ -255,7 +255,7 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
         return -1;
     }
 
-    struct task *proc = this;
+    sched_lock();
     kfree(this->name);
     this->name = kmalloc(strlen(argv[0]) + 1);
     strcpy(this->name, argv[0]);
@@ -263,7 +263,10 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     vma_destroy(this->vma);
     if (this->sections[0].length > 0) {
         for (int i = 0; this->sections[i].length; i++) {
-            mmu_free((void *)mmu_get_physical(this->pml4, this->sections[i].ptr), ALIGN_UP(this->sections[i].length, PAGE_SIZE) / PAGE_SIZE);
+            //mmu_free((void *)mmu_get_physical(this->pml4, this->sections[i].ptr), ALIGN_UP(this->sections[i].length, PAGE_SIZE) / PAGE_SIZE);
+            for (size_t j = 0; j < ALIGN_UP(this->sections[i].length, PAGE_SIZE) / PAGE_SIZE; j++) {
+                mmu_free((void *)mmu_get_physical(this->pml4, this->sections[i].ptr + j * PAGE_SIZE), 1);
+            }
             mmu_unmap_pages(ALIGN_UP(this->sections[i].length, PAGE_SIZE) / PAGE_SIZE, (void *)this->sections[i].ptr);
             this->sections[i].length = 0;
         }
@@ -300,11 +303,10 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     *VIRTUAL_IDENT(stack_top_phys - depth) = argc;
     this->ctx.rsp = USER_STACK_TOP - depth;
 
-    sched_lock();
     dprintf("%s:%d: mapping sections\n", __FILE__, __LINE__);
  
     Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
-    elf_load_sections(proc, ehdr, phdr);
+    elf_load_sections(this, ehdr, phdr);
 
     sched_unlock();
     

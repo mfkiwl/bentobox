@@ -118,7 +118,7 @@ void isr_handler(struct registers *r) {
     uint8_t bspid;
     asm volatile ("mov $1, %%eax; cpuid; shrl $24, %%ebx;": "=b"(bspid) : :);
 
-    dprintf("%s:%d: x86 Fault: \033[91m%s\033[0m on CPU %d\n"
+    printf("%s:%d: x86 Fault: \033[91m%s\033[0m on CPU %d\n"
             "rdi: 0x%p rsi: 0x%p rbp:    0x%p\n"
             "rsp: 0x%p rbx: 0x%p rdx:    0x%p\n"
             "rcx: 0x%p rax: 0x%p rip:    0x%p\n"
@@ -131,29 +131,26 @@ void isr_handler(struct registers *r) {
             r->r10, r->r11, r->r12, r->r13, r->r14, r->r15, cr2, r->cs, r->ss,
             r->rflags);
     if (r->int_no == 14) {
-        dprintf("%s:%d: %s %s %s\n", __FILE__, __LINE__,
+        printf("%s:%d: %s %s %s\n", __FILE__, __LINE__,
             r->error_code & 0x01 ? "Page-protection violation," : "Page not present,",
             r->error_code & 0x02 ? "write operation," : "read operation,",
             r->error_code & 0x04 ? "user mode" : "kernel mode");
     }
 
-    #include <kernel/arch/x86_64/user.h>
-    dprintf("FS base: 0x%lx\n", rdmsr(IA32_FS_BASE));
-
     struct stackframe *frame_ptr = __builtin_frame_address(0);
 
-    dprintf("%s:%d: traceback:\n", __FILE__, __LINE__);
+    printf("%s:%d: traceback:\n", __FILE__, __LINE__);
 
     char symbol[256];
     for (int i = 0; i < 10 && frame_ptr->rbp; i++) {
         if (i == 0) {
             elf_symbol_name(symbol, ksymtab, kstrtab, ksym_count, r->rip);
-            dprintf("#%d  0x%p in %s\n", i, r->rip, symbol);
+            printf("#%d  0x%p in %s\n", i, r->rip, symbol);
             frame_ptr = frame_ptr->rbp;
             continue;
         }
         elf_symbol_name(symbol, ksymtab, kstrtab, ksym_count, frame_ptr->rip);
-        dprintf("#%d  0x%p in %s\n", i, frame_ptr->rip, symbol);
+        printf("#%d  0x%p in %s\n", i, frame_ptr->rip, symbol);
         frame_ptr = frame_ptr->rbp;
     }
 

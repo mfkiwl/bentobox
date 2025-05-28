@@ -94,8 +94,8 @@ void debugcon_parse(char input[]) {
         sched_kill(this, 0);
     } else if (!strncmp(input, "ram", 4)) {
         printf("Total memory: %luK\n", mmu_usable_mem / 1024);
-        printf("Used pages: %lu\n", mmu_used_pages);
-        printf("Free pages: %lu\n", mmu_page_count - mmu_used_pages);
+        printf("Used pages: %lu/%luK\n", mmu_used_pages, mmu_used_pages * 4);
+        printf("Free pages: %lu/%luK\n", mmu_page_count - mmu_used_pages, (mmu_page_count - mmu_used_pages) * 4);
     } else if (!strncmp(input, "setfont", 7)) {
         extern void lfb_change_font(const char *);
         lfb_change_font(input + 8);

@@ -60,7 +60,6 @@ void *vma_map(struct vma_head *h, uint64_t pages, uint64_t phys, uint64_t virt, 
     } else {
         block->virt = (uintptr_t)VMA_VIRTUAL(block->phys);
     }
-    dprintf("mmap 0x%lx, %lu pages\n", block->virt, pages);
     mmu_map_pages(pages, (void *)block->virt, (void *)block->phys, flags);
 
     block->checksum = block->phys + block->virt;
@@ -68,18 +67,17 @@ void *vma_map(struct vma_head *h, uint64_t pages, uint64_t phys, uint64_t virt, 
     return (void *)block->virt;
 }
 
+/*
+ * NOTE: this assumes the current PML4 is the destination PML4
+ */
 void vma_copy_mappings(struct vma_head *dest, struct vma_head *src) {
-    dprintf("--- COPYING MAPPINGS ---\n");
     struct vma_block *current = src->head->next;
 
     while (current != src->head) {
         void *virt = vma_map(dest, current->size, 0, current->virt, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-        dprintf("memcpy 0x%lx to 0x%lx, %lu pages\n", VIRTUAL_IDENT(current->phys), virt, current->size);
         memcpy(virt, VIRTUAL_IDENT(current->phys), current->size * PAGE_SIZE);
-
         current = current->next;
     }
-    dprintf("--- DONE COPYING ---\n");
 }
 
 void vma_unmap(struct vma_block *block) {
