@@ -13,7 +13,7 @@ ifeq ($(ARCH),x86_64)
     ASFLAGS := -f elf64 -g -F dwarf
     CCFLAGS := -m64 -std=gnu11 -g -ffreestanding -Wall -Wextra -nostdlib -Ibase/usr/include/ -fno-stack-protector -Wno-unused-parameter -fno-stack-check -fno-lto -mno-red-zone
     LDFLAGS := -m elf_x86_64 -Tkernel/arch/x86_64/linker.ld -z noexecstack
-    QEMUFLAGS := -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -drive file=bin/$(IMAGE_NAME).hdd,format=raw
+    QEMUFLAGS := -serial stdio -cdrom bin/$(IMAGE_NAME).iso -boot d -drive file=bin/$(IMAGE_NAME).hdd,format=raw -m 256M
 else ifeq ($(ARCH),riscv64)
 	AS = riscv64-elf-as
 	CC = riscv64-elf-gcc
@@ -53,7 +53,7 @@ run: all
 
 .PHONY: run-kvm
 run-kvm: all
-	@qemu-system-$(ARCH) $(QEMUFLAGS) -smp 4 -accel kvm
+	@qemu-system-$(ARCH) $(QEMUFLAGS) -smp 12 -accel kvm
 
 .PHONY: run-gdb
 run-gdb: all

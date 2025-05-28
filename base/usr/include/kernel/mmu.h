@@ -39,4 +39,3 @@ void  mmu_unmap_pages(size_t count, void *virt);
 void  mmu_destroy_user_pm(uintptr_t *pml4);
 uintptr_t mmu_get_physical(uintptr_t *pml4, uintptr_t virt);
 uintptr_t *mmu_create_user_pm(struct task *proc);
-uintptr_t *mmu_clone_pagetables(uintptr_t *src_pml4);

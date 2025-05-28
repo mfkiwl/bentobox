@@ -1,4 +1,3 @@
-#include "kernel/arch/x86_64/smp.h"
 #include "kernel/sched.h"
 #include <kernel/fd.h>
 #include <kernel/vfs.h>
@@ -11,10 +10,10 @@
 #include <kernel/module.h>
 
 char *rc[] = {
-    "./bin/fork"
+    //"./bin/fork"
     //"./bin/hello"
 };
-int rc_lines = 1;
+int rc_lines = 0;
 
 void debugcon_parse(char input[]) {
     if (!input[0]) {
@@ -89,7 +88,7 @@ void debugcon_parse(char input[]) {
         return;
     } else if (!strncmp(input, ".", 1)) {
         char *argv[] = { "hello", "world", "test123", NULL };
-        elf_spawn(input + 1, 3, argv, NULL);
+        spawn(input + 1, 3, argv, NULL);
     } else if (!strncmp(input, "exit", 5)) {
         sched_kill(this, 0);
     } else if (!strncmp(input, "ram", 4)) {

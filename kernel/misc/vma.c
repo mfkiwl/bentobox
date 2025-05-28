@@ -1,4 +1,3 @@
-#include "kernel/arch/x86_64/smp.h"
 #include <stdbool.h>
 #include <kernel/mmu.h>
 #include <kernel/vma.h>

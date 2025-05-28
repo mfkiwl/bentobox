@@ -1,5 +1,3 @@
-#include "kernel/arch/x86_64/vmm.h"
-#include "kernel/vma.h"
 #include <stddef.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/tss.h>
@@ -34,6 +32,8 @@ void sched_unlock(void) {
 
 void sched_add_task(struct task *proc, struct cpu *core) {
     sched_lock();
+
+    proc->pid = max_pid++;
     if (!core) {
         core = get_core(next_cpu);
     }
@@ -82,7 +82,6 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->gs = 0;
     proc->fs = 0;
     proc->state = RUNNING;
-    proc->pid = max_pid++;
     proc->user = false;
     proc->heap = heap_create();
     proc->fd_table[0] = fd_new(vfs_open(vfs_root, "/dev/keyboard"), 0);
@@ -94,6 +93,12 @@ struct task *sched_new_task(void *entry, const char *name) {
 }
 
 struct task *sched_new_user_task(void *entry, const char *name, int argc, char *argv[], char *env[]) {
+    if (!argv || !argv) {
+        argc = 1;
+        argv[0] = (char *)name;
+        argv[1] = NULL;
+    }
+
     struct task *proc = (struct task *)kmalloc(sizeof(struct task));
     memset(proc, 0, sizeof(struct task));
     proc->pml4 = mmu_create_user_pm(proc);
@@ -155,7 +160,6 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     proc->gs = 0;
     proc->fs = 0;
     proc->state = RUNNING;
-    proc->pid = max_pid++;
     proc->user = true;
     proc->heap = heap_create();
     proc->fd_table[0] = fd_new(vfs_open(vfs_root, "/dev/keyboard"), 0);
@@ -164,80 +168,6 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     proc->vma = vma_create();
 
     return proc;
-}
-
-long fork(struct registers *r) {
-    sched_lock();
-
-    struct task *proc = (struct task *)kmalloc(sizeof(struct task));
-    memset(proc, 0, sizeof(struct task));
-    //proc->pml4 = mmu_clone_pagetables(this->pml4);
-    proc->pml4 = mmu_create_user_pm(proc);
-    this_core()->pml4 = proc->pml4;
-
-    asm volatile ("cli" : : : "memory");
-    uintptr_t stack_top = USER_STACK_TOP;
-    uintptr_t stack_bottom = stack_top - (USER_STACK_SIZE * PAGE_SIZE);
-    uintptr_t stack_bottom_phys = (uintptr_t)mmu_alloc(USER_STACK_SIZE);
-    uint64_t *kernel_stack = VIRTUAL(mmu_alloc(4));
-    mmu_map_pages(USER_STACK_SIZE, (void *)stack_bottom, (void *)stack_bottom_phys, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-    mmu_map_pages(4, kernel_stack, PHYSICAL(kernel_stack), PTE_PRESENT | PTE_WRITABLE);
-
-    memcpy(VIRTUAL_IDENT(stack_bottom_phys), VIRTUAL_IDENT(this->stack_bottom_phys), (USER_STACK_SIZE * PAGE_SIZE));
-    memcpy(kernel_stack, (void *)this->kernel_stack_bottom, (4 * PAGE_SIZE));
-    asm volatile ("sti" : : : "memory");
-    
-    proc->ctx.rdi = r->rdi;
-    proc->ctx.rsi = r->rsi;
-    proc->ctx.rbp = r->rbp;
-    proc->ctx.rsp = this->stack;
-    proc->ctx.rbx = r->rbx;
-    proc->ctx.rdx = r->rdx;
-    proc->ctx.rcx = r->rcx;
-    proc->ctx.rax = 0;
-    proc->ctx.rip = r->rcx;
-    proc->ctx.cs = 0x23;
-    proc->ctx.ss = 0x1b;
-    proc->ctx.rflags = 0x202;
-    proc->name = kmalloc(strlen(this->name) + 1);
-    memcpy(proc->name, this->name, strlen(this->name) + 1);
-    proc->stack = stack_top;
-    proc->stack_bottom = (uint64_t)stack_bottom;
-    proc->stack_bottom_phys = (uint64_t)stack_bottom_phys;
-    proc->kernel_stack = (uint64_t)kernel_stack + (4 * PAGE_SIZE);
-    proc->kernel_stack_bottom = (uint64_t)kernel_stack;
-    proc->state = RUNNING;
-    proc->pid = max_pid++;
-    proc->user = true;
-    proc->heap = heap_create();
-    proc->gs = this->gs;
-    proc->fs = this->fs;
-    memcpy(proc->fd_table, this->fd_table, sizeof proc->fd_table);
-    memcpy(proc->sections, this->sections, sizeof proc->sections);
-
-    for (size_t i = 0; i < sizeof this->sections / sizeof(struct task_section); i++) {
-        if (this->sections[i].ptr == 0)
-            break;
-        for (size_t j = 0; j < ALIGN_UP(this->sections[i].length, PAGE_SIZE) / PAGE_SIZE; j++) {
-            void *phys = mmu_alloc(1);
-            dprintf("phys 0x%lx\n", phys);
-            void *virt = (void *)(this->sections[i].ptr + j * PAGE_SIZE);
-            mmu_map(virt, phys, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
-            memcpy(VIRTUAL_IDENT(phys), virt, PAGE_SIZE);
-        }
-        //proc->sections[i].ptr = this->sections[i].ptr;
-        //proc->sections[i].length = this->sections[i].length;
-    }
-
-    vmm_switch_pm(proc->pml4);
-    proc->vma = vma_create();
-    vma_copy_mappings(proc->vma, this->vma);
-    vmm_switch_pm(this->pml4);
-
-    sched_add_task(proc, this_core());
-
-    sched_unlock();
-    return proc->pid;
 }
 
 void sched_schedule(struct registers *r) {

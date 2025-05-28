@@ -1,4 +1,3 @@
-#include "kernel/vfs.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <sys/mman.h>
@@ -152,7 +151,6 @@ long sys_execve(struct registers *r) {
 }
 
 long sys_clone(struct registers *r) {
-    extern long fork(struct registers *r);
     return fork(r);
 }
 

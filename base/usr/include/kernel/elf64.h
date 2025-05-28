@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include <kernel/arch/x86_64/idt.h>
 #include <kernel/multiboot.h>
 
 typedef uint64_t Elf64_Addr;
@@ -119,5 +120,6 @@ typedef struct {
 Elf64_Addr elf_symbol_addr(Elf64_Sym *symtab, const char *strtab, int symbol_count, char *str, bool cast);
 int elf_symbol_name(char *s, Elf64_Sym *symtab, const char *strtab, int symbol_count, Elf64_Addr addr);
 int elf_module(struct multiboot_tag_module *mod);
-int elf_spawn(const char *file, int argc, char *argv[], char *env[]);
+int spawn(const char *file, int argc, char *argv[], char *env[]);
 int exec(const char *path, int argc, char *const argv[], char *const env[]);
+long fork(struct registers *r);
