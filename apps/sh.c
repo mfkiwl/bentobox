@@ -5,10 +5,14 @@
 #include <unistd.h>
 
 int builtin_exec(int argc, char *argv[]) {
+    if (access(argv[0], F_OK)) return 1;
+    
     pid_t pid = fork();
     if (pid == 0) {
-        execvp(argv[0] + 1, argv);
-        // TODO: implement waitpid and use it here
+        execvp(argv[0][0] == '.' ? argv[0] + 1 : argv[0], argv);
+        printf("%s: permission denied\n", argv[0]);
+        exit(1);
+        // TODO: implement and use waitpid
     }
     return 0;
 }
@@ -90,6 +94,8 @@ int count_args(char *str) {
     return count;
 }
 
+char *PATH = "/etc:/bin";
+
 void parse_line(char *input) {
     if (!input[0]) return;
 
@@ -116,7 +122,32 @@ void parse_line(char *input) {
             return;
         }
     }
-    printf("%s: not found\n", argv[0]);
+
+    if (!builtin_exec(argc, argv)) return;
+
+    char file[strlen(argv[0]) + 1];
+    char path_copy[strlen(PATH) + 1];
+    strcpy(file, argv[0]);
+    strcpy(path_copy, PATH);
+
+    char *ptr = path_copy;
+    while (ptr) {
+        char *next = strchr(ptr, ':');
+        if (next) *next = 0;
+
+        char path[strlen(file) + strlen(ptr) + 2];
+        strcpy(path, ptr);
+        strcat(path, "/");
+        strcat(path, file);
+
+        argv[0] = path;
+        if (!builtin_exec(argc, argv)) return;
+
+        if (!next) break;
+        ptr = next + 1;
+    }
+
+    printf("%s: not found\n", file);
 }
 
 void parse(char *input) {

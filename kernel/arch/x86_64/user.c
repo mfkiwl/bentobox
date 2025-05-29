@@ -109,9 +109,9 @@ long sys_ioctl(struct registers *r) {
     }
 }
 
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
+#define SEEK_SET    0
+#define SEEK_CUR    1
+#define SEEK_END    2
 
 long sys_lseek(struct registers *r) {
     struct fd *fd = &this->fd_table[r->rdi];
@@ -154,12 +154,23 @@ long sys_execve(struct registers *r) {
     int argc;
     for (argc = 0; argv[argc]; argc++);
 
-    exec(pathname, argc, argv, envp);
-    return 0;
+    return exec(pathname, argc, argv, envp);
 }
 
 long sys_clone(struct registers *r) {
     return fork(r);
+}
+
+#define	R_OK	4
+#define	W_OK	2
+#define	X_OK	1
+#define	F_OK	0
+
+long sys_access(struct registers *r) {
+    if (vfs_open(NULL, (const char *)r->rdi)) {
+        return F_OK;
+    }
+    return -1;
 }
 
 // [x ... y] = NULL,
@@ -172,7 +183,9 @@ long (*syscalls[256])(struct registers *) = {
     sys_mmap,
     [10 ... 15] = NULL,
     sys_ioctl,
-    [17 ... 55] = NULL,
+    [17 ... 20] = NULL,
+    sys_access,
+    [22 ... 55] = NULL,
     sys_clone,
     [57 ... 58] = NULL,
     sys_execve,

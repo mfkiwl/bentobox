@@ -174,7 +174,7 @@ static void elf_load_sections(struct task *proc, Elf64_Ehdr *ehdr, Elf64_Phdr *p
 
 int spawn(const char *file, int argc, char *argv[], char *env[]) {
     struct vfs_node *fptr = vfs_open(NULL, file);
-    if (!fptr) {
+    if (!fptr || fptr->type != VFS_FILE) {
         printf("%s:%d: cannot open file \"%s\"\n", __FILE__, __LINE__, file);
         return -1;
     }
@@ -215,8 +215,8 @@ int spawn(const char *file, int argc, char *argv[], char *env[]) {
 
 int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     struct vfs_node *fptr = vfs_open(NULL, file);
-    if (!fptr) {
-        printf("%s:%d: cannot open file \"%s\"\n", __FILE__, __LINE__, file);
+    if (!fptr || fptr->type != VFS_FILE) {
+        //printf("%s:%d: cannot open file \"%s\"\n", __FILE__, __LINE__, file);
         return -1;
     }
 
@@ -291,7 +291,7 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     
     kfree(buffer);
     sched_yield();
-    return 0;
+    return -1;
 }
 
 long fork(struct registers *r) {
