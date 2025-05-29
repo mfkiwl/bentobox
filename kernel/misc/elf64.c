@@ -1,3 +1,5 @@
+#include "kernel/arch/x86_64/smp.h"
+#include "kernel/vma.h"
 #include <stdbool.h>
 #include <kernel/mmu.h>
 #include <kernel/elf64.h>
@@ -198,7 +200,6 @@ int spawn(const char *file, int argc, char *argv[], char *env[]) {
 
     sched_lock();
     vmm_switch_pm(proc->pml4);
-    dprintf("%s:%d: mapping sections\n", __FILE__, __LINE__);
     
     Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
     elf_load_sections(proc, ehdr, phdr);
@@ -356,6 +357,11 @@ long fork(struct registers *r) {
     proc->vma = vma_create();
     vma_copy_mappings(proc->vma, this->vma);
     vmm_switch_pm(this->pml4);
+
+    /* do the funny */
+    void *tmp = this->vma;
+    this->vma = proc->vma;
+    proc->vma = tmp;
 
     sched_add_task(proc, this_core());
 

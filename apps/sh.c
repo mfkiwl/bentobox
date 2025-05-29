@@ -2,6 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
+int exec_(int argc, char *argv[]) {
+    pid_t pid = fork();
+    if (pid == 0) {
+        execvp(argv[0] + 1, argv);
+    }
+    return 0;
+}
 
 int clear_(int argc, char *argv[]) {
     printf("\033[H\033[J");
@@ -17,10 +26,16 @@ int exit_(int argc, char *argv[]) {
 struct command {
     char *name;
     void *function;
+    int length;
 } commands[] = {
     {
         .name = ":",
         .function = NULL
+    },
+    {
+        .name = ".",
+        .function = exec_,
+        .length = 1
     },
     {
         .name = "clear",
@@ -67,7 +82,7 @@ void parse_line(char *input) {
     argv[argc] = NULL;
 
     for (int i = 0; i < sizeof commands / sizeof(command_t); i++) {
-        if (!strncmp(input, commands[i].name, strlen(commands[i].name))) {
+        if (!strncmp(input, commands[i].name, commands[i].length ? commands[i].length : strlen(commands[i].name))) {
             int (*function)(int argc, char *argv[]) = commands[i].function;
             if (function) function(argc, argv);
             return;
@@ -78,10 +93,10 @@ void parse_line(char *input) {
 
 void parse(char *input) {
     parse_line(input);
-    char *current = input, *next = NULL;
-    if ((next = strchr(current, ';')) || (next = strchr(current, '\\')) || (next = strchr(current, '\n'))) {
-        printf("line break!\n");
-    }
+    //char *current = input, *next = NULL;
+    //if ((next = strchr(current, ';')) || (next = strchr(current, '\\')) || (next = strchr(current, '\n'))) {
+    //    printf("line break!\n");
+    //}
 }
 
 int main(int argc, char *argv[]) {

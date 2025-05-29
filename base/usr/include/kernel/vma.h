@@ -3,6 +3,10 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+struct vma_head {
+    struct vma_block *head;
+};
+
 struct vma_block {
     struct vma_block *next;
     struct vma_block *prev;
@@ -10,10 +14,7 @@ struct vma_block {
     size_t checksum;
     uintptr_t phys;
     uintptr_t virt;
-};
-
-struct vma_head {
-    struct vma_block *head;
+    uint64_t flags;
 };
 
 struct vma_head *vma_create(void);

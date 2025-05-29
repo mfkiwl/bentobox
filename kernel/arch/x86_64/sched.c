@@ -174,10 +174,8 @@ void sched_schedule(struct registers *r) {
     sched_lock();
 
     if (this) {
-        if (this->state != FRESH)
-            memcpy(&(this->ctx), r, sizeof(struct registers));
-        else
-            this->state = RUNNING;
+        if (this->state != FRESH) memcpy(&(this->ctx), r, sizeof(struct registers));
+        else this->state = RUNNING;
         this->gs = read_kernel_gs();
         asm volatile ("fxsave %0 " : : "m"(this->fxsave));
     } else {
@@ -268,7 +266,7 @@ void sched_cleaner(void) {
         this_core()->terminated_processes = proc->next;
         
         if (proc->user) {
-            printf("Killing %s!\n", proc->name);
+            //printf("Killing %d - %s!\n", proc->pid, proc->name);
             this_core()->pml4 = proc->pml4;
             if (proc->sections[0].length > 0) {
                 for (int i = 0; proc->sections[i].length; i++) {
@@ -286,9 +284,7 @@ void sched_cleaner(void) {
             mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4);
             kfree(proc->name);
             heap_delete(proc->heap);
-            vmm_switch_pm(proc->pml4);
             vma_destroy(proc->vma);
-            vmm_switch_pm(kernel_pd);
             mmu_destroy_user_pm(proc->pml4);
         } else {
             mmu_unmap_pages(4, (void *)proc->stack_bottom);

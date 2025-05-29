@@ -4,6 +4,8 @@
 #include <sys/wait.h>
 
 int main() {
+    //printf("# ");
+
     pid_t pid = fork();
 
     if (pid < 0) {
@@ -11,11 +13,11 @@ int main() {
         exit(1);
     }
 
-    if (pid == 0) {
-        char *argv[] = { "/bin/hello",  NULL };
-        execvp(argv[0], argv);
-    } else {
-        printf("Spawned PID %d!\n", pid);
-    }
+    //if (pid == 0) {
+    //    char *argv[] = { "/bin/args", "hello", "world", NULL };
+    //    execvp(argv[0], argv);
+    //}
+
+    printf("Forked %d\n", pid);
     return 0;
 }

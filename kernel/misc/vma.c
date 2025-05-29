@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <kernel/mmu.h>
 #include <kernel/vma.h>
+#include <kernel/panic.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 
@@ -23,6 +24,8 @@ struct vma_head *vma_create(void) {
 }
 
 void vma_destroy(struct vma_head *h) {
+    printf("Destroying VMA @ 0x%lx\n", h);
+
     struct vma_block *current = h->head->next;
     struct vma_block *next;
 
@@ -62,18 +65,16 @@ void *vma_map(struct vma_head *h, uint64_t pages, uint64_t phys, uint64_t virt, 
     mmu_map_pages(pages, (void *)block->virt, (void *)block->phys, flags);
 
     block->checksum = block->phys + block->virt;
+    block->flags = flags;
 
     return (void *)block->virt;
 }
 
-/*
- * NOTE: this assumes the current PML4 is the destination PML4
- */
 void vma_copy_mappings(struct vma_head *dest, struct vma_head *src) {
     struct vma_block *current = src->head->next;
 
     while (current != src->head) {
-        void *virt = vma_map(dest, current->size, 0, current->virt, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+        void *virt = vma_map(dest, current->size, 0, current->virt, current->flags);
         memcpy(virt, VIRTUAL_IDENT(current->phys), current->size * PAGE_SIZE);
         current = current->next;
     }

@@ -13,8 +13,6 @@ void generic_startup(void) {
 	pci_scan();
     generic_load_modules();
 	sched_install();
-    //sched_add_task(sched_new_task(debugcon_entry, "bentobox debug shell"), NULL);
-    spawn("/bin/sh", 0, NULL, NULL);
 }
 
 void generic_main(void) {
@@ -22,5 +20,8 @@ void generic_main(void) {
         __kernel_name, __kernel_version_major,__kernel_version_minor,
         __kernel_commit_hash, __kernel_build_date, __kernel_build_time, __kernel_arch);
 
+    sched_add_task(sched_new_task(debugcon_entry, "bentobox debug shell"), NULL);
+    //spawn("/bin/sh", 0, NULL, NULL);
+    spawn("/bin/fork", 0, NULL, NULL);
 	sched_start_all_cores();
 }

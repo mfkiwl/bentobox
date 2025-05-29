@@ -51,6 +51,7 @@ uint8_t ata_poll() {
     return ATA_OK;
 }
 
+// TODO!!! Fix the driver not reading/writing more than 255 sectors at a time
 __attribute__((no_sanitize("undefined")))
 uint8_t ata_read(uint32_t lba, void *buffer, uint32_t sectors) {
     mutex_lock(&ata_mutex);
