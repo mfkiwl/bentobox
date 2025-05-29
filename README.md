@@ -47,7 +47,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] SMP
 - [X] ATA driver
 - [ ] AHCI driver
-- [ ] ext2fs support
+- [X] ext2fs support
     - [X] Singly linked blocks
     - [X] Doubly linked blocks
     - [ ] Triply linked blocks
@@ -103,6 +103,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [ ] TSC timing
 - [X] exec()
 - [X] fork()
+- [ ] Fix ATA driver not reading/writing more than 256 sectors at a time
 
 ## Screenshot
 ![image](https://github.com/user-attachments/assets/8829074f-8e42-47a8-b2aa-e2340813cc8e)

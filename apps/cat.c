@@ -1,20 +1,35 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 int main(int argc, char *argv[]) {
-    printf("%d argument(s) received\n", argc);
-
-    if (argc < 2) {
-        return 1;
+    FILE *fp;
+    int c;
+    
+    if (argc == 1) {
+        while ((c = getchar()) != EOF) {
+            putchar(c);
+        }
+    } else {
+        for (int i = 1; i < argc; i++) {
+            if (argv[i][0] == '-' && argv[i][1] == '\0') {
+                while ((c = getchar()) != EOF) {
+                    putchar(c);
+                }
+            } else {
+                fp = fopen(argv[i], "r");
+                if (!fp) {
+                    perror(argv[i]);
+                    continue;
+                }
+                
+                while ((c = fgetc(fp)) != EOF) {
+                    putchar(c);
+                }
+                
+                fclose(fp);
+            }
+        }
     }
-
-    FILE *fptr = fopen(argv[1], "r");
-    if (!fptr)
-        return 1;
-
-    char buffer[100];
-    fgets(buffer, sizeof(buffer), fptr);
-    printf("%s", buffer);
-
-    fclose(fptr);
+    
     return 0;
 }

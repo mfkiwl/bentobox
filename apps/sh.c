@@ -4,27 +4,31 @@
 #include <string.h>
 #include <unistd.h>
 
-int exec_(int argc, char *argv[]) {
+int builtin_exec(int argc, char *argv[]) {
     pid_t pid = fork();
     if (pid == 0) {
         execvp(argv[0] + 1, argv);
+        // TODO: implement waitpid and use it here
     }
     return 0;
 }
 
-int clear_(int argc, char *argv[]) {
+int builtin_clear(int argc, char *argv[]) {
     printf("\033[H\033[J");
     return 0;
 }
 
-int exit_(int argc, char *argv[]) {
+int builtin_exit(int argc, char *argv[]) {
     int code = argc > 1 ? atoi(argv[1]) : 0;
     exit(code);
     __builtin_unreachable();
 }
 
+int builtin_help(int argc, char *argv[]);
+
 struct command {
     char *name;
+    char *syntax;
     void *function;
     int length;
 } commands[] = {
@@ -34,19 +38,43 @@ struct command {
     },
     {
         .name = ".",
-        .function = exec_,
+        .syntax = "[file]",
+        .function = builtin_exec,
         .length = 1
     },
     {
         .name = "clear",
-        .function = clear_
+        .function = builtin_clear
     },
     {
         .name = "exit",
-        .function = exit_
+        .syntax = "[n]",
+        .function = builtin_exit
     },
+    {
+        .name = "help",
+        .function = builtin_help
+    }
 };
 typedef struct command command_t;
+
+int builtin_help(int argc, char *argv[]) {
+    printf(
+        "/bin/sh, version 0.1\n"
+        "These shell commands are defined internally. Type 'help' to see this list.\n"
+        "\n"
+    );
+    
+    for (uint32_t i = 0; i < sizeof commands / sizeof(command_t); i++) {
+        if (i % 2 == 0) printf(" %-35s", commands[i].name);
+        else printf(" %s\n", commands[i].name);
+        
+        if ((i == sizeof commands / sizeof(command_t) - 1) && (i % 2 == 0)) {
+            printf("\n");
+        }
+    }
+    return 0;
+}
 
 int count_args(char *str) {
     int count = 0, in_arg = 0;
@@ -93,10 +121,6 @@ void parse_line(char *input) {
 
 void parse(char *input) {
     parse_line(input);
-    //char *current = input, *next = NULL;
-    //if ((next = strchr(current, ';')) || (next = strchr(current, '\\')) || (next = strchr(current, '\n'))) {
-    //    printf("line break!\n");
-    //}
 }
 
 int main(int argc, char *argv[]) {

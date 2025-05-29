@@ -198,6 +198,9 @@ long ext2_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
     ext2_inode *inode = (ext2_inode *)in;
     ext2_read_inode(&ext2fs, node->inode, inode);
 
+    if (offset >= inode->size) {
+        return 0;
+    }
     if (offset + len > inode->size) {
         len = inode->size - offset;
     }

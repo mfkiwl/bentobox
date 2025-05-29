@@ -53,7 +53,6 @@ long sys_gettid(struct registers *r) {
 long sys_arch_prctl(struct registers *r) {
     switch (r->rdi) {
         case 0x1002: /* ARCH_SET_FS */
-            printf("settings fs base to 0x%lx\n", r->rsi);
             wrmsr(IA32_FS_BASE, r->rsi);
             this->fs = r->rsi;
             break;
