@@ -42,7 +42,7 @@ MODULE_OBJS := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.o))
 MODULE_BINARIES := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.elf))
 
 # Module base load address
-LOAD_ADDR := 0xFFFF800001000000
+LOAD_ADDR := 0xFFFF800010000000 # TODO: should be in 0xFFFFFFFF8-------
 
 .PHONY: all
 all: kernel/target_arch.c kernel ubsan modules apps iso hdd

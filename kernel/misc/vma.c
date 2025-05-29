@@ -24,8 +24,6 @@ struct vma_head *vma_create(void) {
 }
 
 void vma_destroy(struct vma_head *h) {
-    printf("Destroying VMA @ 0x%lx\n", h);
-
     struct vma_block *current = h->head->next;
     struct vma_block *next;
 

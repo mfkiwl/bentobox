@@ -13,11 +13,15 @@ int main() {
         exit(1);
     }
 
-    //if (pid == 0) {
-    //    char *argv[] = { "/bin/args", "hello", "world", NULL };
-    //    execvp(argv[0], argv);
-    //}
+    if (pid == 0) {
+        char *argv[] = { "/bin/hi", NULL };
+        execvp(argv[0], argv);
+    }
 
     printf("Forked %d\n", pid);
+
+    char input[100] = {0};
+    fgets(input, sizeof(input), stdin);
+
     return 0;
 }

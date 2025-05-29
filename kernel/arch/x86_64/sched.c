@@ -157,7 +157,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     proc->stack_bottom_phys = (uint64_t)stack_bottom_phys;
     proc->kernel_stack = (uint64_t)kernel_stack + (4 * PAGE_SIZE);
     proc->kernel_stack_bottom = (uint64_t)kernel_stack;
-    proc->gs = 0;
+    proc->gs = (uint64_t)proc;
     proc->fs = 0;
     proc->state = RUNNING;
     proc->user = true;
@@ -174,10 +174,11 @@ void sched_schedule(struct registers *r) {
     sched_lock();
 
     if (this) {
-        if (this->state != FRESH) memcpy(&(this->ctx), r, sizeof(struct registers));
-        else this->state = RUNNING;
-        this->gs = read_kernel_gs();
-        asm volatile ("fxsave %0 " : : "m"(this->fxsave));
+        if (this->state != FRESH) {
+            memcpy(&(this->ctx), r, sizeof(struct registers));
+            this->gs = read_kernel_gs();
+            asm volatile ("fxsave %0 " : : "m"(this->fxsave));
+        } else this->state = RUNNING;
     } else {
         this = process_list;
     }
