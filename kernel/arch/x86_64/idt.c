@@ -102,8 +102,8 @@ void isr_handler(struct registers *r) {
     }
     if ((r->cs & 3) == 0x3) {
         fprintf(1, "%s:%d: Segmentation fault on PID %d\n", __FILE__, __LINE__, this->pid);
-        //sched_kill(this, 11);
-        //return;
+        sched_kill(this, 11);
+        return;
     }
 
     faults++;

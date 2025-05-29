@@ -259,7 +259,6 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     this->state = FRESH;
 
     uintptr_t stack_top_phys = this->stack_bottom_phys + (USER_STACK_SIZE * PAGE_SIZE);
-    memset(VIRTUAL_IDENT(this->stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE));
     long depth = 16;
 
     uint64_t argv_ptrs[argc + 1];
@@ -283,6 +282,7 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     depth += 8;
     *VIRTUAL_IDENT(stack_top_phys - depth) = argc;
     this->ctx.rsp = USER_STACK_TOP - depth;
+    memset(VIRTUAL_IDENT(this->stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE) - depth);
 
     Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
     elf_load_sections(this, ehdr, phdr);
