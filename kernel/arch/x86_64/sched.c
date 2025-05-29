@@ -177,6 +177,7 @@ void sched_schedule(struct registers *r) {
         if (this->state != FRESH) {
             memcpy(&(this->ctx), r, sizeof(struct registers));
             this->gs = read_kernel_gs();
+            this->user_gs = read_gs();
             asm volatile ("fxsave %0 " : : "m"(this->fxsave));
         } else this->state = RUNNING;
     } else {
@@ -210,6 +211,7 @@ void sched_schedule(struct registers *r) {
     if (this_core()->pml4 != this->pml4)
         vmm_switch_pm(this->pml4);
     write_kernel_gs((uint64_t)this);
+    write_gs(this->user_gs);
     set_kernel_stack(this->kernel_stack);
     asm volatile ("fxrstor %0 " : : "m"(this->fxsave));
     wrmsr(IA32_FS_BASE, this->fs);

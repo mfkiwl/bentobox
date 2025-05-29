@@ -58,6 +58,7 @@ struct task {
     uint64_t stack_bottom_phys;
     uint64_t kernel_stack_bottom;
     struct vma_head *vma;
+    uint64_t user_gs;
 };
 
 #define this this_core()->current_proc

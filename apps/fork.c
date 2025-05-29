@@ -20,8 +20,8 @@ int main() {
 
     printf("Forked %d\n", pid);
 
-    char input[100] = {0};
-    fgets(input, sizeof(input), stdin);
+    //char input[100] = {0};
+    //fgets(input, sizeof(input), stdin);
 
     return 0;
 }

@@ -30,6 +30,14 @@ void write_kernel_gs(uint64_t value) {
     wrmsr(IA32_GS_KERNEL_MSR, value);
 }
 
+uint64_t read_gs(void) {
+    return rdmsr(IA32_GS_BASE);
+}
+
+void write_gs(uint64_t value) {
+    wrmsr(IA32_GS_BASE, value);
+}
+
 void user_initialize(void) {
     wrmsr(IA32_EFER, rdmsr(IA32_EFER) | (1 << 0));
     wrmsr(IA32_STAR, ((uint64_t)0x08 << 32) | ((uint64_t)0x13 << 48));
@@ -45,6 +53,7 @@ long sys_gettid(struct registers *r) {
 long sys_arch_prctl(struct registers *r) {
     switch (r->rdi) {
         case 0x1002: /* ARCH_SET_FS */
+            printf("settings fs base to 0x%lx\n", r->rsi);
             wrmsr(IA32_FS_BASE, r->rsi);
             this->fs = r->rsi;
             break;

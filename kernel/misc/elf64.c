@@ -358,10 +358,10 @@ long fork(struct registers *r) {
     vma_copy_mappings(proc->vma, this->vma);
     vmm_switch_pm(this->pml4);
 
-    /* do the funny */
-    void *tmp = this->vma;
-    this->vma = proc->vma;
-    proc->vma = tmp;
+    // TODO: fix this
+    //void *tmp = this->vma;
+    //this->vma = proc->vma;
+    //proc->vma = tmp;
 
     sched_add_task(proc, this_core());
 
