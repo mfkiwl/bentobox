@@ -183,6 +183,9 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     proc->vma = vma_create();
     proc->signal_handlers[1] = sigchld;
     proc->signal_handlers[2] = sigint;
+    memset(proc->fxsave, 0, 512);
+    uint32_t *mxcsr = (uint32_t *)(proc->fxsave + 24);
+    *mxcsr = 0x1F80;
 
     return proc;
 }
