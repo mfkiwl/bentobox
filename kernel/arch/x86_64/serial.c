@@ -1,7 +1,10 @@
 #include <stddef.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/io.h>
+#include <kernel/arch/x86_64/idt.h>
+#include <kernel/arch/x86_64/lapic.h>
 #include <kernel/vfs.h>
+#include <kernel/fifo.h>
 #include <kernel/sched.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
@@ -11,17 +14,18 @@
 
 atomic_flag serial_lock = ATOMIC_FLAG_INIT;
 uint16_t serial_base = COM1;
+struct fifo serial_fifo;
 
 void serial_install(void) {
-    outb(COM1 + 1, 0);
+    outb(COM1 + 1, 0x00);
     outb(COM1 + 3, 0x80);
     outb(COM1 + 0, 0x03);
-    outb(COM1, 0);
+    outb(COM1 + 0, 0x00);
     outb(COM1 + 3, 0x03);
     outb(COM1 + 2, 0xC7);
     outb(COM1 + 4, 0x0B);
     outb(COM1 + 4, 0x1E);
-    outb(COM1, 0x55);
+    outb(COM1 + 0, 0x55);
 
     if (inb(COM1) != 0x55) {
         serial_base = 0;
@@ -40,10 +44,11 @@ int serial_is_data_ready(void) {
 }
 
 char serial_read_char(void) {
-    while (serial_is_data_ready() == 0) {
+    int c = 0;
+    while (!fifo_dequeue(&serial_fifo, &c)) {
         sched_yield();
     }
-    return inb(COM1);
+    return c;
 }
 
 void serial_write_char(char c) {
@@ -84,13 +89,53 @@ long serial_write(struct vfs_node *node, void *buffer, long offset, size_t len) 
 }
 
 long serial_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
-    // TODO: handle like in ps2.c
-    char c = serial_read_char();
-    memcpy(buffer, &c, 1);
-    return 1;
+    size_t i = 0;
+    char *str = buffer;
+    while (i < len) {
+        str[i] = serial_read_char();
+
+        switch (str[i]) {
+            case '\0':
+                break;
+            case '\n':
+            case '\r':
+                fprintf(stdout, "\n");
+                str[i++] = '\n';
+                str[i] = '\0';
+                return i;
+            case '\b':
+            case 127:
+                if (i > 0) {
+                    fprintf(stdout, "\b \b");
+                    str[i] = '\0';
+                    i--;
+                }
+                break;
+            default:
+                fprintf(stdout, "%c", str[i]);
+                i++;
+                break;
+        }
+    }
+
+    return i;
+}
+
+void irq4_handler(struct registers *r) {
+    uint8_t iir = inb(COM1 + 2);
+    
+    if ((iir & 0x06) == 0x04) {
+        fifo_enqueue(&serial_fifo, inb(COM1));
+    }
+    
+    lapic_eoi();
 }
 
 void serial_initialize(void) {
+    fifo_init(&serial_fifo, 64);
+    irq_register(4, irq4_handler);
+    outb(COM1 + 1, 0x01);
+
     struct vfs_node *serial0 = vfs_create_node("serial0", VFS_CHARDEVICE);
     serial0->write = serial_write;
     serial0->read = serial_read;
