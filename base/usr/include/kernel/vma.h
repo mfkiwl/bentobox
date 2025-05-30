@@ -3,6 +3,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include <kernel/sched.h>
+
 struct vma_head {
     struct vma_block *head;
 };

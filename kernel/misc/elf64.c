@@ -243,15 +243,6 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     strcpy(this->name, argv[0]);
     heap_delete(this->heap);
     vma_destroy(this->vma);
-    if (this->sections[0].length > 0) {
-        for (int i = 0; this->sections[i].length; i++) {
-            for (size_t j = 0; j < ALIGN_UP(this->sections[i].length, PAGE_SIZE) / PAGE_SIZE; j++) {
-                mmu_free((void *)mmu_get_physical(this->pml4, this->sections[i].ptr + j * PAGE_SIZE), 1);
-            }
-            mmu_unmap_pages(ALIGN_UP(this->sections[i].length, PAGE_SIZE) / PAGE_SIZE, (void *)this->sections[i].ptr);
-            this->sections[i].length = 0;
-        }
-    }
     
     this->heap = heap_create();
     this->vma = vma_create();
@@ -283,6 +274,16 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     *VIRTUAL_IDENT(stack_top_phys - depth) = argc;
     this->ctx.rsp = USER_STACK_TOP - depth;
     memset(VIRTUAL_IDENT(this->stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE) - depth);
+
+    if (this->sections[0].length > 0) {
+        for (int i = 0; this->sections[i].length; i++) {
+            for (size_t j = 0; j < ALIGN_UP(this->sections[i].length, PAGE_SIZE) / PAGE_SIZE; j++) {
+                mmu_free((void *)mmu_get_physical(this->pml4, this->sections[i].ptr + j * PAGE_SIZE), 1);
+            }
+            mmu_unmap_pages(ALIGN_UP(this->sections[i].length, PAGE_SIZE) / PAGE_SIZE, (void *)this->sections[i].ptr);
+            this->sections[i].length = 0;
+        }
+    }
 
     Elf64_Phdr *phdr = (Elf64_Phdr *)((uintptr_t)buffer + ehdr->e_phoff);
     elf_load_sections(this, ehdr, phdr);

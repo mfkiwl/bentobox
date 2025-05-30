@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 int builtin_exec(int argc, char *argv[]) {
@@ -10,10 +11,11 @@ int builtin_exec(int argc, char *argv[]) {
     pid_t pid = fork();
     if (pid == 0) {
         execvp(argv[0][0] == '.' ? argv[0] + 1 : argv[0], argv);
-        printf("%s: permission denied\n", argv[0]);
+        printf("%s: Permission denied\n", argv[0]);
         exit(1);
-        // TODO: implement and use waitpid
     }
+    int status;
+    waitpid(pid, &status, 0);
     return 0;
 }
 
