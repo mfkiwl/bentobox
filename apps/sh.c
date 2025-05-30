@@ -6,7 +6,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-int builtin_exec(int argc, char *argv[]) {
+int spawn(int argc, char *argv[]) {
     if (access(argv[0], F_OK) != 0)
         return 1;
 
@@ -27,6 +27,29 @@ int builtin_exec(int argc, char *argv[]) {
     if (wait) {
         int status;
         waitpid(pid, &status, 0);
+    }
+    return 0;
+}
+
+void parse_line(char *input);
+
+int builtin_exec(int argc, char *argv[]) {
+    FILE *fptr = fopen(argv[0], "r");
+    if (!fptr)
+        return 1;
+    uint32_t magic;
+    if (fread(&magic, 1, 4, fptr) != 4)
+        return 1;
+    rewind(fptr);
+
+    if (magic == 0x464C457F) {
+        return spawn(argc, argv);
+    }
+
+    char line[1024];
+    while (fgets(line, sizeof(line), fptr)) {
+        line[strcspn(line, "\n")] = '\0';
+        parse_line(line);
     }
     return 0;
 }
@@ -135,6 +158,7 @@ char *PATH = "/etc:/bin";
 
 void parse_line(char *input) {
     if (!input[0]) return;
+    if (input[0] == '#') return;
 
     int argc = count_args(input);
     char *argv[argc + 1];
@@ -187,22 +211,10 @@ void parse_line(char *input) {
     printf("%s: not found\n", file);
 }
 
-void parse_file(char *path) {
-    FILE *fptr = fopen(path, "r");
-    if (!fptr) {
-        perror(path);
-        return;
-    }
-
-    char line[1024];
-    while (fgets(line, sizeof(line), fptr)) {
-        line[strcspn(line, "\n")] = '\0';
-        parse_line(line);
-    }
-}
-
 int main(int argc, char *argv[]) {
-    parse_file("/etc/profile");
+    char *args[2] = { "/etc/profile", NULL };
+    builtin_exec(2, args);
+
     for (;;) {
         printf("# ");
         
