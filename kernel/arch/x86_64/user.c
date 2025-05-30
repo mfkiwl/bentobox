@@ -348,7 +348,7 @@ long (*syscalls[256])(struct registers *) = {
 };
 
 void syscall_handler(struct registers *r) {
-    sched_lock();
+    //sched_lock();
 
     long(*handler)(struct registers *);
     handler = syscalls[r->rax];
@@ -361,7 +361,7 @@ void syscall_handler(struct registers *r) {
     }
 
     r->rax = handler(r);
-    sched_unlock();
+    //sched_unlock();
 }
 
 void syscall_bind(uint64_t rax, void *handler) {

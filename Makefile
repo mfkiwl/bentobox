@@ -49,7 +49,7 @@ all: kernel/target_arch.c kernel ubsan modules apps iso hdd
 
 .PHONY: run
 run: all
-	@qemu-system-$(ARCH) $(QEMUFLAGS) #-no-reboot -no-shutdown -d int -M smm=off
+	@qemu-system-$(ARCH) $(QEMUFLAGS) -accel kvm #-no-reboot -no-shutdown -d int -M smm=off
 
 .PHONY: run-kvm
 run-kvm: all

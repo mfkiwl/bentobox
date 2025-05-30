@@ -135,7 +135,7 @@ int elf_module(struct multiboot_tag_module *mod) {
 }
 
 static void elf_load_sections(struct task *proc, Elf64_Ehdr *ehdr, Elf64_Phdr *phdr) {
-    dprintf("%s:%d: mapping sections\n", __FILE__, __LINE__);
+    //dprintf("%s:%d: mapping sections\n", __FILE__, __LINE__);
     
     int i, section = 0;
     for (i = 0; i < ehdr->e_phnum; i++) {
