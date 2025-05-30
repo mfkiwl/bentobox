@@ -68,6 +68,10 @@ void pci_check_device(uint8_t bus, uint8_t device) {
 
     if (vendor_id == 0xFFFF) return;
 
+    printf("  Bus: %u, Device: %u, Function: %u ", bus, device, function);
+    printf("  Vendor ID: 0x%x, Device ID: 0x%x ", vendor_id, device_id);
+    printf("  Class: 0x%x, Subclass: 0x%x\n", class, subclass);
+
     pci_check_function(bus, device, function);
     uint16_t header_type = (uint8_t)(pci_config_read_word(bus, device, function, 0x0E));
     
@@ -87,6 +91,8 @@ void pci_check_device(uint8_t bus, uint8_t device) {
         primary_bus[device].vendor_id = vendor_id;
         primary_bus[device].device_id = device_id;
     }
+
+    
 }
 
 void pci_check_bus(uint8_t bus) {
