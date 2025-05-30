@@ -1,4 +1,4 @@
-#include "kernel/sched.h"
+#include "kernel/vfs.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <sys/mman.h>
@@ -6,6 +6,7 @@
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/user.h>
 #include <kernel/mmu.h>
+#include <kernel/sched.h>
 #include <kernel/assert.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
@@ -180,6 +181,83 @@ long sys_wait4(struct registers *r) {
     return 0;
 }
 
+long sys_getdents64(struct registers *r) {
+    struct linux_dirent64 {
+        uint64_t       d_ino;
+        int64_t        d_off;
+        unsigned short d_reclen;
+        unsigned char  d_type;
+        char           d_name[];
+    };
+
+    int fd_num = r->rdi;
+    struct linux_dirent64 *dirp = (struct linux_dirent64 *)r->rsi;
+    unsigned int count = r->rdx;
+
+    if (fd_num < 0 || fd_num >= (signed)(sizeof this->fd_table / sizeof(struct fd)) || !this->fd_table[fd_num].node) {
+        return -EBADF;
+    }
+
+    struct fd *fd = &this->fd_table[fd_num];
+    struct vfs_node *dir = fd->node;
+
+    if (dir->type != VFS_DIRECTORY) {
+        return -ENOTDIR;
+    }
+    if (!dirp || count == 0) {
+        return -EINVAL;
+    }
+
+    struct vfs_node *child = dir->children;
+    int entries_to_skip = fd->offset;
+    
+    while (child && entries_to_skip > 0) {
+        child = child->next;
+        entries_to_skip--;
+    }
+    
+    int offset = 0;
+    struct linux_dirent64 *current_entry = dirp;
+    
+    while (child) {
+        const char *name = child->name;
+        int name_len = strlen(name);
+        int reclen = ALIGN_UP(sizeof(struct linux_dirent64) + name_len + 1, 8);
+        
+        if ((unsigned)(offset + reclen) > count)
+            break;
+        
+        current_entry->d_ino = child->inode;
+        current_entry->d_off = fd->offset + 1;
+        current_entry->d_reclen = reclen;
+        switch (child->type) {
+            case VFS_DIRECTORY:
+                current_entry->d_type = 4; // DT_DIR
+                break;
+            case VFS_FILE:
+                current_entry->d_type = 8; // DT_REG
+                break;
+            case VFS_CHARDEVICE:
+                current_entry->d_type = 2; // DT_CHR
+                break;
+            case VFS_BLOCKDEVICE:
+                current_entry->d_type = 6; // DT_BLK
+                break;
+            default:
+                current_entry->d_type = 0; // DT_UNKNOWN
+                break;
+        }
+        strcpy(current_entry->d_name, name);
+        
+        current_entry = (void*)current_entry + reclen;
+        offset += reclen;
+        child = child->next;
+        fd->offset++;
+    }
+    
+    return offset;
+}
+
 // [x ... y] = NULL,
 long (*syscalls[256])(struct registers *) = {
     sys_read,
@@ -201,7 +279,9 @@ long (*syscalls[256])(struct registers *) = {
     [62 ... 157] = NULL,
     sys_arch_prctl,
     [159 ... 185] = NULL,
-    sys_gettid
+    sys_gettid,
+    [187 ... 216] = NULL,
+    sys_getdents64
 };
 
 void syscall_handler(struct registers *r) {
@@ -213,6 +293,7 @@ void syscall_handler(struct registers *r) {
     if (!handler) {
         dprintf("%s:%d: unknown syscall %lu\n", __FILE__, __LINE__, r->rax);
         r->rax = -ENOSYS;
+        sched_unlock();
         return;
     }
 

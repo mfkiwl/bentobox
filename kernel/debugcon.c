@@ -34,10 +34,11 @@ void debugcon_parse(char input[]) {
             fprintf(stdout, "\n");
             return;
         }
+        
         while (child) {
             if (!strcmp(child->name, ".") || !strcmp(child->name, "..")) {
                 child = child->next;
-                return;
+                continue;
             }
 
             char *color = NULL;
