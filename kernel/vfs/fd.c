@@ -1,7 +1,9 @@
+#include <errno.h>
 #include <kernel/fd.h>
 #include <kernel/vfs.h>
 #include <kernel/sched.h>
 #include <kernel/malloc.h>
+#include <kernel/string.h>
 
 struct fd fd_new(struct vfs_node *node, int flags) {
     struct fd fd;
@@ -23,4 +25,15 @@ int fd_open(const char *path, int flags) {
     }
     vfs_close(node);
     return -1;
+}
+
+int fd_close(int fd) {
+    if (fd < 0 || fd > (signed)(sizeof this->fd_table / sizeof(struct fd))) {
+        return -EBADF;
+    }
+
+    struct fd *file = &this->fd_table[fd];
+    vfs_close(file->node);
+    memset(file, 0, sizeof(struct fd));
+    return 0;
 }

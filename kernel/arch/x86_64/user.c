@@ -1,10 +1,13 @@
-#include "kernel/vfs.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/user.h>
+#include <kernel/fd.h>
+#include <kernel/vfs.h>
 #include <kernel/mmu.h>
 #include <kernel/sched.h>
 #include <kernel/assert.h>
@@ -148,6 +151,10 @@ long sys_open(struct registers *r) {
     return fd_open(pathname, flags);
 }
 
+long sys_close(struct registers *r) {
+    return fd_close(r->rdi);
+}
+
 long sys_execve(struct registers *r) {
     const char *pathname = (const char *)r->rdi;
     char *const *argv = (char *const *)r->rsi;
@@ -258,12 +265,68 @@ long sys_getdents64(struct registers *r) {
     return offset;
 }
 
-// [x ... y] = NULL,
+static unsigned int perms_to_mode(enum vfs_node_type type, uint16_t perms) {
+    unsigned int mode = 0;
+    
+    switch (type) {
+        case VFS_FILE:
+            mode |= S_IFREG;
+            break;
+        case VFS_DIRECTORY:
+            mode |= S_IFDIR;
+            break;
+        case VFS_CHARDEVICE:
+            mode |= S_IFCHR;
+            break;
+        case VFS_BLOCKDEVICE:
+            mode |= S_IFBLK;
+            break;
+        default:
+            mode |= S_IFREG;
+            break;
+    }
+    
+    mode |= (perms & 07777);
+    return mode;
+}
+
+long sys_stat(struct registers *r) {
+    const char *pathname = (const char *)r->rdi;
+    struct stat *statbuf = (struct stat *)r->rsi;
+    
+    if (!pathname || !statbuf) {
+        return -EFAULT;
+    }
+    
+    struct vfs_node *node = vfs_open(NULL, pathname);
+    if (!node) {
+        return -ENOENT;
+    }
+    
+    memset(statbuf, 0, sizeof(struct stat));
+    
+    statbuf->st_mode = perms_to_mode(node->type, node->perms);
+    statbuf->st_nlink = 0;
+    statbuf->st_uid = 0;
+    statbuf->st_gid = 0;
+    
+    if (node->type == VFS_FILE) {
+        statbuf->st_size = node->size;
+    } else if (node->type == VFS_DIRECTORY) {
+        statbuf->st_size = 4096;
+    } else {
+        statbuf->st_size = 0;
+    }
+    return 0;
+}
+
 long (*syscalls[256])(struct registers *) = {
     sys_read,
     sys_write,
     sys_open,
-    [3 ... 7] = NULL,
+    sys_close,
+    sys_stat,
+    [5 ... 7] = NULL,
     sys_lseek,
     sys_mmap,
     [10 ... 15] = NULL,
