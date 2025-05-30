@@ -13,6 +13,7 @@
 
 #define USER_STACK_SIZE 256
 #define USER_STACK_TOP  0x00007ffffffff000
+#define USER_MAX_CHILDS 16
 
 // TODO: rename to SCHED_*
 enum task_state {
@@ -20,8 +21,8 @@ enum task_state {
     PAUSED,
     SLEEPING,
     KILLED,
-    FREEABLE,
-    FRESH
+    FRESH,
+    SIGNAL
 };
 
 struct task_time {
@@ -43,6 +44,7 @@ struct task {
     struct registers ctx;
     char align[8];
     char fxsave[512];
+
     struct task *next;
     struct task *prev;
     char *name;
@@ -59,6 +61,11 @@ struct task {
     uint64_t kernel_stack_bottom;
     struct vma_head *vma;
     uint64_t user_gs;
+
+    uint32_t pending_signals;
+    void (*signal_handlers[16])(struct task *, int);
+    struct task *parent;
+    int child_exit;
 };
 
 #define this this_core()->current_proc
@@ -75,5 +82,6 @@ void sched_sleep(int us);
 void sched_kill(struct task *proc, int status);
 void sched_idle(void);
 void sched_add_task(struct task *proc, struct cpu *core);
+struct task *sched_get_thread(int pid);
 struct task *sched_new_task(void *entry, const char *name);
 struct task *sched_new_user_task(void *entry, const char *name, int argc, char *argv[], char *env[]);

@@ -30,6 +30,11 @@ void sched_unlock(void) {
     lapic_oneshot(0x79, 5);
 }
 
+void sched_sigchld(struct task *proc, int exit) {
+    proc->parent->child_exit = exit;
+    sched_unblock(proc->parent);
+}
+
 void sched_add_task(struct task *proc, struct cpu *core) {
     sched_lock();
 
@@ -166,6 +171,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     proc->fd_table[1] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
     proc->fd_table[2] = fd_new(vfs_open(vfs_root, "/dev/serial0"), 0);
     proc->vma = vma_create();
+    proc->signal_handlers[1] = sched_sigchld;
 
     return proc;
 }
@@ -241,7 +247,12 @@ void sched_sleep(int us) {
 void sched_kill(struct task *proc, int status) {
     sched_lock();
 
-    max_pid = proc->pid;
+    //max_pid = proc->pid;
+    if (proc->parent &&
+        proc->parent->state == SIGNAL &&
+        proc->signal_handlers[1]) {
+        proc->signal_handlers[1](proc, status);
+    }
     proc->state = KILLED;
     proc->prev->next = proc->next;
     proc->next->prev = proc->prev;
@@ -298,6 +309,30 @@ void sched_cleaner(void) {
         kfree(proc);
         sched_unlock();
     }
+}
+
+struct task *sched_get_thread(int pid) {
+    sched_lock();
+    
+    for (uint32_t core_id = 0; core_id < madt_lapics; core_id++) {
+        struct cpu *core = get_core(core_id);
+        if (!core || !core->processes) {
+            continue;
+        }
+        
+        struct task *current = core->processes;
+        
+        do {
+            if (current->pid == pid && current->state != KILLED) {
+                sched_unlock();
+                return current;
+            }
+            current = current->next;
+        } while (current && current != core->processes);
+    }
+    
+    sched_unlock();
+    return NULL;
 }
 
 void sched_start_all_cores(void) {

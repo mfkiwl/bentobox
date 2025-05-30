@@ -77,7 +77,7 @@ int dprintf(const char *fmt, ...) {
 
 long serial_write(struct vfs_node *node, void *buffer, long offset, size_t len) {
     char *buf = (char *)buffer;
-    for (uint32_t i = offset; i < len; i++) {
+    for (uint32_t i = 0; i < len; i++) {
         serial_write_char(buf[i]);
     }
     return (int32_t)len;

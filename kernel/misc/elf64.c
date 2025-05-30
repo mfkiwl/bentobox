@@ -315,6 +315,7 @@ long fork(struct registers *r) {
     memcpy(kernel_stack, (void *)this->kernel_stack_bottom, (4 * PAGE_SIZE));
     asm volatile ("sti" : : : "memory");
     
+    proc->parent = this;
     proc->ctx.rdi = r->rdi;
     proc->ctx.rsi = r->rsi;
     proc->ctx.rbp = r->rbp;
@@ -341,6 +342,7 @@ long fork(struct registers *r) {
     proc->fs = this->fs;
     memcpy(proc->fd_table, this->fd_table, sizeof proc->fd_table);
     memcpy(proc->sections, this->sections, sizeof proc->sections);
+    memcpy(proc->signal_handlers, this->signal_handlers, sizeof proc->signal_handlers);
 
     for (size_t i = 0; i < sizeof this->sections / sizeof(struct task_section); i++) {
         if (this->sections[i].ptr == 0)

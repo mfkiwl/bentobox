@@ -1,3 +1,4 @@
+#include "kernel/sched.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <sys/mman.h>
@@ -173,6 +174,12 @@ long sys_access(struct registers *r) {
     return -1;
 }
 
+long sys_wait4(struct registers *r) {
+    sched_block(SIGNAL);
+    *(uintptr_t *)r->rsi = this->child_exit;
+    return 0;
+}
+
 // [x ... y] = NULL,
 long (*syscalls[256])(struct registers *) = {
     sys_read,
@@ -190,7 +197,8 @@ long (*syscalls[256])(struct registers *) = {
     [57 ... 58] = NULL,
     sys_execve,
     sys_exit,
-    [61 ... 157] = NULL,
+    sys_wait4,
+    [62 ... 157] = NULL,
     sys_arch_prctl,
     [159 ... 185] = NULL,
     sys_gettid

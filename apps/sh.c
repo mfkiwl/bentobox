@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,16 +7,27 @@
 #include <unistd.h>
 
 int builtin_exec(int argc, char *argv[]) {
-    if (access(argv[0], F_OK)) return 1;
-    
+    if (access(argv[0], F_OK) != 0)
+        return 1;
+
+    bool wait = strcmp(argv[argc - 1], "&");
+    if (!wait) {
+        wait = false;
+        argv[--argc] = NULL;
+    }
+
     pid_t pid = fork();
     if (pid == 0) {
-        execvp(argv[0][0] == '.' ? argv[0] + 1 : argv[0], argv);
-        printf("%s: Permission denied\n", argv[0]);
+        const char *path = (argv[0][0] == '.') ? argv[0] + 1 : argv[0];
+        execvp(path, argv);
+        perror(argv[0]);
         exit(1);
     }
-    int status;
-    waitpid(pid, &status, 0);
+
+    if (wait) {
+        int status;
+        waitpid(pid, &status, 0);
+    }
     return 0;
 }
 
