@@ -1,3 +1,4 @@
+#include "kernel/signal.h"
 #include <stdbool.h>
 #include <kernel/arch/x86_64/io.h>
 #include <kernel/arch/x86_64/idt.h>
@@ -17,8 +18,6 @@ void irq1_handler(struct registers *r) {
     if (!(key & 0x80)) {
         switch (key) {
             case 0x2a:
-                kb_shift = true;
-                break;
             case 0x36:
                 kb_shift = true;
                 break;
@@ -32,6 +31,9 @@ void irq1_handler(struct registers *r) {
                 if (key >= sizeof(kb_map_keys)) {
                     break;
                 }
+                if (kb_ctrl && key == 0x2E) {
+                    send_signal(this, SIGINT, 0);
+                }
                 if (kb_shift) {
                     fifo_enqueue(&kb_fifo, kb_map_keys_shift[key]);
                 } else if (kb_caps) {
@@ -44,8 +46,6 @@ void irq1_handler(struct registers *r) {
     } else {
         switch (key) {
             case 0xaa:
-                kb_shift = false;
-                break;
             case 0xb6:
                 kb_shift = false;
                 break;

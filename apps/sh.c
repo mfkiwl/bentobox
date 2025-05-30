@@ -44,6 +44,14 @@ int builtin_exit(int argc, char *argv[]) {
 
 int builtin_help(int argc, char *argv[]);
 
+int builtin_echo(int argc, char *argv[]) {
+    for (int i = 1; i < argc; i++) {
+        printf("%s ", argv[i]);
+    }
+    printf("\n");
+    return 0;
+}
+
 struct command {
     char *name;
     char *syntax;
@@ -72,6 +80,11 @@ struct command {
     {
         .name = "help",
         .function = builtin_help
+    },
+    {
+        .name = "echo",
+        .syntax = "[arg ...]",
+        .function = builtin_echo
     }
 };
 typedef struct command command_t;
@@ -84,8 +97,18 @@ int builtin_help(int argc, char *argv[]) {
     );
     
     for (uint32_t i = 0; i < sizeof commands / sizeof(command_t); i++) {
-        if (i % 2 == 0) printf(" %-35s", commands[i].name);
-        else printf(" %s\n", commands[i].name);
+        char buf[50];
+        if (commands[i].syntax) {
+            snprintf(buf, sizeof(buf), "%s %s", commands[i].name, commands[i].syntax);
+        } else {
+            snprintf(buf, sizeof(buf), "%s", commands[i].name);
+        }
+        
+        if (i % 2 == 0) {
+            printf(" %-35s", buf);
+        } else {
+            printf(" %s\n", buf);
+        }
         
         if ((i == sizeof commands / sizeof(command_t) - 1) && (i % 2 == 0)) {
             printf("\n");
@@ -164,18 +187,29 @@ void parse_line(char *input) {
     printf("%s: not found\n", file);
 }
 
-void parse(char *input) {
-    parse_line(input);
+void parse_file(char *path) {
+    FILE *fptr = fopen(path, "r");
+    if (!fptr) {
+        perror(path);
+        return;
+    }
+
+    char line[1024];
+    while (fgets(line, sizeof(line), fptr)) {
+        line[strcspn(line, "\n")] = '\0';
+        parse_line(line);
+    }
 }
 
 int main(int argc, char *argv[]) {
+    parse_file("/etc/profile");
     for (;;) {
         printf("# ");
         
         char input[100] = {0};
         fgets(input, sizeof(input), stdin);
         input[strcspn(input, "\n")] = '\0';
-        parse(input);
+        parse_line(input);
     }
     return 0;
 }

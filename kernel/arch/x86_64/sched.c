@@ -12,14 +12,29 @@
 #include <kernel/acpi.h>
 #include <kernel/sched.h>
 #include <kernel/malloc.h>
+#include <kernel/signal.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
-// TODO: implement task threading
+// TODO: implement task threading, fix PID calculation
 
-// TODO: fix PID calculation
 long max_pid = 0, next_cpu = 0;
+
+static void sigchld(struct task *proc, int exit) {
+    proc->parent->child_exit = exit;
+    sched_unblock(proc->parent);
+}
+
+static void sigint(struct task *proc, int _) {
+    fprintf(stdout, "^C\n");
+    sched_kill(proc, 128 + SIGINT);
+}
+
+void send_signal(struct task *proc, int signal, int extra) {
+    if (proc->signal_handlers[signal])
+        proc->signal_handlers[signal](proc, extra);
+}
 
 void sched_lock(void) {
     lapic_stop_timer();
@@ -28,11 +43,6 @@ void sched_lock(void) {
 void sched_unlock(void) {
     lapic_eoi();
     lapic_oneshot(0x79, 5);
-}
-
-void sched_sigchld(struct task *proc, int exit) {
-    proc->parent->child_exit = exit;
-    sched_unblock(proc->parent);
 }
 
 void sched_add_task(struct task *proc, struct cpu *core) {
@@ -171,7 +181,8 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     proc->fd_table[1] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
     proc->fd_table[2] = fd_new(vfs_open(vfs_root, "/dev/serial0"), 0);
     proc->vma = vma_create();
-    proc->signal_handlers[1] = sched_sigchld;
+    proc->signal_handlers[1] = sigchld;
+    proc->signal_handlers[2] = sigint;
 
     return proc;
 }
@@ -249,9 +260,8 @@ void sched_kill(struct task *proc, int status) {
 
     //max_pid = proc->pid;
     if (proc->parent &&
-        proc->parent->state == SIGNAL &&
-        proc->signal_handlers[1]) {
-        proc->signal_handlers[1](proc, status);
+        proc->parent->state == SIGNAL) {
+        send_signal(proc, SIGCHLD, status);
     }
     proc->state = KILLED;
     proc->prev->next = proc->next;
