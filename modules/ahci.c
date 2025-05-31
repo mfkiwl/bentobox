@@ -10,7 +10,42 @@
 #define AHCI_PI         0x0C    // Ports Implemented
 #define AHCI_VS         0x10    // Version
 
+#define	SATA_SIG_ATA	0x00000101	// SATA drive
+#define	SATA_SIG_ATAPI	0xEB140101	// SATAPI drive
+#define	SATA_SIG_SEMB	0xC33C0101	// Enclosure management bridge
+#define	SATA_SIG_PM	0x96690101	// Port multiplier
+
+#define AHCI_DEV_NULL    0
+#define AHCI_DEV_SATA    1
+#define AHCI_DEV_SATAPI  2
+#define AHCI_DEV_SEMB    3
+#define AHCI_DEV_PM      4
+
+#define GHC_AHCI_ENABLE (1 << 31)   // AHCI Enable
+#define GHC_MRSM        (1 << 2)    // MSI Revert to Single Message
+#define GHC_IE          (1 << 1)    // Interrupt Enable
+#define GHC_HR          (1 << 0)    // HBA Reset
+
+#define HBA_PORT_DET_PRESENT    3
+#define HBA_PORT_IPM_ACTIVE     1
+
+#define PORT_CLB        0x00    // Command List Base Address
+#define PORT_CLBU       0x04    // Command List Base Address Upper
+#define PORT_FB         0x08    // FIS Base Address
+#define PORT_FBU        0x0C    // FIS Base Address Upper
+#define PORT_IS         0x10    // Interrupt Status
+#define PORT_IE         0x14    // Interrupt Enable
+#define PORT_CMD        0x18    // Command and Status
+#define PORT_TFD        0x20    // Task File Data
+#define PORT_SIG        0x24    // Signature
+#define PORT_SSTS       0x28    // SATA Status
+#define PORT_SCTL       0x2C    // SATA Control
+#define PORT_SERR       0x30    // SATA Error
+#define PORT_SACT       0x34    // SATA Active
+#define PORT_CI         0x38    // Command Issue
+
 static volatile uint32_t *ahci_base = NULL;
+int command_slots = 0;
 
 static uint32_t ahci_read_reg(uint32_t offset) {
     return ahci_base[offset / 4];
@@ -18,6 +53,39 @@ static uint32_t ahci_read_reg(uint32_t offset) {
 
 static void ahci_write_reg(uint32_t offset, uint32_t value) {
     ahci_base[offset / 4] = value;
+}
+
+static uint32_t port_read_reg(int port, uint32_t offset) {
+    uint32_t port_base = 0x100 + (port * 0x80);
+    return ahci_read_reg(port_base + offset);
+}
+
+static void port_write_reg(int port, uint32_t offset, uint32_t value) {
+    uint32_t port_base = 0x100 + (port * 0x80);
+    ahci_write_reg(port_base + offset, value);
+}
+
+uint32_t ahci_check_type(int port) {
+    uint32_t ssts = port_read_reg(port, PORT_SSTS);
+    uint8_t ipm = (ssts >> 8) & 0x0F;
+    uint8_t det = ssts & 0x0F;
+    
+    if (det != HBA_PORT_DET_PRESENT)
+        return AHCI_DEV_NULL;
+    if (ipm != HBA_PORT_IPM_ACTIVE)
+        return AHCI_DEV_NULL;
+        
+    uint32_t sig = port_read_reg(port, PORT_SIG);
+    switch (sig) {
+        case SATA_SIG_ATAPI:
+            return AHCI_DEV_SATAPI;
+        case SATA_SIG_SEMB:
+            return AHCI_DEV_SEMB;
+        case SATA_SIG_PM:
+            return AHCI_DEV_PM;
+        default:
+            return AHCI_DEV_SATA;
+    }
 }
 
 int init() {
@@ -40,19 +108,61 @@ int init() {
     if (memory_type == 0x0) {
         ahci_phys_base = bar5 & 0xFFFFFFF0;
     } else if (memory_type == 0x4) {
-        dprintf("%s:%d: 64-bit AHCI not implemented\n");
+        dprintf("%s:%d: FATAL: 64-bit AHCI not implemented\n");
         return 1;
     }
 
     ahci_base = VIRTUAL(ahci_phys_base);
-    mmu_map((void *)ahci_base, (void *)ahci_phys_base, PTE_PRESENT | PTE_WRITABLE); // TODO: PTE_CACHEABLE
-
-    ahci_write_reg(AHCI_GHC, 1);
-
-    hpet_sleep(1000); // 1ms
+    mmu_map_pages(2, (void *)ahci_base, (void *)ahci_phys_base, PTE_PRESENT | PTE_WRITABLE); // TODO: PTE_CACHEABLE
 
     uint32_t ghc = ahci_read_reg(AHCI_GHC);
-    dprintf("new ghc: 0x%x\n", ghc);
+    ghc |= GHC_HR;
+    ahci_write_reg(AHCI_GHC, ghc);
+
+    int i;
+    for (i = 0; i < 1000; i++) {
+        ghc = ahci_read_reg(AHCI_GHC);
+        if (!(ghc & GHC_HR)) {
+            break;
+        }
+        hpet_sleep(1000);
+    }
+
+    if (i + 1 >= 1000) {
+        dprintf("%s:%d: FATAL: failed to reset controller: timed out\n");
+        return 1;
+    }
+
+    ghc = ahci_read_reg(AHCI_GHC);
+    if (!(ghc & GHC_AHCI_ENABLE)) {
+        ghc |= GHC_AHCI_ENABLE;
+        hpet_sleep(1000);
+        ghc = ahci_read_reg(AHCI_GHC);
+        if (!(ghc & GHC_AHCI_ENABLE)) {
+            dprintf("%s:%d: FATAL: failed to enable AHCI mode!\n");
+            return 1;
+        }
+    } else {
+        printf("AHCI already enabled\n");
+    }
+
+    uint32_t cap = ahci_read_reg(AHCI_CAP);
+    uint8_t command_slots = ((cap >> 8) & 0x1F) + 1;
+    dprintf("%s:%d: %d command slots available\n", __FILE__, __LINE__, command_slots);
+
+    hpet_sleep(5000);
+    ahci_write_reg(AHCI_IS, 0xFFFFFFFF); // clear interrupt
+
+    uint32_t pi = ahci_read_reg(AHCI_PI);
+    for (int i = 0; i < 32; i++) {
+        if (pi & 1) {
+            uint32_t type = ahci_check_type(i);
+            if (type == AHCI_DEV_SATA) {
+                dprintf("%s:%d: port %d is a SATA device\n", __FILE__, __LINE__, i);
+            }
+        }
+        pi >>= 1;
+    }
 
     return 0;
 }
