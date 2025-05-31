@@ -361,44 +361,24 @@ int ahci_read(ahci_port_t *ahci_port, uint64_t lba, uint32_t count, char *buffer
 }
 
 long sda_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
-    if (len == 0 || offset % 512 != 0 || len % 512 != 0) {
+    if (len == 0) {
         return -1;
     }
 
-    uint32_t sector = offset / 512;
-    uint32_t num_sectors = len / 512;
+    size_t lba = offset / 512;
+    size_t num_sectors = ALIGN_UP(len, 512) / 512;
+    size_t pages = ALIGN_UP(len, PAGE_SIZE) / PAGE_SIZE;
+    void *buf = VIRTUAL_IDENT(mmu_alloc(pages));
 
-    return ahci_read(ahci_ports[0], sector, num_sectors, buffer) ? -1 : len;
-}
-
-void test_disk_read(void) {
-    if (connected_ports == 0) {
-        dprintf("No drives\n");
-        return;
-    }
-    
-    void *buffer_page = VIRTUAL_IDENT(mmu_alloc(1));
-    char *buffer = (char*)buffer_page;
-    
-    if (!buffer) {
-        dprintf("Alloc failed\n");
-        return;
-    }
-    
-    memset(buffer, 0, 512);
-    
-    dprintf("Reading sector 0...\n");
-    
-    int result = ahci_read(ahci_ports[0], 0, 1, buffer);
-    
-    if (result == 0) {
-        dprintf("Success! First bytes: ");
-        for (int i = 0; i < 16; i++) {
-            dprintf("%x ", (unsigned char)buffer[i]);
-        }
-        dprintf("\n");
+    dprintf("sda_read: reading %d bytes... ", len);
+    if (ahci_read(ahci_ports[0], lba, num_sectors, buf) == 0) {
+        dprintf("done\n");
+        memcpy(buffer, buf, len);
+        mmu_free(PHYSICAL_IDENT(buf), pages);
+        return len;
     } else {
-        dprintf("Read failed\n");
+        mmu_free(PHYSICAL_IDENT(buf), pages);
+        return 0;
     }
 }
 
@@ -478,8 +458,6 @@ int init() {
         }
         pi >>= 1;
     }
-
-    test_disk_read();
 
     struct vfs_node *sda = vfs_create_node("sda", VFS_BLOCKDEVICE);
     sda->read = sda_read;

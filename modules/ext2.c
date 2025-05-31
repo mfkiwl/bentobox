@@ -117,13 +117,117 @@ typedef struct {
     uint32_t inode_size;
 } ext2_fs;
 
+typedef struct {
+    uint32_t block_num;
+    uint8_t *data;
+    bool valid;
+    uint32_t access_time;
+} block_cache_entry;
+
 ext2_fs ext2fs;
 struct vfs_node *hda = NULL;
+static block_cache_entry cache[EXT_MAX_CACHE];
+static uint32_t cache_access_counter = 0;
 
-void ext2_read_block(ext2_fs *fs, uint32_t block, void* buf, uint32_t count) {
+void ext2_cache_init() {
+    for (int i = 0; i < EXT_MAX_CACHE; i++) {
+        cache[i].block_num = 0;
+        cache[i].data = NULL;
+        cache[i].valid = false;
+        cache[i].access_time = 0;
+    }
+}
+
+void ext2_cache_free() {
+    for (int i = 0; i < EXT_MAX_CACHE; i++) {
+        if (cache[i].data) {
+            kfree(cache[i].data);
+            cache[i].data = NULL;
+        }
+        cache[i].valid = false;
+    }
+}
+
+int ext2_cache_find_lru() {
+    int lru_idx = 0;
+    uint32_t oldest = cache[0].access_time;
+    
+    for (int i = 1; i < EXT_MAX_CACHE; i++) {
+        if (!cache[i].valid) {
+            return i;
+        }
+        if (cache[i].access_time < oldest) {
+            oldest = cache[i].access_time;
+            lru_idx = i;
+        }
+    }
+    return lru_idx;
+}
+
+void ext2_read_blocks_sequential(ext2_fs *fs, uint32_t start_block, uint32_t count, void* buf) {
+    vfs_read(hda, buf, start_block * fs->block_size, count * fs->block_size);
+}
+
+void ext2_read_block_cached(ext2_fs *fs, uint32_t block, void* buf, uint32_t count) {
+    cache_access_counter++;
+    
+    for (int i = 0; i < EXT_MAX_CACHE; i++) {
+        if (cache[i].valid && cache[i].block_num == block) {
+            memcpy(buf, cache[i].data, count);
+            cache[i].access_time = cache_access_counter;
+            return;
+        }
+    }
+    
     char buffer[fs->block_size];
     vfs_read(hda, buffer, block * fs->block_size, fs->block_size);
     memcpy(buf, buffer, count);
+    
+    int cache_idx = ext2_cache_find_lru();
+    if (!cache[cache_idx].data) {
+        cache[cache_idx].data = kmalloc(fs->block_size);
+    }
+    cache[cache_idx].block_num = block;
+    cache[cache_idx].valid = true;
+    cache[cache_idx].access_time = cache_access_counter;
+    memcpy(cache[cache_idx].data, buffer, fs->block_size);
+}
+
+void ext2_read_block(ext2_fs *fs, uint32_t block, void* buf, uint32_t count) {
+    ext2_read_block_cached(fs, block, buf, count);
+}
+
+void ext2_read_block_range(ext2_fs *fs, uint32_t *blocks, uint32_t count, void* buf) {
+    if (count == 0) return;
+    
+    bool sequential = true;
+    for (uint32_t i = 1; i < count; i++) {
+        if (blocks[i] == 0 || blocks[i] != blocks[i-1] + 1) {
+            sequential = false;
+            break;
+        }
+    }
+    
+    if (sequential && count > 1) {
+        ext2_read_blocks_sequential(fs, blocks[0], count, buf);
+        
+        for (uint32_t i = 0; i < count; i++) {
+            int cache_idx = ext2_cache_find_lru();
+            if (!cache[cache_idx].data) {
+                cache[cache_idx].data = kmalloc(fs->block_size);
+            }
+            cache[cache_idx].block_num = blocks[i];
+            cache[cache_idx].valid = true;
+            cache[cache_idx].access_time = cache_access_counter++;
+            memcpy(cache[cache_idx].data, (uint8_t*)buf + (i * fs->block_size), fs->block_size);
+        }
+    } else {
+        for (uint32_t i = 0; i < count; i++) {
+            if (blocks[i] != 0) {
+                ext2_read_block_cached(fs, blocks[i], (uint8_t*)buf + (i * fs->block_size), fs->block_size);
+            }
+        }
+    }
 }
 
 void ext2_read_inode(ext2_fs *fs, uint32_t inode, ext2_inode *in) {
@@ -140,16 +244,26 @@ uint32_t ext2_read_singly_blocks(ext2_fs *fs, uint32_t block, uint8_t *buf, uint
     uint32_t *blocks = (uint32_t *)kmalloc(fs->block_size);
     uint32_t block_count = fs->block_size / 4;
     uint32_t count_block = DIV_CEILING(count, fs->block_size);
+    
     ext2_read_block(fs, block, blocks, fs->block_size);
-    uint32_t remaining = count;
-    for (uint32_t i = 0; i < count_block; i++) {
-        if (i == block_count) break;
+    
+    uint32_t *valid_blocks = (uint32_t *)kmalloc(count_block * sizeof(uint32_t));
+    uint32_t valid_count = 0;
+    
+    for (uint32_t i = 0; i < count_block && i < block_count; i++) {
         if (blocks[i] == 0) break;
-        ext2_read_block(fs, blocks[i], buf + (i * fs->block_size), (remaining > fs->block_size ? fs->block_size : remaining));
-        remaining -= fs->block_size;
+        valid_blocks[valid_count++] = blocks[i];
     }
+    
+    if (valid_count > 0) {
+        ext2_read_block_range(fs, valid_blocks, valid_count, buf);
+    }
+    
     kfree(blocks);
-    return remaining;
+    kfree(valid_blocks);
+    
+    uint32_t remaining = count - (valid_count * fs->block_size);
+    return remaining > count ? 0 : remaining;
 }
 
 uint32_t ext2_read_doubly_blocks(ext2_fs *fs, uint32_t doubly_block_id, uint8_t *buf, uint32_t count) {
@@ -171,26 +285,53 @@ uint32_t ext2_read_doubly_blocks(ext2_fs *fs, uint32_t doubly_block_id, uint8_t 
     return remaining;
 }
 
+void ext2_read_inode_blocks_range(ext2_fs *fs, ext2_inode *in, uint8_t *buf, uint32_t start_block, uint32_t block_count) {
+    //uint32_t current_block = 0;
+    uint32_t buf_offset = 0;
+    uint32_t remaining_blocks = block_count;
+    
+    if (start_block < 12) {
+        uint32_t direct_start = start_block;
+        uint32_t direct_count = (remaining_blocks + start_block > 12) ? (12 - start_block) : remaining_blocks;
+        
+        uint32_t *direct_blocks = (uint32_t *)kmalloc(direct_count * sizeof(uint32_t));
+        for (uint32_t i = 0; i < direct_count; i++) {
+            direct_blocks[i] = in->direct_block_ptr[direct_start + i];
+        }
+        
+        ext2_read_block_range(fs, direct_blocks, direct_count, buf + buf_offset);
+        
+        kfree(direct_blocks);
+        remaining_blocks -= direct_count;
+        buf_offset += direct_count * fs->block_size;
+        //current_block += direct_count;
+    }
+    
+    if (remaining_blocks > 0 && start_block + block_count > 12 && in->singly_block_ptr != 0) {
+        uint32_t singly_start = (start_block > 12) ? start_block - 12 : 0;
+        uint32_t singly_blocks_available = fs->block_size / 4;
+        uint32_t singly_count = (remaining_blocks > singly_blocks_available - singly_start) ? 
+                               (singly_blocks_available - singly_start) : remaining_blocks;
+        
+        if (singly_count > 0) {
+            uint32_t read_size = singly_count * fs->block_size;
+            ext2_read_singly_blocks(fs, in->singly_block_ptr, buf + buf_offset, read_size);
+            remaining_blocks -= singly_count;
+            buf_offset += read_size;
+        }
+    }
+    
+    if (remaining_blocks > 0 && start_block + block_count > 12 + (fs->block_size / 4) && in->doubly_block_ptr != 0) {
+        //uint32_t doubly_start = (start_block > 12 + (fs->block_size / 4)) ? 
+        //                       start_block - 12 - (fs->block_size / 4) : 0;
+        uint32_t read_size = remaining_blocks * fs->block_size;
+        ext2_read_doubly_blocks(fs, in->doubly_block_ptr, buf + buf_offset, read_size);
+    }
+}
+
 void ext2_read_inode_blocks(ext2_fs *fs, ext2_inode *in, uint8_t *buf, uint32_t count) {
-    uint32_t remaining = count;
     uint32_t blocks = DIV_CEILING(count, fs->block_size);
-    for (uint32_t i = 0; i < (blocks > 12 ? 12 : blocks); i++) {
-        uint32_t block = in->direct_block_ptr[i];
-        if (block == 0) break;
-        ext2_read_block(fs, block, buf + (i * fs->block_size), (remaining > fs->block_size ? fs->block_size : remaining));
-        remaining -= fs->block_size;
-    }
-    if (blocks > 12) {
-        if (in->singly_block_ptr != 0) {
-            ext2_read_singly_blocks(fs, in->singly_block_ptr, buf + (12 * fs->block_size), remaining);
-        }
-    }
-    if (blocks > 265) {
-        if (in->doubly_block_ptr != 0) {
-            remaining -= fs->block_size * fs->block_size / 4;
-            ext2_read_doubly_blocks(fs, in->doubly_block_ptr, buf + (12 * fs->block_size) + (fs->block_size * fs->block_size / 4), remaining);
-        }
-    }
+    ext2_read_inode_blocks_range(fs, in, buf, 0, blocks);
 }
 
 long ext2_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
@@ -205,9 +346,15 @@ long ext2_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
         len = inode->size - offset;
     }
 
-    uint8_t *buf = (uint8_t *)kmalloc(inode->size);
-    ext2_read_inode_blocks(&ext2fs, inode, buf, offset + len);
-    memcpy(buffer, buf + offset, len);
+    uint32_t start_block = offset / ext2fs.block_size;
+    uint32_t end_block = (offset + len - 1) / ext2fs.block_size;
+    uint32_t blocks_needed = end_block - start_block + 1;
+    
+    uint8_t *buf = (uint8_t *)kmalloc(blocks_needed * ext2fs.block_size);
+    ext2_read_inode_blocks_range(&ext2fs, inode, buf, start_block, blocks_needed);
+    
+    uint32_t block_offset = offset % ext2fs.block_size;
+    memcpy(buffer, buf + block_offset, len);
 
     kfree(buf);
     return len;
@@ -219,63 +366,81 @@ void ext2_mount(ext2_fs *fs, struct vfs_node *parent, uint32_t inode_num) {
     ext2_read_inode(fs, inode_num, inode);
     
     uint32_t block_size = fs->block_size;
-
-    for (int i = 0; i < 12; i++) {
-        if (inode->direct_block_ptr[i] == 0)
-            continue;
-
-        uint8_t block[block_size];
-        ext2_read_block(fs, inode->direct_block_ptr[i], block, block_size);
-
-        uint32_t offset = 0;
-        while (offset < block_size) {
-            ext2_dirent *entry = (ext2_dirent *)(block + offset);
-            if (entry->inode == 0)
-                break;
-
-            char name[256];
-            memcpy(name, entry->name, entry->name_len);
-            name[entry->name_len] = '\0';
-
-            ext2_inode *child = (ext2_inode *)kmalloc(fs->inode_size);
-            ext2_read_inode(fs, entry->inode, child);
-
-            uint16_t type = child->type_perms & 0xF000;
-            uint32_t vfs_type = VFS_NONE;
-
-            switch (type) {
-                case EXT_FILE:
-                    vfs_type = VFS_FILE;
-                    break;
-                case EXT_DIRECTORY:
-                    vfs_type = VFS_DIRECTORY;
-                    break;
-                case EXT_CHAR_DEV:
-                    vfs_type = VFS_CHARDEVICE;
-                    break;
-                case EXT_BLOCK_DEV:
-                    vfs_type = VFS_BLOCKDEVICE;
-                    break;
-            }
-
-            struct vfs_node *node = vfs_create_node(name, vfs_type);
-            node->size = child->size;
-            node->inode = entry->inode;
-            node->read = ext2_read;
-            vfs_add_node(parent, node);
-
-            if (type == EXT_DIRECTORY && strcmp(name, "lost+found") != 0 && !(strcmp(name, ".") == 0 || strcmp(name, "..") == 0)) {
-                ext2_mount(fs, node, entry->inode);
-            }
-
-            offset += entry->total_size;
-            kfree(child);
+    uint32_t total_blocks = DIV_CEILING(inode->size, block_size);
+    
+    uint32_t *dir_blocks = (uint32_t *)kmalloc(12 * sizeof(uint32_t));
+    uint32_t valid_blocks = 0;
+    
+    for (int i = 0; i < 12 && i < total_blocks; i++) {
+        if (inode->direct_block_ptr[i] != 0) {
+            dir_blocks[valid_blocks++] = inode->direct_block_ptr[i];
         }
     }
+    
+    if (valid_blocks > 0) {
+        uint8_t *all_blocks = (uint8_t *)kmalloc(valid_blocks * block_size);
+        ext2_read_block_range(fs, dir_blocks, valid_blocks, all_blocks);
+        
+        for (uint32_t block_idx = 0; block_idx < valid_blocks; block_idx++) {
+            uint8_t *block = all_blocks + (block_idx * block_size);
+            uint32_t offset = 0;
+            
+            while (offset < block_size) {
+                ext2_dirent *entry = (ext2_dirent *)(block + offset);
+                if (entry->inode == 0 || entry->total_size == 0)
+                    break;
+
+                char name[256];
+                memcpy(name, entry->name, entry->name_len);
+                name[entry->name_len] = '\0';
+
+                ext2_inode *child = (ext2_inode *)kmalloc(fs->inode_size);
+                ext2_read_inode(fs, entry->inode, child);
+
+                uint16_t type = child->type_perms & 0xF000;
+                uint32_t vfs_type = VFS_NONE;
+
+                switch (type) {
+                    case EXT_FILE:
+                        vfs_type = VFS_FILE;
+                        break;
+                    case EXT_DIRECTORY:
+                        vfs_type = VFS_DIRECTORY;
+                        break;
+                    case EXT_CHAR_DEV:
+                        vfs_type = VFS_CHARDEVICE;
+                        break;
+                    case EXT_BLOCK_DEV:
+                        vfs_type = VFS_BLOCKDEVICE;
+                        break;
+                }
+
+                struct vfs_node *node = vfs_create_node(name, vfs_type);
+                node->size = child->size;
+                node->inode = entry->inode;
+                node->read = ext2_read;
+                vfs_add_node(parent, node);
+
+                if (type == EXT_DIRECTORY && strcmp(name, "lost+found") != 0 && 
+                    !(strcmp(name, ".") == 0 || strcmp(name, "..") == 0)) {
+                    ext2_mount(fs, node, entry->inode);
+                }
+
+                offset += entry->total_size;
+                kfree(child);
+            }
+        }
+        
+        kfree(all_blocks);
+    }
+    
+    kfree(dir_blocks);
 }
 
 int init() {
     dprintf("%s:%d: starting ext2 driver\n", __FILE__, __LINE__);
+
+    ext2_cache_init();
 
     //hda = vfs_open(NULL, "/dev/hda");
     hda = vfs_open(NULL, "/dev/sda");
@@ -285,6 +450,7 @@ int init() {
 
     if (sb->signature != 0xef53) {
         dprintf("%s:%d: not an ext2 partition\n", __FILE__, __LINE__);
+        ext2_cache_free();
         return -EINVAL;
     }
 
@@ -308,6 +474,7 @@ int init() {
 
 int fini() {
     dprintf("%s:%d: Goodbye!\n", __FILE__, __LINE__);
+    ext2_cache_free();
     kfree(ext2fs.sb);
     kfree(ext2fs.bgd_table);
     return 0;

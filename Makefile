@@ -45,7 +45,7 @@ MODULE_BINARIES := $(addprefix bin/, $(MODULE_C_SOURCES:.c=.elf))
 LOAD_ADDR := 0xFFFF800010000000 # TODO: should be in 0xFFFFFFFF8-------
 
 .PHONY: all
-all: kernel/target_arch.c kernel ubsan modules apps iso #hdd
+all: kernel/target_arch.c kernel ubsan modules apps iso hdd
 
 .PHONY: run
 run: all
