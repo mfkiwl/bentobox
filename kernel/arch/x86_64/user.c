@@ -1,3 +1,4 @@
+#include "kernel/signal.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <sys/mman.h>
@@ -183,7 +184,7 @@ long sys_access(struct registers *r) {
 }
 
 long sys_wait4(struct registers *r) {
-    sched_block(SIGNAL);
+    sched_block(PAUSED);
     *(uintptr_t *)r->rsi = this->child_exit;
     return 0;
 }

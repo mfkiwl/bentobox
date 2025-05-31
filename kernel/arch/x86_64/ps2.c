@@ -1,12 +1,15 @@
-#include "kernel/signal.h"
+
+#include "kernel/arch/x86_64/smp.h"
 #include <stdbool.h>
 #include <kernel/arch/x86_64/io.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/ps2.h>
 #include <kernel/arch/x86_64/lapic.h>
+#include <kernel/acpi.h>
 #include <kernel/fifo.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
+#include <kernel/signal.h>
 
 bool kb_caps = false;
 bool kb_ctrl = false;
@@ -32,7 +35,10 @@ void irq1_handler(struct registers *r) {
                     break;
                 }
                 if (kb_ctrl && key == 0x2E) {
-                    send_signal(this, SIGINT, 0);
+                    // TODO: fix when running with SMP
+                    for (uint32_t id = 0; id < madt_lapics; id++) {
+                        send_signal(get_core(id)->current_proc, SIGINT, 0);
+                    }
                 }
                 if (kb_shift) {
                     fifo_enqueue(&kb_fifo, kb_map_keys_shift[key]);

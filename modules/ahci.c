@@ -226,7 +226,7 @@ ahci_port_t *ahci_init_disk(int port_num) {
     cmd |= HBA_CMD_ST;
     port_write_reg(port_num, PORT_CMD, cmd);
 
-    dprintf("%s:%d: initialized port %d\n", __FILE__, __LINE__, port_num);
+    //dprintf("%s:%d: initialized port %d\n", __FILE__, __LINE__, port_num);
     return ahci_port;
 }
 
@@ -435,12 +435,12 @@ int init() {
             return 1;
         }
     } else {
-        dprintf("%s:%d: AHCI mode already enabled\n", __FILE__, __LINE__);
+        //dprintf("%s:%d: AHCI mode already enabled\n", __FILE__, __LINE__);
     }
 
     uint32_t cap = ahci_read_reg(AHCI_CAP);
     command_slots = ((cap >> 8) & 0x1F) + 1;
-    dprintf("%s:%d: %d command slots available\n", __FILE__, __LINE__, command_slots);
+    //dprintf("%s:%d: %d command slots available\n", __FILE__, __LINE__, command_slots);
 
     hpet_sleep(5000);
     ahci_write_reg(AHCI_IS, 0xFFFFFFFF);
@@ -451,7 +451,7 @@ int init() {
             uint32_t type = ahci_check_type(i);
             if (type == AHCI_DEV_SATA) {
                 ahci_ports[connected_ports++] = ahci_init_disk(i);
-                dprintf("%s:%d: port %d is a SATA device\n", __FILE__, __LINE__, i);
+                //dprintf("%s:%d: port %d is a SATA device\n", __FILE__, __LINE__, i);
             }
         }
         pi >>= 1;

@@ -14,6 +14,7 @@
 #define USER_STACK_SIZE 256
 #define USER_STACK_TOP  0x00007ffffffff000
 #define USER_MAX_CHILDS 16
+#define USER_MAX_FDS    16
 
 // TODO: rename to SCHED_*
 enum task_state {
@@ -54,7 +55,7 @@ struct task {
     enum task_state state;
     struct heap *heap;
     struct task_time time;
-    struct fd fd_table[16];
+    struct fd fd_table[USER_MAX_FDS];
     struct task_section sections[16];
     uint64_t stack_bottom;
     uint64_t stack_bottom_phys;
@@ -82,6 +83,5 @@ void sched_sleep(int us);
 void sched_kill(struct task *proc, int status);
 void sched_idle(void);
 void sched_add_task(struct task *proc, struct cpu *core);
-struct task *sched_get_thread(int pid);
 struct task *sched_new_task(void *entry, const char *name);
 struct task *sched_new_user_task(void *entry, const char *name, int argc, char *argv[], char *env[]);

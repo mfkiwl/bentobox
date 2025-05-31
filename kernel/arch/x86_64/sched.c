@@ -23,7 +23,6 @@ long max_pid = 0, next_cpu = 0;
 
 static void sigchld(struct task *proc, int exit) {
     proc->parent->child_exit = exit;
-    sched_unblock(proc->parent);
 }
 
 static void sigint(struct task *proc, int _) {
@@ -32,8 +31,20 @@ static void sigint(struct task *proc, int _) {
 }
 
 void send_signal(struct task *proc, int signal, int extra) {
-    if (proc->signal_handlers[signal])
-        proc->signal_handlers[signal](proc, extra);
+    if (!proc || signal < 1 || signal > 32) {
+        return;
+    }
+    
+    sched_lock();
+    
+    proc->pending_signals |= (1 << (signal - 1));
+    
+    if (signal == SIGCHLD) {
+        proc->child_exit = extra;
+    }
+    proc->state = SIGNAL;
+    
+    sched_unlock();
 }
 
 void sched_lock(void) {
@@ -181,8 +192,8 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     proc->fd_table[1] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
     proc->fd_table[2] = fd_new(vfs_open(vfs_root, "/dev/serial0"), 0);
     proc->vma = vma_create();
-    proc->signal_handlers[1] = sigchld;
-    proc->signal_handlers[2] = sigint;
+    proc->signal_handlers[SIGCHLD] = sigchld;
+    proc->signal_handlers[SIGINT] = sigint;
     uint32_t *mxcsr = (uint32_t *)(proc->fxsave + 24);
     *mxcsr = 0x1920;
     *mxcsr |= 0x8040;
@@ -215,11 +226,25 @@ void sched_schedule(struct registers *r) {
     }
 
     while (this->state != RUNNING) {
-        if (this->state == PAUSED
+        if (this->state == SLEEPING
          && hpet_ticks >= this->time.end) {
             this->state = RUNNING;
             this->time.last = this->time.end - this->time.start;
             break;
+        }
+        if (this->state == SIGNAL) {
+            uint32_t pending = this->pending_signals;
+            this->pending_signals = 0;
+            this->state = RUNNING;
+            
+            for (int sig = 1; sig <= 32; sig++) {
+                uint32_t sig_mask = 1 << (sig - 1);
+                
+                if ((pending & sig_mask) && this->signal_handlers[sig]) {
+                    int extra = (sig == SIGCHLD) ? this->child_exit : 0;
+                    this->signal_handlers[sig](this, extra);
+                }
+            }
         }
 
         this = this->next;
@@ -255,17 +280,17 @@ void sched_unblock(struct task *proc) {
 
 void sched_sleep(int us) {
     this->time.end = hpet_get_ticks() + us * (hpet_period / 1000000);
-    sched_block(PAUSED);
+    sched_block(SLEEPING);
 }
 
 void sched_kill(struct task *proc, int status) {
     sched_lock();
 
-    //max_pid = proc->pid;
-    if (proc->parent &&
-        proc->parent->state == SIGNAL) {
-        send_signal(proc, SIGCHLD, status);
+    // Send SIGCHLD to parent if it exists
+    if (proc->parent) {
+        send_signal(proc->parent, SIGCHLD, status);
     }
+    
     proc->state = KILLED;
     proc->prev->next = proc->next;
     proc->next->prev = proc->prev;
@@ -322,30 +347,6 @@ void sched_cleaner(void) {
         kfree(proc);
         sched_unlock();
     }
-}
-
-struct task *sched_get_thread(int pid) {
-    sched_lock();
-    
-    for (uint32_t core_id = 0; core_id < madt_lapics; core_id++) {
-        struct cpu *core = get_core(core_id);
-        if (!core || !core->processes) {
-            continue;
-        }
-        
-        struct task *current = core->processes;
-        
-        do {
-            if (current->pid == pid && current->state != KILLED) {
-                sched_unlock();
-                return current;
-            }
-            current = current->next;
-        } while (current && current != core->processes);
-    }
-    
-    sched_unlock();
-    return NULL;
 }
 
 void sched_start_all_cores(void) {
