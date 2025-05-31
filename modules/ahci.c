@@ -50,40 +50,89 @@
 #define PORT_SACT       0x34    // SATA Active
 #define PORT_CI         0x38    // Command Issue
 
+#define FIS_TYPE_REG_H2D 0x27
+
 #define LOW(x)  ((uint32_t)(x))
 #define HIGH(x) ((uint32_t)((x) >> 32))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 typedef struct {
     int port_num;
-    void *clb;          // Command List Base (virtual address)
-    void *fb;           // FIS Base (virtual address)  
-    void *cmd_tbls[32]; // Command Tables (virtual addresses)
-    uint64_t clb_phys;  // Command List Base (physical address)
-    uint64_t fb_phys;   // FIS Base (physical address)
+    void *clb;
+    void *fb;
+    void *cmd_tbls[32];
+    uint64_t clb_phys;
+    uint64_t fb_phys;
 } ahci_port_t;
 
-// Command header structure (goes in command list)
 typedef struct {
-    uint8_t cfl:5;      // Command FIS length in DWORDS, 2 ~ 16
-    uint8_t a:1;        // ATAPI
-    uint8_t w:1;        // Write, 1: H2D, 0: D2H
-    uint8_t p:1;        // Prefetchable
+    uint8_t cfl:5;
+    uint8_t a:1;
+    uint8_t w:1;
+    uint8_t p:1;
     
-    uint8_t r:1;        // Reset
-    uint8_t b:1;        // BIST
-    uint8_t c:1;        // Clear busy upon R_OK
-    uint8_t rsv0:1;     // Reserved
-    uint8_t pmp:4;      // Port multiplier port
+    uint8_t r:1;
+    uint8_t b:1;
+    uint8_t c:1;
+    uint8_t rsv0:1;
+    uint8_t pmp:4;
     
-    uint16_t prdtl;     // Physical region descriptor table length in entries
+    uint16_t prdtl;
     
-    volatile uint32_t prdbc;  // Physical region descriptor byte count transferred
+    volatile uint32_t prdbc;
     
-    uint32_t ctba_low;  // Command table descriptor area base address low
-    uint32_t ctba_high; // Command table descriptor area base address high
+    uint32_t ctba_low;
+    uint32_t ctba_high;
     
-    uint32_t rsv1[4];   // Reserved
+    uint32_t rsv1[4];
 } __attribute__((packed)) hba_cmd_header_t;
+
+typedef struct {
+    uint8_t fis_type;
+    uint8_t pmport:4;
+    uint8_t rsv0:3;
+    uint8_t c:1;
+    uint8_t cmd;
+    uint8_t featurel;
+    
+    /* DWORD 1*/
+    uint8_t lba0;
+    uint8_t lba1;
+    uint8_t lba2;
+    uint8_t device;
+    
+    /* DWORD 2 */
+    uint8_t lba3;
+    uint8_t lba4;
+    uint8_t lba5;
+    uint8_t featureh;
+    
+    /* DWORD 3 */
+    uint8_t count_low;
+    uint8_t count_high;
+    uint8_t icc;
+    uint8_t control;
+    
+    /* DWORD 4 */
+    uint8_t rsv1[4];
+} __attribute__((packed)) fis_h2d_t;
+
+typedef struct {
+    uint32_t dba_low;
+    uint32_t dba_high;
+    uint32_t rsv0;
+    
+    uint32_t dbc:22;
+    uint32_t rsv1:9;
+    uint32_t i:1;
+} __attribute__((packed)) hba_prdte_t;
+
+typedef struct {
+    uint8_t cmd_fis[64];
+    uint8_t acmd[16];
+    uint8_t rsv[48];
+    hba_prdte_t entries[1];
+} __attribute__((packed)) hba_cmd_tbl_t;
 
 static volatile uint32_t *ahci_base = NULL;
 int command_slots = 0, connected_ports = 0;
@@ -204,6 +253,155 @@ uint32_t ahci_check_type(int port) {
     }
 }
 
+int ahci_find_slot(int port_num) {
+    uint32_t sact = port_read_reg(port_num, PORT_SACT);
+    uint32_t ci = port_read_reg(port_num, PORT_CI);
+    uint32_t slots = sact | ci;
+    
+    for (int i = 0; i < command_slots; i++) {
+        if ((slots & 1) == 0) {
+            return i;
+        }
+        slots >>= 1;
+    }
+    return -1;
+}
+
+void ahci_send_cmd(int port_num, uint32_t slot) {
+    while (port_read_reg(port_num, PORT_TFD) & 0x88) {
+        __asm__ volatile ("pause");
+    }
+    
+    uint32_t cmd = port_read_reg(port_num, PORT_CMD);
+    cmd &= ~HBA_CMD_ST;
+    port_write_reg(port_num, PORT_CMD, cmd);
+    
+    while (port_read_reg(port_num, PORT_CMD) & HBA_CMD_CR) {
+        __asm__ volatile ("pause");
+    }
+    
+    cmd = port_read_reg(port_num, PORT_CMD);
+    cmd |= HBA_CMD_FR | HBA_CMD_ST;
+    port_write_reg(port_num, PORT_CMD, cmd);
+    
+    port_write_reg(port_num, PORT_CI, 1 << slot);
+    
+    while (port_read_reg(port_num, PORT_CI) & (1 << slot)) {
+        __asm__ volatile ("pause");
+    }
+    
+    cmd = port_read_reg(port_num, PORT_CMD);
+    cmd &= ~HBA_CMD_ST;
+    port_write_reg(port_num, PORT_CMD, cmd);
+    
+    while (port_read_reg(port_num, PORT_CMD) & HBA_CMD_ST) {
+        __asm__ volatile ("pause");
+    }
+    
+    cmd &= ~HBA_CMD_FRE;
+    port_write_reg(port_num, PORT_CMD, cmd);
+}
+
+int ahci_op(ahci_port_t *ahci_port, uint64_t lba, uint32_t count, char *buffer, bool write) {
+    int port_num = ahci_port->port_num;
+    
+    port_write_reg(port_num, PORT_IS, 0xFFFFFFFF);
+    
+    int slot = ahci_find_slot(port_num);
+    if (slot == -1) {
+        return 1;
+    }
+    
+    hba_cmd_header_t *cmd_hdr = (hba_cmd_header_t*)ahci_port->clb;
+    cmd_hdr += slot;
+    cmd_hdr->cfl = sizeof(fis_h2d_t) / sizeof(uint32_t);
+    cmd_hdr->w = write ? 1 : 0;
+    cmd_hdr->prdtl = DIV_CEILING(count * 512, PAGE_SIZE);
+    
+    hba_cmd_tbl_t *cmd_tbl = (hba_cmd_tbl_t*)ahci_port->cmd_tbls[slot];
+    memset(cmd_tbl, 0, sizeof(hba_cmd_tbl_t) + (cmd_hdr->prdtl - 1) * sizeof(hba_prdte_t));
+    
+    int32_t remaining_sectors = (int32_t)count;
+    for (int i = 0; remaining_sectors > 0; remaining_sectors -= PAGE_SIZE / 512, i++) {
+        uint64_t buffer_virt = (uint64_t)buffer + (i * PAGE_SIZE);
+        uint64_t page_phys = (uint64_t)PHYSICAL_IDENT((void*)buffer_virt);
+        
+        cmd_tbl->entries[i].dba_low = LOW(page_phys);
+        cmd_tbl->entries[i].dba_high = HIGH(page_phys);
+        cmd_tbl->entries[i].dbc = MAX(remaining_sectors * 512 - 1, PAGE_SIZE - 1);
+    }
+    
+    fis_h2d_t *fis_cmd = (fis_h2d_t*)(&cmd_tbl->cmd_fis);
+    fis_cmd->fis_type = FIS_TYPE_REG_H2D;
+    fis_cmd->c = 1;
+    fis_cmd->cmd = write ? 0x35 : 0x25;
+    
+    fis_cmd->lba0 = (uint8_t)lba;
+    fis_cmd->lba1 = (uint8_t)(lba >> 8);
+    fis_cmd->lba2 = (uint8_t)(lba >> 16);
+    fis_cmd->lba3 = (uint8_t)(lba >> 24);
+    fis_cmd->lba4 = (uint8_t)(lba >> 32);
+    fis_cmd->lba5 = (uint8_t)(lba >> 40);
+    fis_cmd->device = 0x40;
+    
+    fis_cmd->count_low = (uint8_t)count;
+    fis_cmd->count_high = (uint8_t)(count >> 8);
+    
+    ahci_send_cmd(port_num, slot);
+    
+    uint32_t is = port_read_reg(port_num, PORT_IS);
+    if (is & (1 << 30)) {
+        return 1;
+    }
+    return 0;
+}
+
+int ahci_read(ahci_port_t *ahci_port, uint64_t lba, uint32_t count, char *buffer) {
+    return ahci_op(ahci_port, lba, count, buffer, false);
+}
+
+long sda_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
+    if (len == 0 || offset % 512 != 0 || len % 512 != 0) {
+        return -1;
+    }
+
+    uint32_t sector = offset / 512;
+    uint32_t num_sectors = len / 512;
+
+    return ahci_read(ahci_ports[0], sector, num_sectors, buffer) ? -1 : len;
+}
+
+void test_disk_read(void) {
+    if (connected_ports == 0) {
+        dprintf("No drives\n");
+        return;
+    }
+    
+    void *buffer_page = VIRTUAL_IDENT(mmu_alloc(1));
+    char *buffer = (char*)buffer_page;
+    
+    if (!buffer) {
+        dprintf("Alloc failed\n");
+        return;
+    }
+    
+    memset(buffer, 0, 512);
+    
+    dprintf("Reading sector 0...\n");
+    
+    int result = ahci_read(ahci_ports[0], 0, 1, buffer);
+    
+    if (result == 0) {
+        dprintf("Success! First bytes: ");
+        for (int i = 0; i < 16; i++) {
+            dprintf("%x ", (unsigned char)buffer[i]);
+        }
+        dprintf("\n");
+    } else {
+        dprintf("Read failed\n");
+    }
+}
+
 int init() {
     dprintf("%s:%d: starting AHCI driver\n", __FILE__, __LINE__);
 
@@ -263,11 +461,11 @@ int init() {
     }
 
     uint32_t cap = ahci_read_reg(AHCI_CAP);
-    uint8_t command_slots = ((cap >> 8) & 0x1F) + 1;
+    command_slots = ((cap >> 8) & 0x1F) + 1;
     dprintf("%s:%d: %d command slots available\n", __FILE__, __LINE__, command_slots);
 
     hpet_sleep(5000);
-    ahci_write_reg(AHCI_IS, 0xFFFFFFFF); // clear interrupt
+    ahci_write_reg(AHCI_IS, 0xFFFFFFFF);
 
     uint32_t pi = ahci_read_reg(AHCI_PI);
     for (int i = 0; i < 32; i++) {
@@ -281,6 +479,11 @@ int init() {
         pi >>= 1;
     }
 
+    test_disk_read();
+
+    struct vfs_node *sda = vfs_create_node("sda", VFS_BLOCKDEVICE);
+    sda->read = sda_read;
+    vfs_add_device(sda);
     return 0;
 }
 

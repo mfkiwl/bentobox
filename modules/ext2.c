@@ -277,7 +277,8 @@ void ext2_mount(ext2_fs *fs, struct vfs_node *parent, uint32_t inode_num) {
 int init() {
     dprintf("%s:%d: starting ext2 driver\n", __FILE__, __LINE__);
 
-    hda = vfs_open(NULL, "/dev/hda");
+    //hda = vfs_open(NULL, "/dev/hda");
+    hda = vfs_open(NULL, "/dev/sda");
 
     ext2_sb *sb = (ext2_sb *)kmalloc(512);
     vfs_read(hda, (void *)sb, 1024, sizeof(ext2_sb));
