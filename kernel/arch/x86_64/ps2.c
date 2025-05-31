@@ -35,10 +35,10 @@ void irq1_handler(struct registers *r) {
                     break;
                 }
                 if (kb_ctrl && key == 0x2E) {
-                    // TODO: fix when running with SMP
                     for (uint32_t id = 0; id < madt_lapics; id++) {
                         send_signal(get_core(id)->current_proc, SIGINT, 0);
                     }
+                    break;
                 }
                 if (kb_shift) {
                     fifo_enqueue(&kb_fifo, kb_map_keys_shift[key]);
