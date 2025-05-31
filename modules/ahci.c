@@ -174,7 +174,7 @@ ahci_port_t *ahci_init_disk(int port_num) {
     }
 
     if (timeout <= 0) {
-        dprintf("%s:%d: Failed to stop command engine on port %d\n", port_num);
+        dprintf("%s:%d: Failed to stop command engine on port %d\n", __FILE__, __LINE__, port_num);
         kfree(ahci_port);
         return NULL;
     }
@@ -370,9 +370,7 @@ long sda_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
     size_t pages = ALIGN_UP(len, PAGE_SIZE) / PAGE_SIZE;
     void *buf = VIRTUAL_IDENT(mmu_alloc(pages));
 
-    dprintf("sda_read: reading %d bytes... ", len);
     if (ahci_read(ahci_ports[0], lba, num_sectors, buf) == 0) {
-        dprintf("done\n");
         memcpy(buffer, buf, len);
         mmu_free(PHYSICAL_IDENT(buf), pages);
         return len;
@@ -402,7 +400,7 @@ int init() {
     if (memory_type == 0x0) {
         ahci_phys_base = bar5 & 0xFFFFFFF0;
     } else if (memory_type == 0x4) {
-        dprintf("%s:%d: FATAL: 64-bit AHCI not implemented\n");
+        dprintf("%s:%d: FATAL: 64-bit AHCI not implemented\n", __FILE__, __LINE__);
         return 1;
     }
 
@@ -423,7 +421,7 @@ int init() {
     }
 
     if (i + 1 >= 1000) {
-        dprintf("%s:%d: FATAL: failed to reset controller: timed out\n");
+        dprintf("%s:%d: FATAL: failed to reset controller: timed out\n", __FILE__, __LINE__);
         return 1;
     }
 
@@ -433,11 +431,11 @@ int init() {
         hpet_sleep(1000);
         ghc = ahci_read_reg(AHCI_GHC);
         if (!(ghc & GHC_AHCI_ENABLE)) {
-            dprintf("%s:%d: FATAL: failed to enable AHCI mode!\n");
+            dprintf("%s:%d: FATAL: failed to enable AHCI mode!\n", __FILE__, __LINE__);
             return 1;
         }
     } else {
-        printf("AHCI already enabled\n");
+        dprintf("%s:%d: AHCI mode already enabled\n", __FILE__, __LINE__);
     }
 
     uint32_t cap = ahci_read_reg(AHCI_CAP);
@@ -462,6 +460,8 @@ int init() {
     struct vfs_node *sda = vfs_create_node("sda", VFS_BLOCKDEVICE);
     sda->read = sda_read;
     vfs_add_device(sda);
+
+    printf("\033[92m * \033[97mInitialized AHCI driver\033[0m\n");
     return 0;
 }
 

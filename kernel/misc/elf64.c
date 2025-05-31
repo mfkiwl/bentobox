@@ -340,6 +340,7 @@ long fork(struct registers *r) {
     proc->heap = heap_create();
     proc->gs = this->gs;
     proc->fs = this->fs;
+    memcpy(proc->fxsave, this->fxsave, sizeof proc->fxsave);
     memcpy(proc->fd_table, this->fd_table, sizeof proc->fd_table);
     memcpy(proc->sections, this->sections, sizeof proc->sections);
     memcpy(proc->signal_handlers, this->signal_handlers, sizeof proc->signal_handlers);

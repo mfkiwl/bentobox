@@ -371,7 +371,7 @@ void ext2_mount(ext2_fs *fs, struct vfs_node *parent, uint32_t inode_num) {
     uint32_t *dir_blocks = (uint32_t *)kmalloc(12 * sizeof(uint32_t));
     uint32_t valid_blocks = 0;
     
-    for (int i = 0; i < 12 && i < total_blocks; i++) {
+    for (unsigned i = 0; i < 12 && i < total_blocks; i++) {
         if (inode->direct_block_ptr[i] != 0) {
             dir_blocks[valid_blocks++] = inode->direct_block_ptr[i];
         }
