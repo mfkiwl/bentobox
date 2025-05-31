@@ -14,7 +14,8 @@ bentobox is a 64-bit SMP-enabled operating system targeting x86_64 and RISC-V
 - SMP-aware scheduler
 - Unix-style VFS
 - Elf64 loading
-- ATA driver and ext2fs support
+- ATA and AHCI driver
+- ext2 support with caching
 - Userspace processes
 - SSE support
 - mlibc port
@@ -46,7 +47,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] PCI
 - [X] SMP
 - [X] ATA driver
-- [ ] AHCI driver
+- [X] AHCI driver
 - [X] ext2fs support
     - [X] Singly linked blocks
     - [X] Doubly linked blocks
@@ -54,7 +55,7 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
     - [X] Reading
     - [ ] Writing
     - [X] Mounting
-    - [ ] Caching
+    - [X] Caching
 - [X] Framebuffer support
 - [ ] PS/2 drivers
     - [X] Keyboard
@@ -106,6 +107,15 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [ ] Fix ATA driver not reading/writing more than 256 sectors at a time
 - [X] waitpid()
     - [X] Signals
+- [X] Fix signals on SMP
 
-## Screenshot
-![image](https://github.com/user-attachments/assets/8829074f-8e42-47a8-b2aa-e2340813cc8e)
+## Screenshots
+![image](https://github.com/user-attachments/assets/5b9f076e-b8c6-45ee-9f03-ad815217c9a3)
+
+*/bin/sh running some commands*
+
+![image](https://github.com/user-attachments/assets/a6effec3-41a1-49ad-aad4-2acb928a91e5)
+
+*Spinning donut demo*
+
+
