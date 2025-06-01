@@ -6,6 +6,7 @@ long sys_write(struct registers *r);
 long sys_open(struct registers *r);
 long sys_close(struct registers *r);
 long sys_stat(struct registers *r);
+long sys_fstat(struct registers *r);
 long sys_lseek(struct registers *r);
 long sys_mmap(struct registers *r);
 long sys_rt_sigaction(struct registers *r);

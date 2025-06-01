@@ -350,3 +350,30 @@ long sys_stat(struct registers *r) {
     }
     return 0;
 }
+
+long sys_fstat(struct registers *r) {
+    struct fd *fd = &this->fd_table[r->rdi];
+    struct stat *statbuf = (struct stat *)r->rsi;
+    
+    if (!fd->node || !statbuf) {
+        return -EFAULT;
+    }
+    
+    struct vfs_node *node = fd->node;
+    
+    memset(statbuf, 0, sizeof(struct stat));
+    
+    statbuf->st_mode = perms_to_mode(node->type, node->perms);
+    statbuf->st_nlink = 0;
+    statbuf->st_uid = 0;
+    statbuf->st_gid = 0;
+    
+    if (node->type == VFS_FILE) {
+        statbuf->st_size = node->size;
+    } else if (node->type == VFS_DIRECTORY) {
+        statbuf->st_size = 4096;
+    } else {
+        statbuf->st_size = 0;
+    }
+    return 0;
+}
