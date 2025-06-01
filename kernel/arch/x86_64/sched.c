@@ -324,6 +324,9 @@ void sched_cleaner(void) {
             if (proc->parent) {
                 proc->parent->children = NULL;
             }
+            
+            extern atomic_flag flanterm_lock;
+            release(&flanterm_lock);
 
             this_core()->pml4 = proc->pml4;
             if (proc->sections[0].length > 0) {
