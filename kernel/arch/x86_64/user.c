@@ -1,4 +1,3 @@
-#include "kernel/signal.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <sys/mman.h>
@@ -184,6 +183,9 @@ long sys_access(struct registers *r) {
 }
 
 long sys_wait4(struct registers *r) {
+    if (!this->children) {
+        return -ECHILD;
+    }
     sched_block(PAUSED);
     *(uintptr_t *)r->rsi = this->child_exit;
     return 0;
@@ -321,7 +323,38 @@ long sys_stat(struct registers *r) {
     return 0;
 }
 
-long (*syscalls[256])(struct registers *) = {
+long sys_rt_sigaction(struct registers *r) {
+    return 0;
+}
+
+long sys_getuid(struct registers *r) {
+    return 0;
+}
+
+long sys_getgid(struct registers *r) {
+    return 0;
+}
+
+long sys_geteuid(struct registers *r) {
+    return 0;
+}
+
+long sys_getegid(struct registers *r) {
+    return 0;
+}
+
+long sys_getppid(struct registers *r) {
+    if (this->parent)
+        return this->parent->pid;
+    else
+        return -1;
+}
+
+long sys_getgpid(struct registers *r) {
+    return r->rdi;
+}
+
+long (*syscalls[456])(struct registers *) = {
     sys_read,
     sys_write,
     sys_open,
@@ -330,7 +363,9 @@ long (*syscalls[256])(struct registers *) = {
     [5 ... 7] = NULL,
     sys_lseek,
     sys_mmap,
-    [10 ... 15] = NULL,
+    [10 ... 12] = NULL,
+    sys_rt_sigaction,
+    [14 ... 15] = NULL,
     sys_ioctl,
     [17 ... 20] = NULL,
     sys_access,
@@ -340,7 +375,18 @@ long (*syscalls[256])(struct registers *) = {
     sys_execve,
     sys_exit,
     sys_wait4,
-    [62 ... 157] = NULL,
+    [62 ... 101] = NULL,
+    sys_getuid,
+    NULL,
+    sys_getgid,
+    [105 ... 106] = NULL,
+    sys_geteuid,
+    sys_getegid,
+    NULL,
+    sys_getppid,
+    [111 ... 120] = NULL,
+    sys_getgpid,
+    [122 ... 157] = NULL,
     sys_arch_prctl,
     [159 ... 185] = NULL,
     sys_gettid,
@@ -349,8 +395,6 @@ long (*syscalls[256])(struct registers *) = {
 };
 
 void syscall_handler(struct registers *r) {
-    //sched_lock();
-
     long(*handler)(struct registers *);
     handler = syscalls[r->rax];
 
@@ -362,7 +406,6 @@ void syscall_handler(struct registers *r) {
     }
 
     r->rax = handler(r);
-    //sched_unlock();
 }
 
 void syscall_bind(uint64_t rax, void *handler) {

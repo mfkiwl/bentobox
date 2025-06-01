@@ -242,10 +242,8 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     this->name = kmalloc(strlen(argv[0]) + 1);
     strcpy(this->name, argv[0]);
     heap_delete(this->heap);
-    vma_destroy(this->vma);
     
     this->heap = heap_create();
-    this->vma = vma_create();
     this->ctx.rip = ehdr->e_entry;
     this->state = FRESH;
 
@@ -274,6 +272,9 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     *VIRTUAL_IDENT(stack_top_phys - depth) = argc;
     this->ctx.rsp = USER_STACK_TOP - depth;
     memset(VIRTUAL_IDENT(this->stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE) - depth);
+    
+    vma_destroy(this->vma);
+    this->vma = vma_create();
 
     if (this->sections[0].length > 0) {
         for (int i = 0; this->sections[i].length; i++) {
@@ -340,6 +341,8 @@ long fork(struct registers *r) {
     proc->heap = heap_create();
     proc->gs = this->gs;
     proc->fs = this->fs;
+    this->children = proc;
+    proc->parent = this;
     memcpy(proc->fxsave, this->fxsave, sizeof proc->fxsave);
     memcpy(proc->fd_table, this->fd_table, sizeof proc->fd_table);
     memcpy(proc->sections, this->sections, sizeof proc->sections);

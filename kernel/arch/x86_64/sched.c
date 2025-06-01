@@ -22,7 +22,8 @@
 long max_pid = 0, next_cpu = 0;
 
 static void sigchld(struct task *proc, int exit) {
-    proc->parent->child_exit = exit;
+    proc->child_exit = exit;
+    sched_unblock(proc);
 }
 
 static void sigint(struct task *proc, int _) {
@@ -190,13 +191,15 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     proc->heap = heap_create();
     proc->fd_table[0] = fd_new(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
-    proc->fd_table[2] = fd_new(vfs_open(vfs_root, "/dev/serial0"), 0);
+    proc->fd_table[2] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
     proc->vma = vma_create();
     proc->signal_handlers[SIGCHLD] = sigchld;
     proc->signal_handlers[SIGINT] = sigint;
     uint32_t *mxcsr = (uint32_t *)(proc->fxsave + 24);
     *mxcsr = 0x1920;
     *mxcsr |= 0x8040;
+    proc->children = NULL;
+    proc->parent = NULL;
 
     return proc;
 }
@@ -286,7 +289,6 @@ void sched_sleep(int us) {
 void sched_kill(struct task *proc, int status) {
     sched_lock();
 
-    // Send SIGCHLD to parent if it exists
     if (proc->parent) {
         send_signal(proc->parent, SIGCHLD, status);
     }
@@ -319,6 +321,10 @@ void sched_cleaner(void) {
         
         if (proc->user) {
             //printf("Killing %d - %s!\n", proc->pid, proc->name);
+            if (proc->parent) {
+                proc->parent->children = NULL;
+            }
+
             this_core()->pml4 = proc->pml4;
             if (proc->sections[0].length > 0) {
                 for (int i = 0; proc->sections[i].length; i++) {

@@ -13,14 +13,14 @@ int main(int argc, char *argv[]) {
         }
 
         if (pid == 0) {
-            char *arg[] = { "/bin/sh", NULL };
+            char *arg[] = { "/bin/bash", NULL };
             execvp(arg[0], arg);
             perror("execvp");
             exit(1);
         } else {
             int status;
             waitpid(pid, &status, 0);
-            fprintf(stderr, "%s:%d: restarting /bin/sh\n", __FILE__, __LINE__);
+            fprintf(stderr, "%s:%d: restarting /bin/bash\n", __FILE__, __LINE__);
         }
     }
 

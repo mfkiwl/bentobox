@@ -66,6 +66,7 @@ struct task {
     uint32_t pending_signals;
     void (*signal_handlers[16])(struct task *, int);
     struct task *parent;
+    struct task *children;
     int child_exit;
 };
 

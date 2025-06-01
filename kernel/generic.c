@@ -20,7 +20,7 @@ void generic_main(void) {
         __kernel_name, __kernel_version_major,__kernel_version_minor,
         __kernel_commit_hash, __kernel_build_date, __kernel_build_time, __kernel_arch);
 
-    //sched_add_task(sched_new_task(debugcon_entry, "bentobox debug console"), NULL);
+    sched_add_task(sched_new_task(debugcon_entry, "bentobox debug console"), NULL);
     dprintf("%s:%d: running init process\n", __FILE__, __LINE__);
     spawn("/bin/init", 0, NULL, NULL);
 	sched_start_all_cores();
