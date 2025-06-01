@@ -153,6 +153,5 @@ hdd: apps
 
 .PHONY: clean
 clean:
-	@$(MAKE) -C apps clean
 	@rm -f $(BOOT_OBJS) $(KERNEL_OBJS)
 	@rm -rf bin

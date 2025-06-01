@@ -1,6 +1,10 @@
 #include <errno.h>
 #include <stddef.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <kernel/vfs.h>
+#include <kernel/mmu.h>
+#include <kernel/posix.h>
 #include <kernel/malloc.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
@@ -151,4 +155,198 @@ void vfs_install(void) {
     console_initialize();
 
     printf("\033[92m * \033[97mInitialized virtual filesystem\033[0m\n");
+}
+
+long sys_ioctl(struct registers *r) {
+    int fd = r->rdi;
+    int op = r->rsi;
+
+    switch (op) {
+        case 0x5401: /* TCGETS */
+            if (fd < 3) {
+                return 0;
+            } else {
+                return -ENOTTY;
+            }
+            break;
+        default:
+            dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, r->rdi);
+            return -EINVAL;
+    }
+}
+
+long sys_lseek(struct registers *r) {
+    struct fd *fd = &this->fd_table[r->rdi];
+    off_t offset = r->rsi;
+    int whence = r->rdx;
+
+    if (fd->node->type == VFS_CHARDEVICE) {
+        return -ESPIPE;
+    }
+
+    switch (whence) {
+        case SEEK_SET:
+            fd->offset = offset;
+            break;
+        case SEEK_CUR:
+            fd->offset += offset;
+            break;
+        case SEEK_END:
+            fd->offset = fd->node->size + offset;
+            break;
+    }
+
+    return fd->offset;
+}
+
+long sys_open(struct registers *r) {
+    const char *pathname = (const char *)r->rdi;
+    int flags = r->rsi;
+    mode_t mode = r->rdx;
+    (void)mode;
+
+    return fd_open(pathname, flags);
+}
+
+long sys_close(struct registers *r) {
+    return fd_close(r->rdi);
+}
+
+long sys_access(struct registers *r) {
+    if (vfs_open(NULL, (const char *)r->rdi)) {
+        return F_OK;
+    }
+    return -1;
+}
+
+long sys_getdents64(struct registers *r) {
+    struct linux_dirent64 {
+        uint64_t       d_ino;
+        int64_t        d_off;
+        unsigned short d_reclen;
+        unsigned char  d_type;
+        char           d_name[];
+    };
+
+    int fd_num = r->rdi;
+    struct linux_dirent64 *dirp = (struct linux_dirent64 *)r->rsi;
+    unsigned int count = r->rdx;
+
+    if (fd_num < 0 || fd_num >= (signed)(sizeof this->fd_table / sizeof(struct fd)) || !this->fd_table[fd_num].node) {
+        return -EBADF;
+    }
+
+    struct fd *fd = &this->fd_table[fd_num];
+    struct vfs_node *dir = fd->node;
+
+    if (dir->type != VFS_DIRECTORY) {
+        return -ENOTDIR;
+    }
+    if (!dirp || count == 0) {
+        return -EINVAL;
+    }
+
+    struct vfs_node *child = dir->children;
+    int entries_to_skip = fd->offset;
+    
+    while (child && entries_to_skip > 0) {
+        child = child->next;
+        entries_to_skip--;
+    }
+    
+    int offset = 0;
+    struct linux_dirent64 *current_entry = dirp;
+    
+    while (child) {
+        const char *name = child->name;
+        int name_len = strlen(name);
+        int reclen = ALIGN_UP(sizeof(struct linux_dirent64) + name_len + 1, 8);
+        
+        if ((unsigned)(offset + reclen) > count)
+            break;
+        
+        current_entry->d_ino = child->inode;
+        current_entry->d_off = fd->offset + 1;
+        current_entry->d_reclen = reclen;
+        switch (child->type) {
+            case VFS_DIRECTORY:
+                current_entry->d_type = 4; // DT_DIR
+                break;
+            case VFS_FILE:
+                current_entry->d_type = 8; // DT_REG
+                break;
+            case VFS_CHARDEVICE:
+                current_entry->d_type = 2; // DT_CHR
+                break;
+            case VFS_BLOCKDEVICE:
+                current_entry->d_type = 6; // DT_BLK
+                break;
+            default:
+                current_entry->d_type = 0; // DT_UNKNOWN
+                break;
+        }
+        strcpy(current_entry->d_name, name);
+        
+        current_entry = (void*)current_entry + reclen;
+        offset += reclen;
+        child = child->next;
+        fd->offset++;
+    }
+    
+    return offset;
+}
+
+static unsigned int perms_to_mode(enum vfs_node_type type, uint16_t perms) {
+    unsigned int mode = 0;
+    
+    switch (type) {
+        case VFS_FILE:
+            mode |= S_IFREG;
+            break;
+        case VFS_DIRECTORY:
+            mode |= S_IFDIR;
+            break;
+        case VFS_CHARDEVICE:
+            mode |= S_IFCHR;
+            break;
+        case VFS_BLOCKDEVICE:
+            mode |= S_IFBLK;
+            break;
+        default:
+            mode |= S_IFREG;
+            break;
+    }
+    
+    mode |= (perms & 07777);
+    return mode;
+}
+
+long sys_stat(struct registers *r) {
+    const char *pathname = (const char *)r->rdi;
+    struct stat *statbuf = (struct stat *)r->rsi;
+    
+    if (!pathname || !statbuf) {
+        return -EFAULT;
+    }
+    
+    struct vfs_node *node = vfs_open(NULL, pathname);
+    if (!node) {
+        return -ENOENT;
+    }
+    
+    memset(statbuf, 0, sizeof(struct stat));
+    
+    statbuf->st_mode = perms_to_mode(node->type, node->perms);
+    statbuf->st_nlink = 0;
+    statbuf->st_uid = 0;
+    statbuf->st_gid = 0;
+    
+    if (node->type == VFS_FILE) {
+        statbuf->st_size = node->size;
+    } else if (node->type == VFS_DIRECTORY) {
+        statbuf->st_size = 4096;
+    } else {
+        statbuf->st_size = 0;
+    }
+    return 0;
 }

@@ -37,7 +37,4 @@ $(OUT)/%: %.S
 	@$(LD) $(LDFLAGS) $@.o -o $@
 	@rm $@.o
 
-clean:
-	@rm -rf ../base/bin
-
 .PHONY: all clean
