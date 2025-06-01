@@ -1,7 +1,6 @@
-#include "kernel/arch/x86_64/smp.h"
-#include "kernel/vma.h"
 #include <stdbool.h>
 #include <kernel/mmu.h>
+#include <kernel/vma.h>
 #include <kernel/elf64.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>

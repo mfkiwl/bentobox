@@ -1,7 +1,8 @@
-#include "kernel/malloc.h"
 #include <kernel/arch/x86_64/hpet.h>
 #include <kernel/pci.h>
 #include <kernel/mmu.h>
+#include <kernel/mutex.h>
+#include <kernel/malloc.h>
 #include <kernel/printf.h>
 #include <kernel/module.h>
 #include <kernel/string.h>
@@ -137,6 +138,7 @@ typedef struct {
 static volatile uint32_t *ahci_base = NULL;
 int command_slots = 0, connected_ports = 0;
 ahci_port_t *ahci_ports[32];
+mutex_t ahci_mutex;
 
 static uint32_t ahci_read_reg(uint32_t offset) {
     return ahci_base[offset / 4];
@@ -303,6 +305,7 @@ void ahci_send_cmd(int port_num, uint32_t slot) {
 }
 
 int ahci_op(ahci_port_t *ahci_port, uint64_t lba, uint32_t count, char *buffer, bool write) {
+    mutex_lock(&ahci_mutex);
     int port_num = ahci_port->port_num;
     
     port_write_reg(port_num, PORT_IS, 0xFFFFFFFF);
@@ -353,6 +356,7 @@ int ahci_op(ahci_port_t *ahci_port, uint64_t lba, uint32_t count, char *buffer, 
     if (is & (1 << 30)) {
         return 1;
     }
+    mutex_unlock(&ahci_mutex);
     return 0;
 }
 
@@ -382,6 +386,7 @@ long sda_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
 
 int init() {
     dprintf("%s:%d: starting AHCI driver\n", __FILE__, __LINE__);
+    mutex_init(&ahci_mutex);
 
     struct pci_device *ahci_dev = pci_get_device(0x01, 0x06);
     if (!ahci_dev) {
