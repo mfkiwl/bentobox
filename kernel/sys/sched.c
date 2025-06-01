@@ -49,12 +49,16 @@ void send_signal(struct task *proc, int signal, int extra) {
 }
 
 void sched_lock(void) {
+#ifdef __x86_64__
     lapic_stop_timer();
+#endif
 }
 
 void sched_unlock(void) {
+#ifdef __x86_64__
     lapic_eoi();
     lapic_oneshot(0x79, 5);
+#endif
 }
 
 void sched_add_task(struct task *proc, struct cpu *core) {
