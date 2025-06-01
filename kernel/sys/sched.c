@@ -147,20 +147,38 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     memset(VIRTUAL_IDENT(stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE));
     long depth = 16;
 
+    int envc = 0;
+    if (env) for (; env[envc]; envc++);
+
     uint64_t argv_ptrs[argc + 1];
+    uint64_t env_ptrs[envc + 1];
     argv_ptrs[argc] = 0;
+    env_ptrs[envc] = 0;
 
     int i = 0;
+    for (i = 0; i < envc; i++) {
+        depth += ALIGN_UP(strlen(env[i]) + 1, 16);
+        env_ptrs[i] = (uint64_t)(USER_STACK_TOP - depth);
+        strcpy((char *)VIRTUAL_IDENT(stack_top_phys - depth), env[i]);
+    }
     for (i = 0; i < argc; i++) {
-        depth += ALIGN_UP(strlen(argv[i]), 16);
-        argv_ptrs[i] = (uint64_t)(stack_top - depth);
+        depth += ALIGN_UP(strlen(argv[i]) + 1, 16);
+        argv_ptrs[i] = (uint64_t)(USER_STACK_TOP - depth);
         strcpy((char *)VIRTUAL_IDENT(stack_top_phys - depth), argv[i]);
     }
 
     depth += 8;
     *VIRTUAL_IDENT(stack_top_phys - depth) = 0;
 
-    for (i = argc; i >= 0; i--) {
+    for (i = envc - 1; i >= 0; i--) {
+        depth += 8;
+        *VIRTUAL_IDENT(stack_top_phys - depth) = env_ptrs[i];
+    }
+
+    depth += 8;
+    *VIRTUAL_IDENT(stack_top_phys - depth) = 0;
+
+    for (i = argc - 1; i >= 0; i--) {
         depth += 8;
         *VIRTUAL_IDENT(stack_top_phys - depth) = argv_ptrs[i];
     }
@@ -392,6 +410,9 @@ long sys_execve(struct registers *r) {
     
     int argc;
     for (argc = 0; argv[argc]; argc++);
+
+    dprintf("argv[0]=%s\n", argv[0]);
+    dprintf("envp[0]=%s\n", envp[0]);
 
     return exec(pathname, argc, argv, envp);
 }
