@@ -1,3 +1,4 @@
+#include "kernel/assert.h"
 #include <errno.h>
 #include <stddef.h>
 #include <sys/stat.h>
@@ -169,8 +170,11 @@ long sys_ioctl(struct registers *r) {
                 return -ENOTTY;
             }
             break;
+        case 0x5413:
+            dprintf("%s:%d: TODO: implement TIOCGWINSZ (get window size)\n", __FILE__, __LINE__);
+            return -EINVAL;
         default:
-            dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, r->rdi);
+            dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, op);
             return -EINVAL;
     }
 }
@@ -217,6 +221,11 @@ long sys_access(struct registers *r) {
         return F_OK;
     }
     return -1;
+}
+
+long sys_dup(struct registers *r) {
+    unimplemented;
+    return -ENOSYS;
 }
 
 long sys_getdents64(struct registers *r) {

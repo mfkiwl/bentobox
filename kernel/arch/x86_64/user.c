@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/smp.h>
+#include <kernel/arch/x86_64/hpet.h>
 #include <kernel/arch/x86_64/user.h>
 #include <kernel/fd.h>
 #include <kernel/vfs.h>
@@ -96,6 +97,10 @@ long sys_rt_sigaction(struct registers *r) {
     return 0;
 }
 
+long sys_rt_sigprocmask(struct registers *r) {
+    return 0;
+}
+
 long sys_getuid(struct registers *r) {
     return 0;
 }
@@ -123,6 +128,19 @@ long sys_getgpid(struct registers *r) {
     return r->rdi;
 }
 
+long sys_clock_gettime(struct registers *r) {
+    int clockid = r->rdi;
+    struct timespec *user_ts = (struct timespec *)r->rsi;
+    
+    if (!user_ts)
+        return -EINVAL;
+
+    struct timespec ts;
+    hpet_read_time(&ts.tv_sec, &ts.tv_nsec);
+    memcpy(user_ts, &ts, sizeof ts);
+    return 0;
+}
+
 long (*syscalls[456])(struct registers *) = {
     sys_read,
     sys_write,
@@ -135,11 +153,16 @@ long (*syscalls[456])(struct registers *) = {
     sys_mmap,
     [10 ... 12] = NULL,
     sys_rt_sigaction,
-    [14 ... 15] = NULL,
+    sys_rt_sigprocmask,
+    NULL,
     sys_ioctl,
     [17 ... 20] = NULL,
     sys_access,
-    [22 ... 55] = NULL,
+    [22 ... 31] = NULL,
+    sys_dup,
+    [33 ... 38] = NULL,
+    sys_getpid,
+    [40 ... 55] = NULL,
     sys_clone,
     [57 ... 58] = NULL,
     sys_execve,
@@ -159,9 +182,11 @@ long (*syscalls[456])(struct registers *) = {
     [122 ... 157] = NULL,
     sys_arch_prctl,
     [159 ... 185] = NULL,
-    sys_gettid,
+    sys_getpid,
     [187 ... 216] = NULL,
-    sys_getdents64
+    sys_getdents64,
+    [218 ... 227] = NULL,
+    sys_clock_gettime
 };
 
 void syscall_handler(struct registers *r) {

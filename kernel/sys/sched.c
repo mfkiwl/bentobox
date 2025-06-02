@@ -399,7 +399,7 @@ void sched_install(void) {
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }
 
-long sys_gettid(struct registers *r) {
+long sys_getpid(struct registers *r) {
     return this->pid;
 }
 

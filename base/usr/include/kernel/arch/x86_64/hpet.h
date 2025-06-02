@@ -17,3 +17,4 @@ extern uint32_t hpet_period;
 void hpet_install(void);
 void hpet_sleep(size_t us);
 size_t hpet_get_ticks(void);
+void hpet_read_time(long *sec, long *nsec);
