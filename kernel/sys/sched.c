@@ -402,34 +402,3 @@ void sched_install(void) {
 
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }
-
-long sys_getpid(struct registers *r) {
-    return this->pid;
-}
-
-long sys_execve(struct registers *r) {
-    const char *pathname = (const char *)r->rdi;
-    char *const *argv = (char *const *)r->rsi;
-    char *const *envp = (char *const *)r->rdx;
-    
-    int argc;
-    for (argc = 0; argv[argc]; argc++);
-
-    dprintf("argv[0]=%s\n", argv[0]);
-    dprintf("envp[0]=%s\n", envp[0]);
-
-    return exec(pathname, argc, argv, envp);
-}
-
-long sys_clone(struct registers *r) {
-    return fork(r);
-}
-
-long sys_wait4(struct registers *r) {
-    if (!this->children) {
-        return -ECHILD;
-    }
-    sched_block(PAUSED);
-    *(uintptr_t *)r->rsi = this->child_exit;
-    return 0;
-}

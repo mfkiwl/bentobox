@@ -15,5 +15,5 @@ void write_kernel_gs(uint64_t value);
 void write_gs(uint64_t value);
 uint64_t read_kernel_gs(void);
 uint64_t read_gs(void);
-void syscall_handler(struct registers *);
+void write_fs(uint64_t value);
 void user_initialize(void);
