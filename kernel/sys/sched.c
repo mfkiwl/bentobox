@@ -145,7 +145,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     mmu_map_pages(4, kernel_stack, PHYSICAL(kernel_stack), PTE_PRESENT | PTE_WRITABLE);
 
     memset(VIRTUAL_IDENT(stack_bottom_phys), 0, (USER_STACK_SIZE * PAGE_SIZE));
-    long depth = 16;
+    long depth = 24;
 
     int envc = 0;
     if (env) for (; env[envc]; envc++);

@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
         if (pid == 0) {
             char *arg[] = { "/bin/bash", NULL };
             char *envp[] = { "HOME=/root", NULL };
-            execve(arg[0], arg, NULL /*envp*/);
+            execve(arg[0], arg, envp);
             perror("execvp");
             exit(1);
         } else {

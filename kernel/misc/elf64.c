@@ -247,7 +247,7 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     this->state = FRESH;
 
     uintptr_t stack_top_phys = this->stack_bottom_phys + (USER_STACK_SIZE * PAGE_SIZE);
-    long depth = 16;
+    long depth = 24;
 
     int envc = 0;
     if (env) for (; env[envc]; envc++);
