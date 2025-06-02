@@ -150,6 +150,10 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     int envc = 0;
     if (env) for (; env[envc]; envc++);
 
+    if ((argc + envc) % 2 == 0) {
+        depth += 8;
+    }
+
     uint64_t argv_ptrs[argc + 1];
     uint64_t env_ptrs[envc + 1];
     argv_ptrs[argc] = 0;

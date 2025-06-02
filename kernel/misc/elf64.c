@@ -247,10 +247,14 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     this->state = FRESH;
 
     uintptr_t stack_top_phys = this->stack_bottom_phys + (USER_STACK_SIZE * PAGE_SIZE);
-    long depth = 24;
+    long depth = 16;
 
     int envc = 0;
     if (env) for (; env[envc]; envc++);
+
+    if ((argc + envc) % 2 == 0) {
+        depth += 8;
+    }
 
     uint64_t argv_ptrs[argc + 1];
     uint64_t env_ptrs[envc + 1];
