@@ -12,13 +12,39 @@
 #include <kernel/fd.h>
 #include <kernel/vfs.h>
 #include <kernel/mmu.h>
-#include <kernel/posix.h>
+#include <kernel/lfb.h>
 #include <kernel/sched.h>
 #include <kernel/assert.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/syscall.h>
 #include <kernel/version.h>
+
+#define SEEK_SET    0
+#define SEEK_CUR    1
+#define SEEK_END    2
+
+#define	R_OK	4
+#define	W_OK	2
+#define	X_OK	1
+#define	F_OK	0
+
+#define DT_REG  8
+#define DT_BLK  6
+#define DT_DIR  4
+#define DT_CHR  2
+#define DT_UNKNOWN 0
+
+#define AT_FDCWD -100
+#define AT_SYMLINK_NOFOLLOW 0x100
+
+struct linux_dirent64 {
+    uint64_t       d_ino;
+    int64_t        d_off;
+    unsigned short d_reclen;
+    unsigned char  d_type;
+    char           d_name[];
+};
 
 long sys_exit(long status) {
     //dprintf("%s:%d: %s: exiting with status %lu\n", __FILE__, __LINE__, __func__, r->rdi);
@@ -76,7 +102,7 @@ long sys_wait4(int pid, int *wstatus) {
     return 0;
 }
 
-long sys_ioctl(int fd, int op) {
+long sys_ioctl(int fd, int op, void *arg) {
     switch (op) {
         case 0x5401: /* TCGETS */
             if (fd < 3) {
@@ -86,7 +112,13 @@ long sys_ioctl(int fd, int op) {
             }
             break;
         case 0x5413:
-            //dprintf("%s:%d: TODO: implement TIOCGWINSZ (get window size)\n", __FILE__, __LINE__);
+            if (fd >= 3)
+                return -ENOTTY;
+            if (!arg)
+                return -EFAULT;
+
+            lfb_get_ws((struct winsize *)arg);
+            return 0;
         default:
             dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, op);
             return -EINVAL;
@@ -135,14 +167,6 @@ long sys_dup() {
     unimplemented;
     return -ENOSYS;
 }
-
-struct linux_dirent64 {
-    uint64_t       d_ino;
-    int64_t        d_off;
-    unsigned short d_reclen;
-    unsigned char  d_type;
-    char           d_name[];
-};
 
 long sys_getdents64(int fd_num, struct linux_dirent64 *dirp, unsigned int count) {
     if (fd_num < 0 || fd_num >= (signed)(sizeof this->fd_table / sizeof(struct fd)) || !this->fd_table[fd_num].node) {

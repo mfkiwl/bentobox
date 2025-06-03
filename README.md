@@ -119,7 +119,7 @@ Finally, you can simply run `make run -j$(nproc)` and the kernel will run in QEM
 - [X] Fix bash crashing (unaligned stack)
 - [X] newfstatat
 - [X] uname
-- [ ] SIOCGWINSZ
+- [X] SIOCGWINSZ
 
 ## Screenshots
 ![image](https://github.com/user-attachments/assets/5b9f076e-b8c6-45ee-9f03-ad815217c9a3)

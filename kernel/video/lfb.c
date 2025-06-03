@@ -152,3 +152,12 @@ void lfb_change_font(const char *path) {
 
     printf("\033[%d;%dH\n", y, x);
 }
+
+void lfb_get_ws(struct winsize *ws) {
+    if (!ws) return;
+
+    ws->ws_row = ft_ctx->rows;
+    ws->ws_col = ft_ctx->cols;
+    ws->ws_xpixel = lfb.width;
+    ws->ws_ypixel = lfb.height;
+}
