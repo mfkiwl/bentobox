@@ -36,7 +36,11 @@ To build, you need to install the following packages:
 - qemu-system-x86
 - genext2fs
 
-Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
+Then run `git submodule update --init` to clone submodules.
+
+After that, you need to build mlibc. Run `make mlibc-setup`.
+
+Finally, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 
 ## TODO
 - [X] `panic()` function
@@ -114,6 +118,8 @@ Then, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
 - [X] char *const env[]
 - [X] Fix bash crashing (unaligned stack)
 - [ ] newfstatat
+- [ ] uname
+- [ ] SIOCGWINSZ
 
 ## Screenshots
 ![image](https://github.com/user-attachments/assets/5b9f076e-b8c6-45ee-9f03-ad815217c9a3)
