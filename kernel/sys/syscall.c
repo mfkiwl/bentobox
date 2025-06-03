@@ -1,11 +1,13 @@
-#include "kernel/arch/x86_64/user.h"
 #include <errno.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/smp.h>
+#include <kernel/arch/x86_64/user.h>
 #include <kernel/arch/x86_64/hpet.h>
 #include <kernel/fd.h>
 #include <kernel/vfs.h>
@@ -16,6 +18,7 @@
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/syscall.h>
+#include <kernel/version.h>
 
 long sys_exit(long status) {
     //dprintf("%s:%d: %s: exiting with status %lu\n", __FILE__, __LINE__, __func__, r->rdi);
@@ -360,14 +363,25 @@ long sys_getpgid(int pid) {
     return pid;
 }
 
-long sys_clock_gettime(int clockid, struct timespec *user_ts) {
+long sys_clock_gettime(int clockid, struct timespec *tp) {
     (void)clockid;
-    if (!user_ts)
-        return -EINVAL;
+    if (!tp)
+        return -EFAULT;
 
-    struct timespec ts;
-    hpet_read_time(&ts.tv_sec, &ts.tv_nsec);
-    memcpy(user_ts, &ts, sizeof ts);
+    hpet_read_time(&tp->tv_sec, &tp->tv_nsec);
+    return 0;
+}
+
+long sys_uname(struct utsname *utsname) {
+    if (!utsname)
+        return -EFAULT;
+
+    strncpy(utsname->sysname, __kernel_name, sizeof utsname->sysname);
+    strncpy(utsname->nodename, "localhost", sizeof utsname->nodename);
+    /* TODO: should use snprintf here */
+    sprintf(utsname->release, "%d.%d %s %s", __kernel_version_major, __kernel_version_minor);
+    sprintf(utsname->version, "%d.%d-%s %s %s %s", __kernel_name, __kernel_version_major, __kernel_version_minor, __kernel_commit_hash, __kernel_build_date, __kernel_build_time, __kernel_arch);
+    strncpy(utsname->machine, __kernel_arch, sizeof utsname->machine);
     return 0;
 }
 
@@ -393,6 +407,7 @@ static syscall_func syscalls[] = {
     [SYS_execve]        = (syscall_func)(uintptr_t)sys_execve,
     [SYS_exit]          = (syscall_func)(uintptr_t)sys_exit,
     [SYS_wait4]         = (syscall_func)(uintptr_t)sys_wait4,
+    [SYS_uname]         = (syscall_func)(uintptr_t)sys_uname,
     [SYS_getuid]        = (syscall_func)(uintptr_t)sys_getuid,
     [SYS_getgid]        = (syscall_func)(uintptr_t)sys_getgid,
     [SYS_geteuid]       = (syscall_func)(uintptr_t)sys_geteuid,
