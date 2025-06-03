@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <stddef.h>
 #include <stdatomic.h>
 #include <kernel/arch/x86_64/tss.h>
@@ -18,9 +17,7 @@
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
-// TODO: implement task threading, fix PID calculation
-
-long max_pid = 0, next_cpu = 0;
+long next_pid = 0, next_cpu = 0;
 
 static void sigchld(struct task *proc, int exit) {
     proc->child_exit = exit;
@@ -65,7 +62,7 @@ void sched_unlock(void) {
 void sched_add_task(struct task *proc, struct cpu *core) {
     sched_lock();
 
-    proc->pid = max_pid++;
+    proc->pid = next_pid++;
     if (!core) {
         core = get_core(next_cpu);
     }
@@ -116,9 +113,9 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->state = RUNNING;
     proc->user = false;
     proc->heap = heap_create();
-    proc->fd_table[0] = fd_new(vfs_open(vfs_root, "/dev/serial0"), 0);
-    proc->fd_table[1] = fd_new(vfs_open(vfs_root, "/dev/serial0"), 0);
-    proc->fd_table[2] = fd_new(vfs_open(vfs_root, "/dev/serial0"), 0);
+    proc->fd_table[0] = fd_new(vfs_open(vfs_root, "/dev/keyboard"), 0);
+    proc->fd_table[1] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
+    proc->fd_table[2] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
     proc->vma = NULL;
 
     return proc;
@@ -386,13 +383,6 @@ void sched_cleaner(void) {
 }
 
 void sched_start_all_cores(void) {
-    irq_register(0x79 - 32, sched_schedule);
-    for (uint32_t i = madt_lapics - 1; i >= 0; i--) {
-        lapic_ipi(i, 0x79);
-    }
-}
-
-void sched_install(void) {
     for (uint32_t i = 0; i < madt_lapics; i++) {
         struct task *cleaner = sched_new_task(sched_cleaner, "System");
         sched_add_task(cleaner, get_core(i));
@@ -400,5 +390,13 @@ void sched_install(void) {
         get_core(i)->cleaner_proc = cleaner;
     }
 
+    irq_register(0x79 - 32, sched_schedule);
+    for (uint32_t i = madt_lapics - 1; i >= 0; i--) {
+        lapic_ipi(i, 0x79);
+    }
+}
+
+void sched_install(void) {
+    next_pid++;
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }
