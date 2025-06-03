@@ -17,47 +17,43 @@
 #include <kernel/string.h>
 #include <kernel/syscall.h>
 
-long sys_exit(struct registers *r) {
+long sys_exit(long status) {
     //dprintf("%s:%d: %s: exiting with status %lu\n", __FILE__, __LINE__, __func__, r->rdi);
-    sched_kill(this, r->rdi);
+    sched_kill(this, status);
     __builtin_unreachable();
 }
 
-long sys_read(struct registers *r) {
-    struct fd *fd = &this->fd_table[r->rdi];
+long sys_read(int fd_num, void *buffer, size_t len) {
+    struct fd *fd = &this->fd_table[fd_num];
     if (!fd->node) {
         return -1;
     }
     if (fd->node->read) {
-        long ret = fd->node->read(fd->node, (void *)r->rsi, fd->offset, r->rdx);
+        long ret = fd->node->read(fd->node, buffer, fd->offset, len);
         fd->offset += ret;
         return ret;
     }
     return 0;
 }
 
-long sys_write(struct registers *r) {
-    struct fd *fd = &this->fd_table[r->rdi];
+long sys_write(int fd_num, void *buffer, size_t len) {
+    struct fd *fd = &this->fd_table[fd_num];
     if (!fd->node) {
         return -1;
     }
     if (fd->node->write) {
-        long ret = fd->node->write(fd->node, (void *)r->rsi, fd->offset, r->rdx);
+        long ret = fd->node->write(fd->node, buffer, fd->offset, len);
         fd->offset += ret;
         return ret;
     }
     return 0;
 }
 
-long sys_getpid(struct registers *r) {
+long sys_getpid(void) {
     return this->pid;
 }
 
-long sys_execve(struct registers *r) {
-    const char *pathname = (const char *)r->rdi;
-    char *const *argv = (char *const *)r->rsi;
-    char *const *envp = (char *const *)r->rdx;
-    
+long sys_execve(const char *pathname, char *const *argv, char *const *envp) {
     int argc;
     for (argc = 0; argv[argc]; argc++);
 
@@ -68,19 +64,16 @@ long sys_clone(struct registers *r) {
     return fork(r);
 }
 
-long sys_wait4(struct registers *r) {
+long sys_wait4(int pid, int *wstatus) {
     if (!this->children) {
         return -ECHILD;
     }
     sched_block(PAUSED);
-    *(uintptr_t *)r->rsi = this->child_exit;
+    *wstatus = this->child_exit;
     return 0;
 }
 
-long sys_ioctl(struct registers *r) {
-    int fd = r->rdi;
-    int op = r->rsi;
-
+long sys_ioctl(int fd, int op) {
     switch (op) {
         case 0x5401: /* TCGETS */
             if (fd < 3) {
@@ -98,10 +91,8 @@ long sys_ioctl(struct registers *r) {
     }
 }
 
-long sys_lseek(struct registers *r) {
-    struct fd *fd = &this->fd_table[r->rdi];
-    off_t offset = r->rsi;
-    int whence = r->rdx;
+long sys_lseek(int fd_num, off_t offset, int whence) {
+    struct fd *fd = &this->fd_table[fd_num];
 
     if (fd->node->type == VFS_CHARDEVICE) {
         return -ESPIPE;
@@ -122,44 +113,36 @@ long sys_lseek(struct registers *r) {
     return fd->offset;
 }
 
-long sys_open(struct registers *r) {
-    const char *pathname = (const char *)r->rdi;
-    int flags = r->rsi;
-    mode_t mode = r->rdx;
+long sys_open(const char *pathname, int flags, mode_t mode) {
     (void)mode;
-
     return fd_open(pathname, flags);
 }
 
-long sys_close(struct registers *r) {
-    return fd_close(r->rdi);
+long sys_close(int fd) {
+    return fd_close(fd);
 }
 
-long sys_access(struct registers *r) {
-    if (vfs_open(NULL, (const char *)r->rdi)) {
+long sys_access(const char *pathname) {
+    if (vfs_open(NULL, pathname)) {
         return F_OK;
     }
     return -1;
 }
 
-long sys_dup(struct registers *r) {
+long sys_dup() {
     unimplemented;
     return -ENOSYS;
 }
 
-long sys_getdents64(struct registers *r) {
-    struct linux_dirent64 {
-        uint64_t       d_ino;
-        int64_t        d_off;
-        unsigned short d_reclen;
-        unsigned char  d_type;
-        char           d_name[];
-    };
+struct linux_dirent64 {
+    uint64_t       d_ino;
+    int64_t        d_off;
+    unsigned short d_reclen;
+    unsigned char  d_type;
+    char           d_name[];
+};
 
-    int fd_num = r->rdi;
-    struct linux_dirent64 *dirp = (struct linux_dirent64 *)r->rsi;
-    unsigned int count = r->rdx;
-
+long sys_getdents64(int fd_num, struct linux_dirent64 *dirp, unsigned int count) {
     if (fd_num < 0 || fd_num >= (signed)(sizeof this->fd_table / sizeof(struct fd)) || !this->fd_table[fd_num].node) {
         return -EBADF;
     }
@@ -249,10 +232,7 @@ static unsigned int convert_mode(enum vfs_node_type type, uint16_t perms) {
     return mode;
 }
 
-long sys_stat(struct registers *r) {
-    const char *pathname = (const char *)r->rdi;
-    struct stat *statbuf = (struct stat *)r->rsi;
-    
+long sys_stat(const char *pathname, struct stat *statbuf) {
     if (!pathname || !statbuf) {
         return -EFAULT;
     }
@@ -279,10 +259,9 @@ long sys_stat(struct registers *r) {
     return 0;
 }
 
-long sys_fstat(struct registers *r) {
-    struct fd *fd = &this->fd_table[r->rdi];
-    struct stat *statbuf = (struct stat *)r->rsi;
-    
+long sys_fstat(int fd_num, struct stat *statbuf) {
+    struct fd *fd = &this->fd_table[fd_num];
+
     if (!fd->node || !statbuf) {
         return -EFAULT;
     }
@@ -291,7 +270,7 @@ long sys_fstat(struct registers *r) {
     
     memset(statbuf, 0, sizeof(struct stat));
     
-    statbuf->st_mode = perms_to_mode(node->type, node->perms);
+    statbuf->st_mode = convert_mode(node->type, node->perms);
     statbuf->st_nlink = 0;
     statbuf->st_uid = 0;
     statbuf->st_gid = 0;
@@ -306,27 +285,20 @@ long sys_fstat(struct registers *r) {
     return 0;
 }
 
-long sys_arch_prctl(struct registers *r) {
-    switch (r->rdi) {
+long sys_arch_prctl(int op, long extra) {
+    switch (op) {
         case 0x1002: /* ARCH_SET_FS */
-            write_fs(r->rsi);
-            this->fs = r->rsi;
+            write_fs(extra);
+            this->fs = extra;
             break;
         default:
-            dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, r->rdi);
+            dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, op);
             return -EINVAL;
     }
     return 0;
 }
 
-long sys_mmap(struct registers *r) {
-    void *addr = (void *)r->rdi;
-    size_t length = r->rsi;
-    int prot = r->rdx;
-    int flags = r->r10;
-    int fd = r->r8;
-    off_t offset = r->r9;
-
+long sys_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
     uint64_t vma_flags = PTE_USER;
     if (prot & PROT_READ) vma_flags |= PTE_PRESENT;
     if (prot & PROT_WRITE) vma_flags |= PTE_WRITABLE;
@@ -347,45 +319,49 @@ long sys_mmap(struct registers *r) {
     return (long)addr;
 }
 
-long sys_rt_sigaction(struct registers *r) {
+long sys_munmap() {
+    return -ENOSYS;
+}
+
+long sys_rt_sigaction() {
     return 0;
 }
 
-long sys_rt_sigprocmask(struct registers *r) {
+long sys_rt_sigprocmask() {
     return 0;
 }
 
-long sys_getuid(struct registers *r) {
+long sys_getuid(void) {
     return 0;
 }
 
-long sys_getgid(struct registers *r) {
+long sys_getgid(void) {
     return 0;
 }
 
-long sys_geteuid(struct registers *r) {
+long sys_geteuid(void) {
     return 0;
 }
 
-long sys_getegid(struct registers *r) {
+long sys_getegid(void) {
     return 0;
 }
 
-long sys_getppid(struct registers *r) {
+long sys_getppid(void) {
     if (this->parent)
         return this->parent->pid;
     else
         return -1;
 }
 
-long sys_getgpid(struct registers *r) {
-    return r->rdi;
+long sys_getpgid(int pid) {
+    if (!pid)
+        return this->pid;
+    return pid;
 }
 
-long sys_clock_gettime(struct registers *r) {
-    //int clockid = r->rdi;
-    struct timespec *user_ts = (struct timespec *)r->rsi;
-    
+long sys_clock_gettime(int clockid, struct timespec *user_ts) {
+    (void)clockid;
     if (!user_ts)
         return -EINVAL;
 
@@ -395,47 +371,48 @@ long sys_clock_gettime(struct registers *r) {
     return 0;
 }
 
-long (*syscalls[456])(struct registers *) = {
-    [SYS_read]          = sys_read,
-    [SYS_write]         = sys_write,
-    [SYS_open]          = sys_open,
-    [SYS_close]         = sys_close,
-    [SYS_stat]          = sys_stat,
-    [SYS_fstat]         = sys_fstat,
-    [SYS_lseek]         = sys_lseek,
-    [SYS_mmap]          = sys_mmap,
-    [13]                = sys_rt_sigaction,
-    [14]                = sys_rt_sigprocmask,
-    [SYS_ioctl]         = sys_ioctl,
-    [SYS_access]        = sys_access,
-    [32]                = sys_dup,
-    [39]                = sys_getpid,
-    [SYS_clone]         = sys_clone,
-    [SYS_execve]        = sys_execve,
-    [SYS_exit]          = sys_exit,
-    [SYS_wait4]         = sys_wait4,
-    [102]               = sys_getuid,
-    [104]               = sys_getgid,
-    [107]               = sys_geteuid,
-    [108]               = sys_getegid,
-    [110]               = sys_getppid,
-    [121]               = sys_getgpid,
-    [SYS_arch_prctl]    = sys_arch_prctl,
-    [SYS_gettid]        = sys_getpid,
-    [SYS_getdents64]    = sys_getdents64,
-    [SYS_clock_gettime] = sys_clock_gettime
+typedef long (*syscall_func)(long, long, long, long, long, long);
+
+static syscall_func syscalls[] = {
+    [SYS_read]          = (syscall_func)(uintptr_t)sys_read,
+    [SYS_write]         = (syscall_func)(uintptr_t)sys_write,
+    [SYS_open]          = (syscall_func)(uintptr_t)sys_open,
+    [SYS_close]         = (syscall_func)(uintptr_t)sys_close,
+    [SYS_stat]          = (syscall_func)(uintptr_t)sys_stat,
+    [SYS_fstat]         = (syscall_func)(uintptr_t)sys_fstat,
+    [SYS_lseek]         = (syscall_func)(uintptr_t)sys_lseek,
+    [SYS_mmap]          = (syscall_func)(uintptr_t)sys_mmap,
+    [SYS_munmap]        = (syscall_func)(uintptr_t)sys_munmap,
+    [SYS_rt_sigaction]  = (syscall_func)(uintptr_t)sys_rt_sigaction,
+    [SYS_rt_sigprocmsk] = (syscall_func)(uintptr_t)sys_rt_sigprocmask,
+    [SYS_ioctl]         = (syscall_func)(uintptr_t)sys_ioctl,
+    [SYS_access]        = (syscall_func)(uintptr_t)sys_access,
+    [SYS_dup]           = (syscall_func)(uintptr_t)sys_dup,
+    [SYS_getpid]        = (syscall_func)(uintptr_t)sys_getpid,
+    [SYS_clone]         = (syscall_func)(uintptr_t)sys_clone,
+    [SYS_execve]        = (syscall_func)(uintptr_t)sys_execve,
+    [SYS_exit]          = (syscall_func)(uintptr_t)sys_exit,
+    [SYS_wait4]         = (syscall_func)(uintptr_t)sys_wait4,
+    [SYS_getuid]        = (syscall_func)(uintptr_t)sys_getuid,
+    [SYS_getgid]        = (syscall_func)(uintptr_t)sys_getgid,
+    [SYS_geteuid]       = (syscall_func)(uintptr_t)sys_geteuid,
+    [SYS_getegid]       = (syscall_func)(uintptr_t)sys_getegid,
+    [SYS_getppid]       = (syscall_func)(uintptr_t)sys_getppid,
+    [SYS_getpgid]       = (syscall_func)(uintptr_t)sys_getpgid,
+    [SYS_arch_prctl]    = (syscall_func)(uintptr_t)sys_arch_prctl,
+    [SYS_gettid]        = (syscall_func)(uintptr_t)sys_getpid,
+    [SYS_getdents64]    = (syscall_func)(uintptr_t)sys_getdents64,
+    [SYS_clock_gettime] = (syscall_func)(uintptr_t)sys_clock_gettime
 };
 
 void syscall_handler(struct registers *r) {
-    long(*handler)(struct registers *);
-    handler = syscalls[r->rax];
-
-    if (!handler) {
+    if (r->rax > sizeof syscalls / sizeof(void *) || !syscalls[r->rax]) {
         dprintf("%s:%d: unknown syscall %lu\n", __FILE__, __LINE__, r->rax);
         r->rax = -ENOSYS;
         sched_unlock();
         return;
     }
 
-    r->rax = handler(r);
+    syscall_func handler = syscalls[r->rax];
+    r->rax = handler(r->rax == SYS_clone ? (long)r : r->rdi, r->rsi, r->rdx, r->rcx, r->r8, r->r9);
 }
