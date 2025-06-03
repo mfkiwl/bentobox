@@ -12,6 +12,7 @@ struct cpu {
     struct task *processes;
     struct task *current_proc;
     struct task *cleaner_proc;
+    struct task *idle_proc;
     struct task *terminated_processes;
     atomic_flag sched_lock;
     atomic_flag vmm_lock;

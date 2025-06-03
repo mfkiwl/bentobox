@@ -3,8 +3,18 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/utsname.h>
 
 int main(int argc, char *argv[]) {
+    struct utsname sysinfo;
+
+    if (uname(&sysinfo) == -1) {
+        perror("uname");
+    } else {
+        printf("\nWelcome to \033[96mbentobox\033[0m!\n%s %s\n\n",
+        sysinfo.sysname, sysinfo.version);
+    }
+
     FILE *fptr;
     char hostname[256];
     if (!(fptr = fopen("/etc/hostname", "r")) ||
@@ -24,7 +34,7 @@ int main(int argc, char *argv[]) {
         }
 
         if (pid == 0) {
-            char *arg[] = { "/bin/bash", NULL };
+            char *arg[] = { "/usr/bin/bash", NULL };
             char *envp[] = { "HOME=/root", NULL };
             execve(arg[0], arg, envp);
             perror("execvp");

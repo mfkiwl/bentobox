@@ -11,13 +11,14 @@
 #include <kernel/vma.h>
 #include <kernel/acpi.h>
 #include <kernel/sched.h>
+#include <kernel/panic.h>
 #include <kernel/malloc.h>
 #include <kernel/signal.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/spinlock.h>
 
-long next_pid = 0, next_cpu = 0;
+static long next_pid = 1, next_cpu = 0;
 
 static void sigchld(struct task *proc, int exit) {
     proc->child_exit = exit;
@@ -252,9 +253,10 @@ void sched_schedule(struct registers *r) {
         this = this->next;
     }
 
-    while (this->state != RUNNING) {
-        if (this->state == SLEEPING
-         && hpet_ticks >= this->time.end) {
+    struct task *current = this;
+    do {
+        if (this->state == SLEEPING &&
+            hpet_ticks >= this->time.end) {
             this->state = RUNNING;
             this->time.last = this->time.end - this->time.start;
             break;
@@ -274,9 +276,16 @@ void sched_schedule(struct registers *r) {
             }
         }
 
-        this = this->next;
-    }
+        if (this->state == RUNNING) {
+            goto actually_switch;
+        }
 
+        this = this->next;
+    } while (this != current);
+
+    this = this_core()->idle_proc;
+
+actually_switch:
     this->time.start = hpet_ticks;
 
     memcpy(r, &(this->ctx), sizeof(struct registers));
@@ -312,6 +321,13 @@ void sched_sleep(int us) {
 
 void sched_kill(struct task *proc, int status) {
     sched_lock();
+
+    if (proc->pid == 1) {
+        panic("Attempted to kill init!");
+    }
+    if (proc->pid == 0) {
+        panic("Attempted to kill idle!");
+    }
 
     if (proc->parent) {
         send_signal(proc->parent, SIGCHLD, status);
@@ -382,12 +398,26 @@ void sched_cleaner(void) {
     }
 }
 
+void sched_idle(void) {
+    for (;;) {
+        asm volatile ("hlt");
+    }
+}
+
 void sched_start_all_cores(void) {
     for (uint32_t i = 0; i < madt_lapics; i++) {
+        struct cpu *core = get_core(i);
+        
         struct task *cleaner = sched_new_task(sched_cleaner, "System");
-        sched_add_task(cleaner, get_core(i));
         cleaner->state = PAUSED;
-        get_core(i)->cleaner_proc = cleaner;
+        core->cleaner_proc = cleaner;
+        sched_add_task(cleaner, core);
+        
+        struct task *idle = sched_new_task(sched_idle, "Idle");
+        idle->state = PAUSED;
+        core->idle_proc = idle;
+        sched_add_task(idle, core);
+        idle->pid = 0;
     }
 
     irq_register(0x79 - 32, sched_schedule);
@@ -397,6 +427,5 @@ void sched_start_all_cores(void) {
 }
 
 void sched_install(void) {
-    next_pid++;
     printf("\033[92m * \033[97mInitialized scheduler\033[0m\n");
 }
