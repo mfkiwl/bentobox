@@ -86,8 +86,7 @@ long sys_ioctl(int fd, int op) {
             }
             break;
         case 0x5413:
-            dprintf("%s:%d: TODO: implement TIOCGWINSZ (get window size)\n", __FILE__, __LINE__);
-            return -EINVAL;
+            //dprintf("%s:%d: TODO: implement TIOCGWINSZ (get window size)\n", __FILE__, __LINE__);
         default:
             dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, op);
             return -EINVAL;
@@ -288,6 +287,55 @@ long sys_fstat(int fd_num, struct stat *statbuf) {
     return 0;
 }
 
+long sys_newfstatat(int dirfd, const char *restrict pathname, struct stat *restrict statbuf, int flags) {
+    (void)flags;
+    if (!pathname || !statbuf)
+        return -EFAULT;
+    
+    struct vfs_node *node = NULL;
+    if (pathname[0] == '/') {
+        node = vfs_open(NULL, pathname);
+    } else if (dirfd == AT_FDCWD) {
+        node = vfs_open(NULL, pathname);
+    } else {
+        if (dirfd < 0 || dirfd >= (signed)(sizeof this->fd_table / sizeof(struct fd)) || !this->fd_table[dirfd].node) {
+            return -EBADF;
+        }
+
+        struct fd *dir_fd = &this->fd_table[dirfd];
+        if (dir_fd->node->type != VFS_DIRECTORY)
+            return -ENOTDIR;
+
+        struct vfs_node *child = dir_fd->node->children;
+        while (child) {
+            if (!strcmp(child->name, pathname)) {
+                node = child;
+                break;
+            }
+            child = child->next;
+        }
+    }
+
+    if (!node)
+        return -ENOENT;
+
+    memset(statbuf, 0, sizeof(struct stat));
+    statbuf->st_mode = convert_mode(node->type, node->perms);
+    statbuf->st_nlink = 1;
+    statbuf->st_uid = 0;
+    statbuf->st_gid = 0;
+    statbuf->st_ino = node->inode;
+
+    if (node->type == VFS_FILE) {
+        statbuf->st_size = node->size;
+    } else if (node->type == VFS_DIRECTORY) {
+        statbuf->st_size = 4096;
+    } else {
+        statbuf->st_size = 0;
+    }
+    return 0;
+}
+
 long sys_arch_prctl(int op, long extra) {
     switch (op) {
         case 0x1002: /* ARCH_SET_FS */
@@ -372,12 +420,24 @@ long sys_clock_gettime(int clockid, struct timespec *tp) {
     return 0;
 }
 
+char hostname[256] = "localhost";
+
+long sys_sethostname(const char *name, size_t len) {
+    if (!name)
+        return -EFAULT;
+    if (len > sizeof hostname)
+        return -EINVAL;
+    memcpy(hostname, name, len);
+    hostname[len] = 0;
+    return 0;
+}
+
 long sys_uname(struct utsname *utsname) {
     if (!utsname)
         return -EFAULT;
 
     strncpy(utsname->sysname, __kernel_name, sizeof utsname->sysname);
-    strncpy(utsname->nodename, "localhost", sizeof utsname->nodename);
+    strncpy(utsname->nodename, hostname, sizeof utsname->nodename);
     /* TODO: should use snprintf here */
     sprintf(utsname->release, "%d.%d %s %s", __kernel_version_major, __kernel_version_minor);
     sprintf(utsname->version, "%d.%d-%s %s %s %s", __kernel_name, __kernel_version_major, __kernel_version_minor, __kernel_commit_hash, __kernel_build_date, __kernel_build_time, __kernel_arch);
@@ -415,9 +475,11 @@ static syscall_func syscalls[] = {
     [SYS_getppid]       = (syscall_func)(uintptr_t)sys_getppid,
     [SYS_getpgid]       = (syscall_func)(uintptr_t)sys_getpgid,
     [SYS_arch_prctl]    = (syscall_func)(uintptr_t)sys_arch_prctl,
+    [SYS_sethostname]   = (syscall_func)(uintptr_t)sys_sethostname,
     [SYS_gettid]        = (syscall_func)(uintptr_t)sys_getpid,
     [SYS_getdents64]    = (syscall_func)(uintptr_t)sys_getdents64,
-    [SYS_clock_gettime] = (syscall_func)(uintptr_t)sys_clock_gettime
+    [SYS_clock_gettime] = (syscall_func)(uintptr_t)sys_clock_gettime,
+    [SYS_newfstatat]    = (syscall_func)(uintptr_t)sys_newfstatat
 };
 
 void syscall_handler(struct registers *r) {

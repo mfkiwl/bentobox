@@ -14,3 +14,6 @@
 #define DT_DIR  4
 #define DT_CHR  2
 #define DT_UNKNOWN 0
+
+#define AT_FDCWD -100
+#define AT_SYMLINK_NOFOLLOW 0x100

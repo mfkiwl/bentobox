@@ -1,9 +1,20 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
 
 int main(int argc, char *argv[]) {
+    FILE *fptr;
+    char hostname[256];
+    if (!(fptr = fopen("/etc/hostname", "r")) ||
+        !fgets(hostname, sizeof hostname, fptr) ||
+        sethostname(hostname, strlen(hostname)) != 0) {
+        perror("init: failed to set hostname");
+    } else {
+        fclose(fptr);
+    }
+
     for (;;) {
         pid_t pid = fork();
 
@@ -21,9 +32,8 @@ int main(int argc, char *argv[]) {
         } else {
             int status;
             waitpid(pid, &status, 0);
-            fprintf(stderr, "%s:%d: restarting /bin/bash\n", __FILE__, __LINE__);
+            fprintf(stderr, "init: restarting /bin/bash\n");
         }
     }
-
-    return 0;
+    return -1;
 }
