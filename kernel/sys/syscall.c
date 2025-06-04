@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
+#include <asm-generic/ioctls.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/smp.h>
 #include <kernel/arch/x86_64/user.h>
@@ -37,6 +38,8 @@
 
 #define AT_FDCWD -100
 #define AT_SYMLINK_NOFOLLOW 0x100
+
+#define TIOCGNAME   0x5483
 
 struct linux_dirent64 {
     uint64_t       d_ino;
@@ -102,22 +105,29 @@ long sys_wait4(int pid, int *wstatus) {
     return 0;
 }
 
-long sys_ioctl(int fd, int op, void *arg) {
+long sys_ioctl(int fd_num, int op, void *arg) {
+    struct fd *fd;
     switch (op) {
-        case 0x5401: /* TCGETS */
-            if (fd < 3) {
+        case TCGETS:
+            if (fd_num < 3) {
                 return 0;
             } else {
                 return -ENOTTY;
             }
-            break;
-        case 0x5413:
-            if (fd >= 3)
+        case TIOCGWINSZ:
+            if (fd_num >= 3)
                 return -ENOTTY;
             if (!arg)
                 return -EFAULT;
 
             lfb_get_ws((struct winsize *)arg);
+            return 0;
+        case TIOCGNAME:
+            fd = &this->fd_table[fd_num];
+            if (!fd->node)
+                return -EBADF;
+            
+            vfs_resolve_path(arg, fd->node);
             return 0;
         default:
             dprintf("%s:%d: %s: function 0x%lx not implemented\n", __FILE__, __LINE__, __func__, op);
