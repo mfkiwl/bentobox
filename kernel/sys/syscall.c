@@ -41,12 +41,19 @@
 
 #define TIOCGNAME   0x5483
 
+#define IOV_MAX 1024
+
 struct linux_dirent64 {
     uint64_t       d_ino;
     int64_t        d_off;
     unsigned short d_reclen;
     unsigned char  d_type;
     char           d_name[];
+};
+
+struct iovec {
+    void *iov_base;
+    size_t iov_len;
 };
 
 long sys_exit(long status) {
@@ -384,6 +391,7 @@ long sys_arch_prctl(int op, long extra) {
 }
 
 long sys_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
+    sched_lock();
     uint64_t vma_flags = PTE_USER;
     if (prot & PROT_READ) vma_flags |= PTE_PRESENT;
     if (prot & PROT_WRITE) vma_flags |= PTE_WRITABLE;
@@ -401,6 +409,7 @@ long sys_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offs
         memset(addr, 0, length);
     }
 
+    sched_unlock();
     return (long)addr;
 }
 
@@ -479,6 +488,89 @@ long sys_uname(struct utsname *utsname) {
     return 0;
 }
 
+long sys_brk(void *addr) {
+    size_t i;
+    for (i = 0; i < sizeof this->sections / sizeof(struct task_section); i++) {
+        if (this->sections[i].ptr == 0)
+            break;
+    }
+    
+    if (i == 0) {
+        dprintf("%s:%d: WARNING: '%s' has no sections\n", __FILE__, __LINE__, this->name);
+        return -ENOMEM;
+    }
+    
+    struct task_section *section = &this->sections[i - 1];
+    uintptr_t current_brk = section->ptr + section->length;
+    
+    uintptr_t new_brk = (uintptr_t)addr;
+    if (!new_brk || new_brk < section->ptr || new_brk == current_brk)
+        return current_brk;
+    
+    if (new_brk > current_brk) {
+        uintptr_t map_start = ALIGN_UP(current_brk, PAGE_SIZE);
+        uintptr_t map_end = ALIGN_UP(new_brk, PAGE_SIZE);
+        size_t length = map_end - map_start;
+        
+        if (length > 0) {
+            size_t pages = length / PAGE_SIZE;
+            void *new_addr = vma_map(this->vma, pages, 0, map_start, PTE_PRESENT | PTE_WRITABLE | PTE_USER);
+            if (!new_addr) {
+                return current_brk;
+            }
+        }
+        section->length = new_brk - section->ptr;
+        
+    } else {
+        uintptr_t unmap_start = ALIGN_UP(new_brk, PAGE_SIZE);
+        uintptr_t unmap_end = ALIGN_UP(current_brk, PAGE_SIZE);
+        size_t length = unmap_end - unmap_start;
+        
+        if (length > 0) {
+            dprintf("%s:%d: %s: TODO: shrinking\n", __FILE__, __LINE__, __func__);
+        }
+        section->length = new_brk - section->ptr;
+    }
+    
+    return new_brk;
+}
+
+long sys_writev(int fd_num, const struct iovec *iov, int iovcnt) {
+    if (iovcnt < 0 || iovcnt > IOV_MAX)
+        return -EINVAL;
+    if (!iov && iovcnt > 0)
+        return -EFAULT;
+    
+    struct fd *fd = &this->fd_table[fd_num];
+    if (!fd->node)
+        return -EBADF;
+    if (!fd->node->write)
+        return -EINVAL;
+    
+    ssize_t total_written = 0;
+    
+    for (int i = 0; i < iovcnt; i++) {
+        if (!iov[i].iov_base && iov[i].iov_len > 0)
+            return -EFAULT;
+        if (iov[i].iov_len == 0)
+            continue;
+        
+        long ret = fd->node->write(fd->node, iov[i].iov_base, fd->offset, iov[i].iov_len);
+        if (ret < 0) {
+            if (total_written == 0)
+                return ret;
+            break;
+        }
+        
+        fd->offset += ret;
+        total_written += ret;
+        
+        if ((size_t)ret < iov[i].iov_len)
+            break;
+    }
+    return total_written;
+}
+
 typedef long (*syscall_func)(long, long, long, long, long, long);
 
 static syscall_func syscalls[] = {
@@ -491,9 +583,11 @@ static syscall_func syscalls[] = {
     [SYS_lseek]         = (syscall_func)(uintptr_t)sys_lseek,
     [SYS_mmap]          = (syscall_func)(uintptr_t)sys_mmap,
     [SYS_munmap]        = (syscall_func)(uintptr_t)sys_munmap,
+    [SYS_brk]           = (syscall_func)(uintptr_t)sys_brk,
     [SYS_rt_sigaction]  = (syscall_func)(uintptr_t)sys_rt_sigaction,
     [SYS_rt_sigprocmsk] = (syscall_func)(uintptr_t)sys_rt_sigprocmask,
     [SYS_ioctl]         = (syscall_func)(uintptr_t)sys_ioctl,
+    [SYS_writev]        = (syscall_func)(uintptr_t)sys_writev,
     [SYS_access]        = (syscall_func)(uintptr_t)sys_access,
     [SYS_dup]           = (syscall_func)(uintptr_t)sys_dup,
     [SYS_getpid]        = (syscall_func)(uintptr_t)sys_getpid,
