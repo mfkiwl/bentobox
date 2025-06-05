@@ -62,7 +62,7 @@ void vfs_add_device(struct vfs_node *node) {
 }
 
 struct vfs_node *vfs_create_symlink(const char *name, const char *target) {
-    printf("Creating symlink '%s' with target '%s'\n", name, target);
+    //printf("Creating symlink '%s' with target '%s'\n", name, target);
     struct vfs_node *node = vfs_create_node(name, VFS_SYMLINK);
     if (node && target) {
         node->symlink_target = kmalloc(strlen(target) + 1);
@@ -77,7 +77,6 @@ struct vfs_node *vfs_resolve_symlink(struct vfs_node *symlink, int max_depth) {
         return symlink;
     }
     if (!symlink->symlink_target) {
-        dprintf("%s:%d: %s: broken symlink\n", __FILE__, __LINE__, __func__);
         return NULL;
     }
     
@@ -89,7 +88,7 @@ struct vfs_node *vfs_resolve_symlink(struct vfs_node *symlink, int max_depth) {
     }
     
     if (!target) {
-        dprintf("%s:%d: %s: broken symlink\n", __FILE__, __LINE__, __func__);
+        dprintf("Target %s not found!\n", symlink->symlink_target);
         return NULL;
     }
     
@@ -127,7 +126,6 @@ struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
                     node = vfs_resolve_symlink(node, MAX_NESTED_SYMLINKS);
                     if (!node) {
                         kfree(copy);
-                        dprintf("%s:%d: %s: broken symlink\n", __FILE__, __LINE__, __func__);
                         return NULL;
                     }
                 }

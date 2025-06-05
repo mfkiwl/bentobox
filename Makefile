@@ -148,7 +148,10 @@ endif
 
 .PHONY: hdd
 hdd: apps
+	@echo "HD bin/$(IMAGE_NAME).hdd"
 	@cp -r base bin/
+	@[ ! -e bin/base/bin/bash ] && ln -s /usr/bin/bash bin/base/bin/bash || true
+	@bash util/busybox.sh
 #	@cp -r /opt/mlibc/include bin/base/usr/
 	@genext2fs -d bin/base -b 65536 -L bentobox bin/$(IMAGE_NAME).hdd 2>&1 >/dev/null | grep -v copying | cat
 

@@ -235,7 +235,7 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
         for (int i = 2; i < new_argc + 1; i++) {
             new_argv[i] = argv[i - 1];
         }
-        new_argv[0] = "/usr/bin/bash";
+        new_argv[0] = "/bin/bash";
         new_argv[1] = (char *)file;
         new_argv[new_argc] = 0;
 
