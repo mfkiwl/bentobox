@@ -115,30 +115,38 @@ struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
 
     struct vfs_node *node = current;
     while (token != NULL) {
-        struct vfs_node *child = node->children;
-        bool found = false;
-
-        while (child != NULL) {
-            if (strcmp(child->name, token) == 0) {
-                node = child;
-
-                if (node->type == VFS_SYMLINK) {
-                    node = vfs_resolve_symlink(node, MAX_NESTED_SYMLINKS);
-                    if (!node) {
-                        kfree(copy);
-                        return NULL;
-                    }
-                }
-
-                found = true;
-                break;
+        if (!strcmp(token, ".")) {
+            /* do nothing */
+        } else if (!strcmp(token, "..")) {
+            if (node->parent) {
+                node = node->parent;
             }
-            child = child->next;
-        }
+        } else {
+            struct vfs_node *child = node->children;
+            bool found = false;
 
-        if (!found) {
-            kfree(copy);
-            return NULL;
+            while (child != NULL) {
+                if (strcmp(child->name, token) == 0) {
+                    node = child;
+
+                    if (node->type == VFS_SYMLINK) {
+                        node = vfs_resolve_symlink(node, MAX_NESTED_SYMLINKS);
+                        if (!node) {
+                            kfree(copy);
+                            return NULL;
+                        }
+                    }
+
+                    found = true;
+                    break;
+                }
+                child = child->next;
+            }
+
+            if (!found) {
+                kfree(copy);
+                return NULL;
+            }
         }
         token = strtok(NULL, "/");
     }

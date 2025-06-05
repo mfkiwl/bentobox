@@ -503,8 +503,7 @@ long sys_uname(struct utsname *utsname) {
     strncpy(utsname->nodename, hostname, sizeof utsname->nodename);
     /* TODO: should use snprintf here */
     sprintf(utsname->release, "%d.%d", __kernel_version_major, __kernel_version_minor);
-    sprintf(utsname->version, "%d.%d-%s %s %s %s", __kernel_version_major, __kernel_version_minor, __kernel_commit_hash, __kernel_build_date, __kernel_build_time, __kernel_arch);
-    strncpy(utsname->machine, __kernel_arch, sizeof utsname->machine);
+    sprintf(utsname->version, "%s-dirty %s %s", __kernel_commit_hash, __kernel_build_date, __kernel_build_time);
     return 0;
 }
 
@@ -595,6 +594,35 @@ long sys_set_tid_address(int *tidptr) {
     return this->pid;
 }
 
+long sys_lstat(const char *pathname, struct stat *statbuf) {
+    if (!pathname || !statbuf) {
+        return -EFAULT;
+    }
+    
+    struct vfs_node *node = vfs_open(NULL, pathname);
+    if (!node) {
+        return -ENOENT;
+    }
+    
+    memset(statbuf, 0, sizeof(struct stat));
+    
+    statbuf->st_mode = convert_mode(node->type, node->perms);
+    statbuf->st_nlink = 1;
+    statbuf->st_uid = 0;
+    statbuf->st_gid = 0;
+    statbuf->st_ino = node->inode;
+    
+    if (node->type == VFS_FILE) {
+        statbuf->st_size = node->size;
+    } else if (node->type == VFS_DIRECTORY) {
+        statbuf->st_size = 4096;
+    } else {
+        statbuf->st_size = 0;
+    }
+    
+    return 0;
+}
+
 typedef long (*syscall_func)(long, long, long, long, long, long);
 
 static syscall_func syscalls[] = {
@@ -604,6 +632,7 @@ static syscall_func syscalls[] = {
     [SYS_close]             = (syscall_func)(uintptr_t)sys_close,
     [SYS_stat]              = (syscall_func)(uintptr_t)sys_stat,
     [SYS_fstat]             = (syscall_func)(uintptr_t)sys_fstat,
+    [SYS_lstat]             = (syscall_func)(uintptr_t)sys_lstat,
     [SYS_lseek]             = (syscall_func)(uintptr_t)sys_lseek,
     [SYS_mmap]              = (syscall_func)(uintptr_t)sys_mmap,
     [SYS_munmap]            = (syscall_func)(uintptr_t)sys_munmap,
