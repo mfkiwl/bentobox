@@ -7,6 +7,7 @@
 #include <kernel/malloc.h>
 #include <kernel/string.h>
 #include <kernel/printf.h>
+#include <kernel/spinlock.h>
 
 extern void zero_initialize(void);
 extern void ps2_initialize(void);
@@ -39,6 +40,7 @@ struct vfs_node *vfs_create_node(const char *name, enum vfs_node_type type) {
     node->read = NULL;
     node->write = NULL;
     node->symlink_target = NULL;
+    release(&node->lock);
     return node;
 }
 
@@ -178,15 +180,31 @@ void vfs_resolve_path(char *s, struct vfs_node *node) {
 }
 
 long vfs_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
-    if (!node || !node->open) return -1;
-    if (node->read) return node->read(node, buffer, offset, len);
+    if (!node /*|| !node->open*/) return -1;
+    if (node->read) {
+        acquire(&node->lock);
+        long ret = node->read(node, buffer, offset, len);
+        release(&node->lock);
+        return ret;
+    }
     return -1;
 }
 
 long vfs_write(struct vfs_node *node, void *buffer, long offset, size_t len) {
-    if (!node || !node->open) return -1;
-    if (node->write) return node->write(node, buffer, offset, len);
+    if (!node /*|| !node->open*/) return -1;
+    if (node->write) {
+        acquire(&node->lock);
+        long ret = node->write(node, buffer, offset, len);
+        release(&node->lock);
+        return ret;
+    }
     return -1;
+}
+
+bool vfs_poll(struct vfs_node *node) {
+    acquire(&node->lock);
+    release(&node->lock);
+    return true;
 }
 
 void vfs_install(void) {
@@ -200,6 +218,8 @@ void vfs_install(void) {
     vfs_root->next = NULL;
     vfs_root->read = NULL;
     vfs_root->write = NULL;
+    vfs_root->symlink_target = NULL;
+    release(&vfs_root->lock);
 
     vfs_dev = vfs_create_node("dev", VFS_DIRECTORY);
     vfs_add_node(vfs_root, vfs_dev);
