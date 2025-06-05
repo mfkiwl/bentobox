@@ -24,3 +24,4 @@ void vma_destroy(struct vma_head *h);
 void *vma_map(struct vma_head *h, uint64_t pages, uint64_t phys, uint64_t virt, uint64_t flags);
 void vma_unmap(struct vma_block *block);
 void vma_copy_mappings(struct vma_head *dest, struct vma_head *src);
+bool vma_unmap_addr(struct vma_head *h, void *virt);

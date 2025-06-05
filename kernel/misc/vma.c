@@ -92,3 +92,20 @@ void vma_unmap(struct vma_block *block) {
     mmu_unmap(block);
     mmu_free(PHYSICAL(block), 1);
 }
+
+bool vma_unmap_addr(struct vma_head *h, void *virt) {
+    uintptr_t target = (uintptr_t)virt;
+    struct vma_block *current = h->head->next;
+
+    while (current != h->head) {
+        uintptr_t block_start = current->virt;
+        uintptr_t block_end = current->virt + (current->size * PAGE_SIZE);
+        
+        if (target >= block_start && target < block_end) {
+            vma_unmap(current);
+            return true;
+        }
+        current = current->next;
+    }
+    return false;
+}

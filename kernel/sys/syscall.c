@@ -391,11 +391,8 @@ long sys_arch_prctl(int op, long extra) {
 }
 
 long sys_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
-    sched_lock();
-
     if (flags & MAP_ANONYMOUS) {
         if (offset != 0 || fd != -1) {
-            sched_unlock();
             return -EINVAL;
         }
     }
@@ -418,23 +415,38 @@ long sys_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offs
     } else {
         ptr = vma_map(this->vma, pages, 0, 0, vma_flags);
     }
-    
-    if (!ptr) {
-        sched_unlock();
-        return -ENOMEM;
-    }
 
+    if (!ptr)
+        return -ENOMEM;
+
+    sched_lock();
     if ((flags & MAP_ANONYMOUS) && (prot != PROT_NONE)) {
         memset(ptr, 0, length);
     }
-
     sched_unlock();
     return (long)ptr;
 }
 
-long sys_munmap() {
-    unimplemented;
-    return -ENOSYS;
+long sys_munmap(void *addr, size_t length) {
+    if (addr == NULL ||
+        (uintptr_t)addr % PAGE_SIZE != 0 ||
+        length == 0)
+        return -EINVAL;
+
+    sched_lock();
+    size_t pages = ALIGN_UP(length, PAGE_SIZE) / PAGE_SIZE;
+    uintptr_t start_addr = (uintptr_t)addr;
+    uintptr_t end_addr = start_addr + (pages * PAGE_SIZE);
+
+    uintptr_t current_addr = start_addr;
+
+    while (current_addr < end_addr) {
+        vma_unmap_addr(this->vma, (void *)current_addr);
+        current_addr += PAGE_SIZE;
+    }
+
+    sched_unlock();
+    return 0;
 }
 
 long sys_rt_sigaction() {
