@@ -225,9 +225,21 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     Elf64_Ehdr *ehdr = (Elf64_Ehdr *)buffer;
 
     if (memcmp(ehdr->e_ident, "\x7f""ELF", 4)) {
-        printf("%s:%d: invalid elf file\n", __FILE__, __LINE__);
         kfree(buffer);
-        return -1;
+
+        int new_argc = 0;
+        if (argv) for (; argv[new_argc]; new_argc++);
+        new_argc++;
+
+        char *new_argv[new_argc];
+        for (int i = 2; i < new_argc + 1; i++) {
+            new_argv[i] = argv[i - 1];
+        }
+        new_argv[0] = "/usr/bin/bash";
+        new_argv[1] = (char *)file;
+        new_argv[new_argc] = 0;
+
+        return exec(new_argv[0], new_argc, new_argv, env);
     }
 
     if (ehdr->e_ident[EI_CLASS] != ELFCLASS64) {

@@ -392,28 +392,48 @@ long sys_arch_prctl(int op, long extra) {
 
 long sys_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
     sched_lock();
-    uint64_t vma_flags = PTE_USER;
-    if (prot & PROT_READ) vma_flags |= PTE_PRESENT;
-    if (prot & PROT_WRITE) vma_flags |= PTE_WRITABLE;
-
-    size_t pages = ALIGN_UP(length, PAGE_SIZE) / PAGE_SIZE;
-
-    if (addr == NULL) {
-        addr = vma_map(this->vma, pages, 0, 0, vma_flags);
-    }
 
     if (flags & MAP_ANONYMOUS) {
         if (offset != 0 || fd != -1) {
+            sched_unlock();
             return -EINVAL;
         }
-        memset(addr, 0, length);
+    }
+    
+    uint64_t vma_flags = PTE_USER;
+    if (prot != PROT_NONE) {
+        if (prot & PROT_READ) vma_flags |= PTE_PRESENT;
+        if (prot & PROT_WRITE) vma_flags |= PTE_WRITABLE;
+    }
+
+    size_t pages = ALIGN_UP(length, PAGE_SIZE) / PAGE_SIZE;
+    void *ptr;
+
+    if (flags & MAP_FIXED) {
+        if (addr == NULL) {
+            sched_unlock();
+            return -EINVAL;
+        }
+        ptr = vma_map(this->vma, pages, 0, (uint64_t)addr, vma_flags);
+    } else {
+        ptr = vma_map(this->vma, pages, 0, 0, vma_flags);
+    }
+    
+    if (!ptr) {
+        sched_unlock();
+        return -ENOMEM;
+    }
+
+    if ((flags & MAP_ANONYMOUS) && (prot != PROT_NONE)) {
+        memset(ptr, 0, length);
     }
 
     sched_unlock();
-    return (long)addr;
+    return (long)ptr;
 }
 
 long sys_munmap() {
+    unimplemented;
     return -ENOSYS;
 }
 
@@ -571,43 +591,48 @@ long sys_writev(int fd_num, const struct iovec *iov, int iovcnt) {
     return total_written;
 }
 
+long sys_set_tid_address(int *tidptr) {
+    return this->pid;
+}
+
 typedef long (*syscall_func)(long, long, long, long, long, long);
 
 static syscall_func syscalls[] = {
-    [SYS_read]          = (syscall_func)(uintptr_t)sys_read,
-    [SYS_write]         = (syscall_func)(uintptr_t)sys_write,
-    [SYS_open]          = (syscall_func)(uintptr_t)sys_open,
-    [SYS_close]         = (syscall_func)(uintptr_t)sys_close,
-    [SYS_stat]          = (syscall_func)(uintptr_t)sys_stat,
-    [SYS_fstat]         = (syscall_func)(uintptr_t)sys_fstat,
-    [SYS_lseek]         = (syscall_func)(uintptr_t)sys_lseek,
-    [SYS_mmap]          = (syscall_func)(uintptr_t)sys_mmap,
-    [SYS_munmap]        = (syscall_func)(uintptr_t)sys_munmap,
-    [SYS_brk]           = (syscall_func)(uintptr_t)sys_brk,
-    [SYS_rt_sigaction]  = (syscall_func)(uintptr_t)sys_rt_sigaction,
-    [SYS_rt_sigprocmsk] = (syscall_func)(uintptr_t)sys_rt_sigprocmask,
-    [SYS_ioctl]         = (syscall_func)(uintptr_t)sys_ioctl,
-    [SYS_writev]        = (syscall_func)(uintptr_t)sys_writev,
-    [SYS_access]        = (syscall_func)(uintptr_t)sys_access,
-    [SYS_dup]           = (syscall_func)(uintptr_t)sys_dup,
-    [SYS_getpid]        = (syscall_func)(uintptr_t)sys_getpid,
-    [SYS_clone]         = (syscall_func)(uintptr_t)sys_clone,
-    [SYS_execve]        = (syscall_func)(uintptr_t)sys_execve,
-    [SYS_exit]          = (syscall_func)(uintptr_t)sys_exit,
-    [SYS_wait4]         = (syscall_func)(uintptr_t)sys_wait4,
-    [SYS_uname]         = (syscall_func)(uintptr_t)sys_uname,
-    [SYS_getuid]        = (syscall_func)(uintptr_t)sys_getuid,
-    [SYS_getgid]        = (syscall_func)(uintptr_t)sys_getgid,
-    [SYS_geteuid]       = (syscall_func)(uintptr_t)sys_geteuid,
-    [SYS_getegid]       = (syscall_func)(uintptr_t)sys_getegid,
-    [SYS_getppid]       = (syscall_func)(uintptr_t)sys_getppid,
-    [SYS_getpgid]       = (syscall_func)(uintptr_t)sys_getpgid,
-    [SYS_arch_prctl]    = (syscall_func)(uintptr_t)sys_arch_prctl,
-    [SYS_sethostname]   = (syscall_func)(uintptr_t)sys_sethostname,
-    [SYS_gettid]        = (syscall_func)(uintptr_t)sys_getpid,
-    [SYS_getdents64]    = (syscall_func)(uintptr_t)sys_getdents64,
-    [SYS_clock_gettime] = (syscall_func)(uintptr_t)sys_clock_gettime,
-    [SYS_newfstatat]    = (syscall_func)(uintptr_t)sys_newfstatat
+    [SYS_read]              = (syscall_func)(uintptr_t)sys_read,
+    [SYS_write]             = (syscall_func)(uintptr_t)sys_write,
+    [SYS_open]              = (syscall_func)(uintptr_t)sys_open,
+    [SYS_close]             = (syscall_func)(uintptr_t)sys_close,
+    [SYS_stat]              = (syscall_func)(uintptr_t)sys_stat,
+    [SYS_fstat]             = (syscall_func)(uintptr_t)sys_fstat,
+    [SYS_lseek]             = (syscall_func)(uintptr_t)sys_lseek,
+    [SYS_mmap]              = (syscall_func)(uintptr_t)sys_mmap,
+    [SYS_munmap]            = (syscall_func)(uintptr_t)sys_munmap,
+    [SYS_brk]               = (syscall_func)(uintptr_t)sys_brk,
+    [SYS_rt_sigaction]      = (syscall_func)(uintptr_t)sys_rt_sigaction,
+    [SYS_rt_sigprocmask]    = (syscall_func)(uintptr_t)sys_rt_sigprocmask,
+    [SYS_ioctl]             = (syscall_func)(uintptr_t)sys_ioctl,
+    [SYS_writev]            = (syscall_func)(uintptr_t)sys_writev,
+    [SYS_access]            = (syscall_func)(uintptr_t)sys_access,
+    [SYS_dup]               = (syscall_func)(uintptr_t)sys_dup,
+    [SYS_getpid]            = (syscall_func)(uintptr_t)sys_getpid,
+    [SYS_clone]             = (syscall_func)(uintptr_t)sys_clone,
+    [SYS_execve]            = (syscall_func)(uintptr_t)sys_execve,
+    [SYS_exit]              = (syscall_func)(uintptr_t)sys_exit,
+    [SYS_wait4]             = (syscall_func)(uintptr_t)sys_wait4,
+    [SYS_uname]             = (syscall_func)(uintptr_t)sys_uname,
+    [SYS_getuid]            = (syscall_func)(uintptr_t)sys_getuid,
+    [SYS_getgid]            = (syscall_func)(uintptr_t)sys_getgid,
+    [SYS_geteuid]           = (syscall_func)(uintptr_t)sys_geteuid,
+    [SYS_getegid]           = (syscall_func)(uintptr_t)sys_getegid,
+    [SYS_getppid]           = (syscall_func)(uintptr_t)sys_getppid,
+    [SYS_getpgid]           = (syscall_func)(uintptr_t)sys_getpgid,
+    [SYS_arch_prctl]        = (syscall_func)(uintptr_t)sys_arch_prctl,
+    [SYS_sethostname]       = (syscall_func)(uintptr_t)sys_sethostname,
+    [SYS_gettid]            = (syscall_func)(uintptr_t)sys_getpid,
+    [SYS_getdents64]        = (syscall_func)(uintptr_t)sys_getdents64,
+    [SYS_set_tid_address]   = (syscall_func)(uintptr_t)sys_set_tid_address,
+    [SYS_clock_gettime]     = (syscall_func)(uintptr_t)sys_clock_gettime,
+    [SYS_newfstatat]        = (syscall_func)(uintptr_t)sys_newfstatat
 };
 
 void syscall_handler(struct registers *r) {
@@ -619,5 +644,5 @@ void syscall_handler(struct registers *r) {
     }
 
     syscall_func handler = syscalls[r->rax];
-    r->rax = handler(r->rax == SYS_clone ? (long)r : r->rdi, r->rsi, r->rdx, r->rcx, r->r8, r->r9);
+    r->rax = handler(r->rax == SYS_clone ? (long)r : r->rdi, r->rsi, r->rdx, r->r10, r->r8, r->r9);
 }

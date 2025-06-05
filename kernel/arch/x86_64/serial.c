@@ -125,7 +125,12 @@ void irq4_handler(struct registers *r) {
     uint8_t iir = inb(COM1 + 2);
     
     if ((iir & 0x06) == 0x04) {
-        fifo_enqueue(&serial_fifo, inb(COM1));
+        int c = inb(COM1);
+        fifo_enqueue(&serial_fifo, c);
+
+        if (c == '`') {
+            serial_puts("\033[H\033[J");
+        }
     }
     
     lapic_eoi();
