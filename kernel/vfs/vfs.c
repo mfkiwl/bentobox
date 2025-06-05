@@ -21,7 +21,8 @@ const char *vfs_types[] = {
     "VFS_FILE",
     "VFS_DIRECTORY",
     "VFS_CHARDEVICE",
-    "VFS_BLOCKDEVICE"
+    "VFS_BLOCKDEVICE",
+    "VFS_SYMLINK"
 };
 
 struct vfs_node *vfs_create_node(const char *name, enum vfs_node_type type) {
@@ -37,6 +38,7 @@ struct vfs_node *vfs_create_node(const char *name, enum vfs_node_type type) {
     node->next = NULL;
     node->read = NULL;
     node->write = NULL;
+    node->symlink_target = NULL;
     return node;
 }
 
@@ -57,6 +59,44 @@ void vfs_add_node(struct vfs_node *root, struct vfs_node *node) {
 
 void vfs_add_device(struct vfs_node *node) {
     vfs_add_node(vfs_dev, node);
+}
+
+struct vfs_node *vfs_create_symlink(const char *name, const char *target) {
+    printf("Creating symlink '%s' with target '%s'\n", name, target);
+    struct vfs_node *node = vfs_create_node(name, VFS_SYMLINK);
+    if (node && target) {
+        node->symlink_target = kmalloc(strlen(target) + 1);
+        strcpy(node->symlink_target, target);
+        node->size = strlen(target);
+    }
+    return node;
+}
+
+struct vfs_node *vfs_resolve_symlink(struct vfs_node *symlink, int max_depth) {
+    if (!symlink || symlink->type != VFS_SYMLINK || max_depth <= 0) {
+        return symlink;
+    }
+    if (!symlink->symlink_target) {
+        dprintf("%s:%d: %s: broken symlink\n", __FILE__, __LINE__, __func__);
+        return NULL;
+    }
+    
+    struct vfs_node *target;
+    if (symlink->symlink_target[0] == '/') {
+        target = vfs_open(vfs_root, symlink->symlink_target);
+    } else {
+        target = vfs_open(symlink->parent, symlink->symlink_target);
+    }
+    
+    if (!target) {
+        dprintf("%s:%d: %s: broken symlink\n", __FILE__, __LINE__, __func__);
+        return NULL;
+    }
+    
+    if (target->type == VFS_SYMLINK) {
+        return vfs_resolve_symlink(target, max_depth - 1);
+    }
+    return target;
 }
 
 struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
@@ -82,6 +122,16 @@ struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
         while (child != NULL) {
             if (strcmp(child->name, token) == 0) {
                 node = child;
+
+                if (node->type == VFS_SYMLINK) {
+                    node = vfs_resolve_symlink(node, MAX_NESTED_SYMLINKS);
+                    if (!node) {
+                        kfree(copy);
+                        dprintf("%s:%d: %s: broken symlink\n", __FILE__, __LINE__, __func__);
+                        return NULL;
+                    }
+                }
+
                 found = true;
                 break;
             }

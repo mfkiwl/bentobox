@@ -70,6 +70,7 @@ mlibc-clean:
 
 .PHONY: mlibc
 mlibc:
+	cp base/usr/include/kernel/syscall.h mlibc/sysdeps/bentobox/include/bentobox/syscalls.h
 	cd mlibc && ninja -C build install
 
 .PHONY: apps

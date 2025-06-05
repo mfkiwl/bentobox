@@ -3,14 +3,16 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#define MAX_PATH 256
+#define MAX_PATH            256
+#define MAX_NESTED_SYMLINKS 10
 
 typedef enum vfs_node_type {
     VFS_NONE,
     VFS_FILE,
     VFS_DIRECTORY,
     VFS_CHARDEVICE,
-    VFS_BLOCKDEVICE
+    VFS_BLOCKDEVICE,
+    VFS_SYMLINK
 } vfs_node_type_t;
 
 typedef struct vfs_node {
@@ -25,6 +27,7 @@ typedef struct vfs_node {
     struct vfs_node *next;
     long(*read)(struct vfs_node *node, void *buffer, long offset, size_t len);
     long(*write)(struct vfs_node *node, void *buffer, long offset, size_t len);
+    char *symlink_target;
 } vfs_node_t;
 
 extern struct vfs_node *vfs_root;
@@ -38,3 +41,5 @@ long vfs_write(struct vfs_node *node, void *buffer, long offset, size_t len);
 struct vfs_node *vfs_create_node(const char *name, enum vfs_node_type type);
 struct vfs_node *vfs_open(struct vfs_node *current, const char *path);
 int vfs_close(struct vfs_node *node);
+struct vfs_node *vfs_create_symlink(const char *name, const char *target);
+struct vfs_node *vfs_resolve_symlink(struct vfs_node *symlink, int max_depth);

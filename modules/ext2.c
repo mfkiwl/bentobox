@@ -360,6 +360,35 @@ long ext2_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
     return len;
 }
 
+struct vfs_node *ext2_create_symlink_node(ext2_fs *fs, const char *name, ext2_inode *inode) {
+    char *target = NULL;
+
+    if (inode->size <= 60) {
+        /* Fast symlink */
+        target = kmalloc(inode->size + 1);
+        memcpy(target, (char *)inode->direct_block_ptr, inode->size);
+        target[inode->size] = '\0';
+    } else {
+        /* Slow symlink */
+        if (inode->direct_block_ptr[0] != 0) {
+            target = kmalloc(inode->size + 1);
+            uint8_t *block_data = kmalloc(fs->block_size);
+            
+            ext2_read_block(fs, inode->direct_block_ptr[0], block_data, fs->block_size);
+            memcpy(target, block_data, inode->size);
+            target[inode->size] = '\0';
+            
+            kfree(block_data);
+        }
+    }
+    
+    if (!target) return NULL;
+    
+    struct vfs_node *node = vfs_create_symlink(name, target);
+    kfree(target);
+    return node;
+}
+
 void ext2_mount(ext2_fs *fs, struct vfs_node *parent, uint32_t inode_num) {
     uint8_t in[ext2fs.inode_size];
     ext2_inode *inode = (ext2_inode *)in;
@@ -399,31 +428,44 @@ void ext2_mount(ext2_fs *fs, struct vfs_node *parent, uint32_t inode_num) {
 
                 uint16_t type = child->type_perms & 0xF000;
                 uint32_t vfs_type = VFS_NONE;
+                struct vfs_node *node = NULL;
 
                 switch (type) {
                     case EXT_FILE:
                         vfs_type = VFS_FILE;
+                        node = vfs_create_node(name, vfs_type);
                         break;
                     case EXT_DIRECTORY:
                         vfs_type = VFS_DIRECTORY;
+                        node = vfs_create_node(name, vfs_type);
                         break;
                     case EXT_CHAR_DEV:
                         vfs_type = VFS_CHARDEVICE;
+                        node = vfs_create_node(name, vfs_type);
                         break;
                     case EXT_BLOCK_DEV:
                         vfs_type = VFS_BLOCKDEVICE;
+                        node = vfs_create_node(name, vfs_type);
+                        break;
+                    case EXT_SYM_LINK:
+                        node = ext2_create_symlink_node(fs, name, child);
                         break;
                 }
 
-                struct vfs_node *node = vfs_create_node(name, vfs_type);
-                node->size = child->size;
-                node->inode = entry->inode;
-                node->read = ext2_read;
-                vfs_add_node(parent, node);
+                if (node) {
+                    node->size = child->size;
+                    node->inode = entry->inode;
+                    
+                    if (type != EXT_SYM_LINK) {
+                        node->read = ext2_read;
+                    }
+                    
+                    vfs_add_node(parent, node);
 
-                if (type == EXT_DIRECTORY && strcmp(name, "lost+found") != 0 && 
-                    !(strcmp(name, ".") == 0 || strcmp(name, "..") == 0)) {
-                    ext2_mount(fs, node, entry->inode);
+                    if (type == EXT_DIRECTORY && strcmp(name, "lost+found") != 0 && 
+                        !(strcmp(name, ".") == 0 || strcmp(name, "..") == 0)) {
+                        ext2_mount(fs, node, entry->inode);
+                    }
                 }
 
                 offset += entry->total_size;
