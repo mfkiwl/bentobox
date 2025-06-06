@@ -25,4 +25,4 @@ cd ../bash/
     LDFLAGS="$LDFLAGS"
 make -j
 mkdir -p ../bentobox/base/usr/bin
-cp bash ../bentobox-rewrite/base/usr/bin/bash
+cp bash ../bentobox/base/usr/bin/bash
