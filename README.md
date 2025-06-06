@@ -40,7 +40,11 @@ Then run `git submodule update --init` to clone submodules.
 
 After that, you need to build mlibc. Run `make mlibc-setup`.
 
-Finally, you can simply run `make run -j$(nproc)` and the kernel will run in QEMU.
+Now you can build bash. Clone `https://github.com/9xbt/bash` to the same directory where `bentobox` is. Then, run `./util/bash-am.sh` and bash should build.
+
+If you want a more complete environment, you need to set up busybox. Run `./util/busybox-setup.sh` and after that `./util/busybox.sh`.
+
+Finally, you can simply run `make run-kvm -j` and the kernel will run in QEMU. Change the amount of cores as you desire in the Makefile.
 
 ## TODO
 - [X] `panic()` function

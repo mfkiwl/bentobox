@@ -59,6 +59,10 @@ run-kvm: all
 run-gdb: all
 	@qemu-system-$(ARCH) $(QEMUFLAGS) -S -s
 
+.PHONY: run-kvm-vnc
+run-kvm-vnc:
+	@qemu-system-$(ARCH) $(QEMUFLAGS) -smp 12 -accel kvm -vnc 0.0.0.0:0
+
 .PHONY: mlibc-setup
 mlibc-setup:
 	cd mlibc && meson setup build --strip --cross-file ../crossfile.txt -Dheaders_only=false -Ddefault_library=static -Dbuild_tests=false -Dposix_option=enabled -Dlinux_option=disabled -Dglibc_option=enabled -Dbsd_option=enabled -Dprefix=/opt/mlibc/ --wipe
