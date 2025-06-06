@@ -24,4 +24,6 @@ cd ../bash/
     CFLAGS_FOR_BUILD="$CFLAGS" \
     LDFLAGS="$LDFLAGS"
 make -j
+cd ../bentobox/
+mkdir -p base/usr/bin
 cp bash ../bentobox-rewrite/base/usr/bin/bash
