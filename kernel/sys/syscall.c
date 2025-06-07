@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
+#include <sys/termios.h>
 #include <asm-generic/ioctls.h>
 #include <kernel/arch/x86_64/idt.h>
 #include <kernel/arch/x86_64/smp.h>
@@ -114,14 +115,27 @@ long sys_wait4(int pid, int *wstatus) {
 }
 
 long sys_ioctl(int fd_num, int op, void *arg) {
-    struct fd *fd;
+    struct fd *fd = &this->fd_table[fd_num];
     switch (op) {
         case TCGETS:
             if (fd_num < 3) {
+                if (!arg)
+                    return -EFAULT;
+
+                memcpy(arg, &fd->tio, sizeof(struct termios));
                 return 0;
             } else {
                 return -ENOTTY;
             }
+        case TCSETS:
+            if (fd_num >= 3)
+                return -ENOTTY;
+            if (!arg)
+                return -EFAULT;
+
+            dprintf("fd: %d\n", fd_num);
+            memcpy(&fd->tio, arg, sizeof(struct termios));
+            return 0;
         case TIOCGWINSZ:
             if (fd_num >= 3)
                 return -ENOTTY;
@@ -131,9 +145,10 @@ long sys_ioctl(int fd_num, int op, void *arg) {
             lfb_get_ws((struct winsize *)arg);
             return 0;
         case TIOCGNAME:
-            fd = &this->fd_table[fd_num];
             if (!fd->node)
                 return -EBADF;
+            if (!arg)
+                return -EFAULT;
             
             vfs_resolve_path(arg, fd->node);
             return 0;

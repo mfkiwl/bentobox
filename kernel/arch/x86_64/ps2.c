@@ -72,30 +72,45 @@ int getchar(void) {
 }
 
 long ps2_keyboard_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
-    size_t i = 0;
     char *str = buffer;
-    while (i < len) {
-        str[i] = getchar();
+    size_t i = 0;
+    struct termios *tio = &this->fd_table[0].tio;
 
-        switch (str[i]) {
+    if ((tio->c_lflag & ICANON) == 0) {
+        int c = getchar();
+        str[i++] = c;
+
+        if (tio->c_lflag & ECHO)
+            fprintf(stdout, "%c", c);
+        return i;
+    }
+
+    while (i < len) {
+        int c = getchar();
+        str[i] = c;
+
+        switch (c) {
             case '\0':
                 break;
             case '\n':
             case '\r':
-                fprintf(stdout, "\n");
+                if (tio->c_lflag & ECHO)
+                    fprintf(stdout, "\n");
                 str[i++] = '\n';
                 str[i] = '\0';
                 return i;
             case '\b':
             case 127:
                 if (i > 0) {
-                    fprintf(stdout, "\b \b");
+                    if (tio->c_lflag & ECHO)
+                        fprintf(stdout, "\b \b");
                     str[i] = '\0';
                     i--;
                 }
                 break;
             default:
-                fprintf(stdout, "%c", str[i]);
+                if (tio->c_lflag & ECHO)
+                    fprintf(stdout, "%c", c);
                 i++;
                 break;
         }

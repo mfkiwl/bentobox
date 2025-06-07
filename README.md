@@ -125,7 +125,8 @@ Finally, you can simply run `make run-kvm -j` and the kernel will run in QEMU. C
 - [X] uname
 - [X] SIOCGWINSZ
 - [X] Fix bash build
-- [ ] Fix mlibc symlinks
+- [X] Fix mlibc symlinks
+- [ ] Userspace exposed framebuffer
 
 ## Screenshots
 ![image](https://github.com/user-attachments/assets/5b9f076e-b8c6-45ee-9f03-ad815217c9a3)
