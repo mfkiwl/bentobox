@@ -46,7 +46,7 @@ void irq1_handler(struct registers *r) {
                 } else {
                     fifo_enqueue(&kb_fifo, kb_map_keys[key]);
                 }
-                //zsched_unblock_all_io();
+                //sched_unblock_all_io();
                 break;
         }
     } else {

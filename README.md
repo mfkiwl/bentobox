@@ -46,6 +46,9 @@ If you want a more complete environment, you need to set up busybox. Run `./util
 
 Finally, you can simply run `make run-kvm -j` and the kernel will run in QEMU. Change the amount of cores as you desire in the Makefile.
 
+> [!IMPORTANT]
+> If you're on a Debian-based system, you have to also pass `SHELL=/bin/bash` to make. Otherwise, modules will not be built properly and will crash the kernel.
+
 ## TODO
 - [X] `panic()` function
 - [X] ANSI support in the VGA driver
