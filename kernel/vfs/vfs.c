@@ -182,9 +182,9 @@ void vfs_resolve_path(char *s, struct vfs_node *node) {
 long vfs_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
     if (!node /*|| !node->open*/) return -1;
     if (node->read) {
-        acquire(&node->lock);
+        //acquire(&node->lock);
         long ret = node->read(node, buffer, offset, len);
-        release(&node->lock);
+        //release(&node->lock);
         return ret;
     }
     return -1;
@@ -193,9 +193,9 @@ long vfs_read(struct vfs_node *node, void *buffer, long offset, size_t len) {
 long vfs_write(struct vfs_node *node, void *buffer, long offset, size_t len) {
     if (!node /*|| !node->open*/) return -1;
     if (node->write) {
-        acquire(&node->lock);
+        //acquire(&node->lock);
         long ret = node->write(node, buffer, offset, len);
-        release(&node->lock);
+        //release(&node->lock);
         return ret;
     }
     return -1;

@@ -651,71 +651,6 @@ long sys_lstat(const char *pathname, struct stat *statbuf) {
     return 0;
 }
 
-long sys_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
-    if (!fds && nfds > 0)
-        return -EFAULT;
-    if (nfds > 1024)
-        return -EINVAL;
-    
-    int ready_count = 0;
-    
-    for (nfds_t i = 0; i < nfds; i++) {
-        struct pollfd *pfd = &fds[i];
-        pfd->revents = 0;
-        
-        if (pfd->fd < 0 || pfd->fd >= (signed)(sizeof this->fd_table / sizeof(struct fd))) {
-            pfd->revents |= POLLNVAL;
-            ready_count++;
-            continue;
-        }
-        
-        struct fd *fd = &this->fd_table[pfd->fd];
-        if (!fd->node) {
-            pfd->revents |= POLLNVAL;
-            ready_count++;
-            continue;
-        }
-        
-        if (pfd->events & POLLIN) {
-            if (fd->node->type == VFS_CHARDEVICE || fd->node->type == VFS_FILE) {
-                if (vfs_poll(fd->node)) {
-                    pfd->revents |= POLLIN;
-                    ready_count++;
-                } else if (fd->node->type == VFS_FILE && fd->offset < fd->node->size) {
-                    pfd->revents |= POLLIN;
-                    ready_count++;
-                }
-            } else if (fd->node->type == VFS_DIRECTORY) {
-                pfd->revents |= POLLIN;
-                ready_count++;
-            }
-        }
-        
-        if (pfd->events & POLLOUT) {
-            if (fd->node->write) {
-                pfd->revents |= POLLOUT;
-                ready_count++;
-            }
-        }
-    }
-    
-    if (ready_count == 0 && timeout == 0) {
-        return 0;
-    }
-    
-    if (ready_count == 0 && timeout > 0) {
-        /* TODO: Implement proper blocking with timeout */
-        return 0;
-    }
-    
-    if (ready_count == 0 && timeout == -1) {
-        /* TODO: Implement proper infinite blocking */
-        return 0;
-    }
-    
-    return ready_count;
-}
-
 typedef long (*syscall_func)(long, long, long, long, long, long);
 
 static syscall_func syscalls[] = {
@@ -726,7 +661,6 @@ static syscall_func syscalls[] = {
     [SYS_stat]              = (syscall_func)(uintptr_t)sys_stat,
     [SYS_fstat]             = (syscall_func)(uintptr_t)sys_fstat,
     [SYS_lstat]             = (syscall_func)(uintptr_t)sys_lstat,
-    [SYS_poll]              = (syscall_func)(uintptr_t)sys_poll,
     [SYS_lseek]             = (syscall_func)(uintptr_t)sys_lseek,
     [SYS_mmap]              = (syscall_func)(uintptr_t)sys_mmap,
     [SYS_munmap]            = (syscall_func)(uintptr_t)sys_munmap,
