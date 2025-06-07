@@ -252,11 +252,8 @@ int exec(const char *file, int argc, char *const argv[], char *const env[]) {
     kfree(this->name);
     this->name = kmalloc(strlen(argv[0]) + 1);
     strcpy(this->name, argv[0]);
-    heap_delete(this->heap);
-    
-    this->heap = heap_create();
     this->ctx.rip = ehdr->e_entry;
-    this->state = FRESH;
+    this->state = TASK_FRESH;
 
     uintptr_t stack_top_phys = this->stack_bottom_phys + (USER_STACK_SIZE * PAGE_SIZE);
     long depth = 16;
@@ -338,7 +335,6 @@ long fork(struct registers *r) {
     proc->pml4 = mmu_create_user_pm(proc);
     this_core()->pml4 = proc->pml4;
 
-    asm volatile ("cli" : : : "memory");
     uintptr_t stack_top = USER_STACK_TOP;
     uintptr_t stack_bottom = stack_top - (USER_STACK_SIZE * PAGE_SIZE);
     uintptr_t stack_bottom_phys = (uintptr_t)mmu_alloc(USER_STACK_SIZE);
@@ -348,7 +344,6 @@ long fork(struct registers *r) {
 
     memcpy(VIRTUAL_IDENT(stack_bottom_phys), VIRTUAL_IDENT(this->stack_bottom_phys), (USER_STACK_SIZE * PAGE_SIZE));
     memcpy(kernel_stack, (void *)this->kernel_stack_bottom, (4 * PAGE_SIZE));
-    asm volatile ("sti" : : : "memory");
     
     proc->parent = this;
     proc->ctx.rdi = r->rdi;
@@ -359,6 +354,14 @@ long fork(struct registers *r) {
     proc->ctx.rdx = r->rdx;
     proc->ctx.rcx = r->rcx;
     proc->ctx.rax = 0;
+    proc->ctx.r8 = r->r8;
+    proc->ctx.r9 = r->r9;
+    proc->ctx.r10 = r->r10;
+    proc->ctx.r11 = r->r11;
+    proc->ctx.r12 = r->r12;
+    proc->ctx.r13 = r->r13;
+    proc->ctx.r14 = r->r14;
+    proc->ctx.r15 = r->r15;
     proc->ctx.rip = r->rcx;
     proc->ctx.cs = 0x23;
     proc->ctx.ss = 0x1b;
@@ -370,13 +373,13 @@ long fork(struct registers *r) {
     proc->stack_bottom_phys = (uint64_t)stack_bottom_phys;
     proc->kernel_stack = (uint64_t)kernel_stack + (4 * PAGE_SIZE);
     proc->kernel_stack_bottom = (uint64_t)kernel_stack;
-    proc->state = RUNNING;
+    proc->state = TASK_RUNNING;
     proc->user = true;
-    proc->heap = heap_create();
     proc->gs = this->gs;
     proc->fs = this->fs;
     this->children = proc;
     proc->parent = this;
+    proc->doing_blocking_io = false;
     memcpy(proc->fxsave, this->fxsave, sizeof proc->fxsave);
     memcpy(proc->fd_table, this->fd_table, sizeof proc->fd_table);
     memcpy(proc->sections, this->sections, sizeof proc->sections);

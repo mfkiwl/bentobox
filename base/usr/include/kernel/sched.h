@@ -16,14 +16,14 @@
 #define USER_MAX_CHILDS 16
 #define USER_MAX_FDS    16
 
-// TODO: rename to SCHED_*
 enum task_state {
-    RUNNING,
-    PAUSED,
-    SLEEPING,
-    KILLED,
-    FRESH,
-    SIGNAL
+    TASK_RUNNING,
+    TASK_PAUSED,
+    TASK_SLEEPING,
+    TASK_KILLED,
+    TASK_FRESH,
+    TASK_SIGNAL,
+    TASK_BLOCKING_IO
 };
 
 struct task_time {
@@ -53,7 +53,6 @@ struct task {
     long pid;
     bool user;
     enum task_state state;
-    struct heap *heap;
     struct task_time time;
     struct fd fd_table[USER_MAX_FDS];
     struct task_section sections[16];
@@ -69,6 +68,7 @@ struct task {
     struct task *parent;
     struct task *children;
     int child_exit;
+    bool doing_blocking_io;
 };
 
 #define this this_core()->current_proc
@@ -85,5 +85,6 @@ void sched_sleep(int us);
 void sched_kill(struct task *proc, int status);
 void sched_idle(void);
 void sched_add_task(struct task *proc, struct cpu *core);
+void sched_unblock_all_io(void);
 struct task *sched_new_task(void *entry, const char *name);
 struct task *sched_new_user_task(void *entry, const char *name, int argc, char *argv[], char *env[]);

@@ -42,7 +42,7 @@ void send_signal(struct task *proc, int signal, int extra) {
     if (signal == SIGCHLD) {
         proc->child_exit = extra;
     }
-    proc->state = SIGNAL;
+    proc->state = TASK_SIGNAL;
     
     sched_unlock();
 }
@@ -94,14 +94,7 @@ struct task *sched_new_task(void *entry, const char *name) {
     mmu_map_pages(4, stack, PHYSICAL(stack), PTE_PRESENT | PTE_WRITABLE);
     memset(stack, 0, 4 * PAGE_SIZE);
 
-    proc->ctx.rdi = 0;
-    proc->ctx.rsi = 0;
-    proc->ctx.rbp = 0;
     proc->ctx.rsp = (uint64_t)stack + (4 * PAGE_SIZE) - 8;
-    proc->ctx.rbx = 0;
-    proc->ctx.rdx = 0;
-    proc->ctx.rcx = 0;
-    proc->ctx.rax = 0;
     proc->ctx.rip = (uint64_t)entry;
     proc->ctx.cs = 0x8;
     proc->ctx.ss = 0x10;
@@ -111,19 +104,19 @@ struct task *sched_new_task(void *entry, const char *name) {
     proc->stack_bottom = (uint64_t)stack;
     proc->gs = 0;
     proc->fs = 0;
-    proc->state = RUNNING;
+    proc->state = TASK_RUNNING;
     proc->user = false;
-    proc->heap = heap_create();
     proc->fd_table[0] = fd_new(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
     proc->fd_table[2] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
     proc->vma = NULL;
+    proc->doing_blocking_io = false;
 
     return proc;
 }
 
 struct task *sched_new_user_task(void *entry, const char *name, int argc, char *argv[], char *env[]) {
-    if (!argv || !argv) {
+    if (!argc || !argv) {
         argc = 1;
         argv[0] = (char *)name;
         argv[1] = NULL;
@@ -133,7 +126,6 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     memset(proc, 0, sizeof(struct task));
     proc->pml4 = mmu_create_user_pm(proc);
 
-    asm volatile ("cli" : : : "memory");
     uintptr_t stack_top = USER_STACK_TOP;
     uintptr_t stack_bottom = stack_top - (USER_STACK_SIZE * PAGE_SIZE);
     uintptr_t stack_bottom_phys = (uintptr_t)mmu_alloc(USER_STACK_SIZE);
@@ -187,17 +179,8 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
 
     depth += 8;
     *VIRTUAL_IDENT(stack_top_phys - depth) = argc;
-
-    asm volatile ("sti" : : : "memory");
     
-    proc->ctx.rdi = 0;
-    proc->ctx.rsi = 0;
-    proc->ctx.rbp = 0;
     proc->ctx.rsp = stack_top - depth;
-    proc->ctx.rbx = 0;
-    proc->ctx.rdx = 0;
-    proc->ctx.rcx = 0;
-    proc->ctx.rax = 0;
     proc->ctx.rip = (uint64_t)entry;
     proc->ctx.cs = 0x23;
     proc->ctx.ss = 0x1b;
@@ -211,9 +194,8 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     proc->kernel_stack_bottom = (uint64_t)kernel_stack;
     proc->gs = (uint64_t)proc;
     proc->fs = 0;
-    proc->state = RUNNING;
+    proc->state = TASK_RUNNING;
     proc->user = true;
-    proc->heap = heap_create();
     proc->fd_table[0] = fd_new(vfs_open(vfs_root, "/dev/keyboard"), 0);
     proc->fd_table[1] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
     proc->fd_table[2] = fd_new(vfs_open(vfs_root, "/dev/console"), 0);
@@ -226,6 +208,7 @@ struct task *sched_new_user_task(void *entry, const char *name, int argc, char *
     proc->children = NULL;
     proc->parent = NULL;
     proc->dir = vfs_root;
+    proc->doing_blocking_io = false;
 
     return proc;
 }
@@ -234,18 +217,18 @@ void sched_schedule(struct registers *r) {
     sched_lock();
 
     if (this) {
-        if (this->state != FRESH) {
+        if (this->state != TASK_FRESH) {
             memcpy(&(this->ctx), r, sizeof(struct registers));
             this->gs = read_kernel_gs();
             this->user_gs = read_gs();
             asm volatile ("fxsave %0 " : : "m"(this->fxsave));
-        } else this->state = RUNNING;
+        } else this->state = TASK_RUNNING;
     } else {
         this = process_list;
     }
 
     size_t hpet_ticks = hpet_get_ticks();
-    if (this->state == RUNNING)
+    if (this->state == TASK_RUNNING)
         this->time.last = hpet_ticks - this->time.start;
 
     if (!this->next) {
@@ -256,16 +239,16 @@ void sched_schedule(struct registers *r) {
 
     struct task *current = this;
     do {
-        if (this->state == SLEEPING &&
+        if (this->state == TASK_SLEEPING &&
             hpet_ticks >= this->time.end) {
-            this->state = RUNNING;
+            this->state = TASK_RUNNING;
             this->time.last = this->time.end - this->time.start;
             break;
         }
-        if (this->state == SIGNAL) {
+        if (this->state == TASK_SIGNAL) {
             uint32_t pending = this->pending_signals;
             this->pending_signals = 0;
-            this->state = RUNNING;
+            this->state = TASK_RUNNING;
             
             for (int sig = 1; sig <= 32; sig++) {
                 uint32_t sig_mask = 1 << (sig - 1);
@@ -277,7 +260,7 @@ void sched_schedule(struct registers *r) {
             }
         }
 
-        if (this->state == RUNNING) {
+        if (this->state == TASK_RUNNING && !this->doing_blocking_io) {
             goto actually_switch;
         }
 
@@ -312,12 +295,12 @@ void sched_block(enum task_state reason) {
 }
 
 void sched_unblock(struct task *proc) {
-    proc->state = RUNNING;
+    proc->state = TASK_RUNNING;
 }
 
 void sched_sleep(int us) {
     this->time.end = hpet_get_ticks() + us * (hpet_period / 1000000);
-    sched_block(SLEEPING);
+    sched_block(TASK_SLEEPING);
 }
 
 void sched_kill(struct task *proc, int status) {
@@ -334,7 +317,7 @@ void sched_kill(struct task *proc, int status) {
         send_signal(proc->parent, SIGCHLD, status);
     }
     
-    proc->state = KILLED;
+    proc->state = TASK_KILLED;
     proc->prev->next = proc->next;
     proc->next->prev = proc->prev;
     proc->next = this_core()->terminated_processes;
@@ -355,7 +338,7 @@ void sched_cleaner(void) {
         
         struct task *proc = this_core()->terminated_processes;
         if (!proc) {
-            sched_block(PAUSED);
+            sched_block(TASK_PAUSED);
             continue;
         }
         this_core()->terminated_processes = proc->next;
@@ -385,13 +368,11 @@ void sched_cleaner(void) {
             mmu_free((void *)proc->stack_bottom_phys, USER_STACK_SIZE);
             mmu_free(PHYSICAL(proc->kernel_stack_bottom), 4);
             kfree(proc->name);
-            heap_delete(proc->heap);
             vma_destroy(proc->vma);
             mmu_destroy_user_pm(proc->pml4);
         } else {
             mmu_unmap_pages(4, (void *)proc->stack_bottom);
             mmu_free(PHYSICAL(proc->stack_bottom), 4);
-            heap_delete(proc->heap);
         }
         
         kfree(proc);
@@ -405,17 +386,41 @@ void sched_idle(void) {
     }
 }
 
+void sched_unblock_all_io(void) {
+    sched_lock();
+    
+    for (uint32_t i = 0; i < madt_lapics; i++) {
+        struct cpu *core = get_core(i);
+        if (!core || !core->processes) {
+            continue;
+        }
+        
+        struct task *current = core->processes;
+        struct task *start = current;
+        
+        do {
+            if (current->doing_blocking_io) {
+                current->doing_blocking_io = false;
+            }
+            
+            current = current->next;
+        } while (current && current != start);
+    }
+    
+    sched_unlock();
+}
+
 void sched_start_all_cores(void) {
     for (uint32_t i = 0; i < madt_lapics; i++) {
         struct cpu *core = get_core(i);
         
         struct task *cleaner = sched_new_task(sched_cleaner, "System");
-        cleaner->state = PAUSED;
+        cleaner->state = TASK_PAUSED;
         core->cleaner_proc = cleaner;
         sched_add_task(cleaner, core);
         
         struct task *idle = sched_new_task(sched_idle, "Idle");
-        idle->state = PAUSED;
+        idle->state = TASK_PAUSED;
         core->idle_proc = idle;
         sched_add_task(idle, core);
         idle->pid = 0;

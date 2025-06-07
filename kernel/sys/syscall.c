@@ -109,7 +109,7 @@ long sys_wait4(int pid, int *wstatus) {
     if (!this->children) {
         return -ECHILD;
     }
-    sched_block(PAUSED);
+    sched_block(TASK_PAUSED);
     *wstatus = this->child_exit;
     return 0;
 }

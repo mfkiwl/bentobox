@@ -1,5 +1,3 @@
-
-#include "kernel/arch/x86_64/smp.h"
 #include <stdbool.h>
 #include <kernel/arch/x86_64/io.h>
 #include <kernel/arch/x86_64/idt.h>
@@ -7,6 +5,7 @@
 #include <kernel/arch/x86_64/lapic.h>
 #include <kernel/acpi.h>
 #include <kernel/fifo.h>
+#include <kernel/sched.h>
 #include <kernel/printf.h>
 #include <kernel/string.h>
 #include <kernel/signal.h>
@@ -47,6 +46,7 @@ void irq1_handler(struct registers *r) {
                 } else {
                     fifo_enqueue(&kb_fifo, kb_map_keys[key]);
                 }
+                //zsched_unblock_all_io();
                 break;
         }
     } else {
@@ -66,6 +66,8 @@ void irq1_handler(struct registers *r) {
 int getchar(void) {
     int c = 0;
     while (!fifo_dequeue(&kb_fifo, &c)) {
+        //sched_block(TASK_BLOCKING_IO);
+        //this->doing_blocking_io = true;
         sched_yield();
     }
     return c;

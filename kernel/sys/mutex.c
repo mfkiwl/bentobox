@@ -49,7 +49,7 @@ void mutex_lock(mutex_t *m) {
         }
 
         release(&m->lock);
-        sched_block(PAUSED);
+        sched_block(TASK_PAUSED);
     }
 }
 
