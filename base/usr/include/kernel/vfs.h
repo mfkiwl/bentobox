@@ -22,7 +22,7 @@ typedef struct vfs_node {
     enum vfs_node_type type;
     size_t size;
     uint16_t perms;
-    uint32_t inode;
+    uint64_t inode;
     struct vfs_node *parent;
     struct vfs_node *children;
     struct vfs_node *next;
@@ -46,3 +46,4 @@ int vfs_close(struct vfs_node *node);
 struct vfs_node *vfs_create_symlink(const char *name, const char *target);
 struct vfs_node *vfs_resolve_symlink(struct vfs_node *symlink, int max_depth);
 bool vfs_poll(struct vfs_node *node);
+int vfs_remove_node(struct vfs_node *node);

@@ -1,3 +1,4 @@
+#include "kernel/tmpfs.h"
 #include <errno.h>
 #include <stddef.h>
 #include <sys/stat.h>
@@ -9,10 +10,13 @@
 #include <kernel/printf.h>
 #include <kernel/spinlock.h>
 
+/* TODO: should node->open be handled by the VFS or the FD table? */
+
 extern void zero_initialize(void);
 extern void ps2_initialize(void);
 extern void serial_initialize(void);
 extern void console_initialize(void);
+extern void tmpfs_initialize(void);
 
 struct vfs_node *vfs_root = NULL;
 struct vfs_node *vfs_dev = NULL;
@@ -57,6 +61,75 @@ void vfs_add_node(struct vfs_node *root, struct vfs_node *node) {
         }
         child->next = node;
     }
+}
+
+int vfs_remove_node(struct vfs_node *node) {
+    if (!node) {
+        dprintf("Node is null!\n");
+        return -EINVAL;
+    }
+    
+    if (node == vfs_root) {
+        dprintf("Node is /!\n");
+        return -EBUSY;
+    }
+    
+    if (node->open) {
+        dprintf("Node is open!\n");
+        return -EBUSY;
+    }
+    
+    if (node->type == VFS_DIRECTORY && node->children != NULL) {
+        dprintf("Node has children!\n");
+        return -ENOTEMPTY;
+    }
+    
+    if (node->parent) {
+        uint8_t parent_perms = (node->parent->perms >> 6) & 0x7;
+        if (!(parent_perms & 0x2)) {
+            dprintf("Access denied!\n");
+            return -EACCES;
+        }
+    }
+
+    struct vfs_node *dir = node->parent;
+    while (dir->parent != vfs_root) {
+        dir = dir->parent;
+    }
+
+    if (dir->inode == 999999) {
+        if (tmpfs_remove_file(node) == -EINVAL) {
+            return -EINVAL;
+        }   
+    }
+    
+    if (node->parent) {
+        if (node->parent->children == node) {
+            node->parent->children = node->next;
+        } else {
+            struct vfs_node *prev = node->parent->children;
+            while (prev && prev->next != node) {
+                prev = prev->next;
+            }
+            if (prev) {
+                prev->next = node->next;
+            }
+        }
+    }
+    
+    if (node->type == VFS_SYMLINK && node->symlink_target) {
+        kfree(node->symlink_target);
+        node->symlink_target = NULL;
+    }
+    
+    node->parent = NULL;
+    node->children = NULL;
+    node->next = NULL;
+    node->read = NULL;
+    node->write = NULL;
+    
+    kfree(node);
+    return 0;
 }
 
 void vfs_add_device(struct vfs_node *node) {
@@ -111,9 +184,19 @@ struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
         return current->parent;
     }
 
+    const char *filename = path;
+    for (int i = strlen(path) - 1; i >= 0; i--) {
+        if (path[i] == '/') {
+            filename = &path[i + 1];
+            break;
+        }
+    }
+
     char *copy = kmalloc(strlen(path) + 1);
     strcpy(copy, path);
     char *token = strtok(copy, "/");
+
+    bool is_tmp = (token && !strcmp(token, "tmp") && current == vfs_root);
 
     struct vfs_node *node = current;
     while (token != NULL) {
@@ -147,6 +230,11 @@ struct vfs_node* vfs_open(struct vfs_node *current, const char *path) {
 
             if (!found) {
                 kfree(copy);
+
+                if (is_tmp) {
+                    struct vfs_node *file = tmpfs_create_file(vfs_open(NULL, "/tmp"), filename);
+                    return file;
+                }
                 return NULL;
             }
         }
@@ -202,6 +290,7 @@ long vfs_write(struct vfs_node *node, void *buffer, long offset, size_t len) {
 }
 
 bool vfs_poll(struct vfs_node *node) {
+    // TODO: use mutexes
     acquire(&node->lock);
     release(&node->lock);
     return true;
@@ -228,6 +317,7 @@ void vfs_install(void) {
     ps2_initialize();
     serial_initialize();
     console_initialize();
+    tmpfs_initialize();
 
     printf("\033[92m * \033[97mInitialized virtual filesystem\033[0m\n");
 }

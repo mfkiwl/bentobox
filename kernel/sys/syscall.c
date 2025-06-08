@@ -4,6 +4,7 @@
 #include <sys/poll.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/fcntl.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
 #include <sys/termios.h>
@@ -199,6 +200,11 @@ long sys_access(const char *pathname) {
 long sys_dup() {
     unimplemented;
     return -ENOSYS;
+}
+
+long sys_dup3(int oldfd_num, int newfd_num, int flags) {
+    (void)flags;
+    return fd_dup(oldfd_num, newfd_num);
 }
 
 long sys_getdents64(int fd_num, struct linux_dirent64 *dirp, unsigned int count) {
@@ -651,6 +657,71 @@ long sys_lstat(const char *pathname, struct stat *statbuf) {
     return 0;
 }
 
+long sys_utimensat() {
+    unimplemented;
+    return -ENOENT;
+}
+
+long sys_unlink(const char *pathname) {
+    struct vfs_node *node = vfs_open(this->dir, pathname);
+    if (!node)
+        return -ENOENT;
+    vfs_close(node);
+    return vfs_remove_node(node);
+}
+
+long sys_fcntl(int fd_num, int cmd, long arg) {
+    if (fd_num < 0 ||
+        fd_num >= (signed)(sizeof this->fd_table / sizeof(struct fd)) ||
+        !this->fd_table[fd_num].node) {
+        return -EBADF;
+    }
+
+    struct fd *fd = &this->fd_table[fd_num];
+    switch (cmd) {
+        case F_DUPFD: {
+            int start_fd = (arg < 0) ? 0 : (int)arg;
+            for (int i = start_fd; i < (signed)(sizeof this->fd_table / sizeof(struct fd)); i++) {
+                if (!this->fd_table[i].node) {
+                    this->fd_table[i] = *fd;
+                    return i;
+                }
+            }
+            return -EMFILE;
+        }
+        case F_DUPFD_CLOEXEC: {
+            int start_fd = (arg < 0) ? 0 : (int)arg;
+            for (int i = start_fd; i < (signed)(sizeof this->fd_table / sizeof(struct fd)); i++) {
+                if (!this->fd_table[i].node) {
+                    this->fd_table[i] = *fd;
+                    this->fd_table[i].flags |= FD_CLOEXEC;
+                    return i;
+                }
+            }
+            return -EMFILE;
+        }
+        case F_GETFD:
+            return fd->flags & FD_CLOEXEC;
+        case F_SETFD:
+            if (arg & FD_CLOEXEC) {
+                fd->flags |= FD_CLOEXEC;
+            } else {
+                fd->flags &= ~FD_CLOEXEC;
+            }
+            return 0;
+        case F_GETFL:
+        case F_SETFL:
+            return 0;
+        case F_GETLK:
+        case F_SETLK:
+        case F_SETLKW:
+            return -ENOSYS;
+        default:
+            dprintf("%s:%d: %s: command %d not implemented\n", __FILE__, __LINE__, __func__, cmd);
+            return -EINVAL;
+    }
+}
+
 typedef long (*syscall_func)(long, long, long, long, long, long);
 
 static syscall_func syscalls[] = {
@@ -677,6 +748,8 @@ static syscall_func syscalls[] = {
     [SYS_exit]              = (syscall_func)(uintptr_t)sys_exit,
     [SYS_wait4]             = (syscall_func)(uintptr_t)sys_wait4,
     [SYS_uname]             = (syscall_func)(uintptr_t)sys_uname,
+    [SYS_fcntl]             = (syscall_func)(uintptr_t)sys_fcntl,
+    [SYS_unlink]            = (syscall_func)(uintptr_t)sys_unlink,
     [SYS_getuid]            = (syscall_func)(uintptr_t)sys_getuid,
     [SYS_getgid]            = (syscall_func)(uintptr_t)sys_getgid,
     [SYS_geteuid]           = (syscall_func)(uintptr_t)sys_geteuid,
@@ -689,7 +762,9 @@ static syscall_func syscalls[] = {
     [SYS_getdents64]        = (syscall_func)(uintptr_t)sys_getdents64,
     [SYS_set_tid_address]   = (syscall_func)(uintptr_t)sys_set_tid_address,
     [SYS_clock_gettime]     = (syscall_func)(uintptr_t)sys_clock_gettime,
-    [SYS_newfstatat]        = (syscall_func)(uintptr_t)sys_newfstatat
+    [SYS_newfstatat]        = (syscall_func)(uintptr_t)sys_newfstatat,
+    [SYS_utimensat]         = (syscall_func)(uintptr_t)sys_utimensat,
+    [SYS_dup3]              = (syscall_func)(uintptr_t)sys_dup3
 };
 
 void syscall_handler(struct registers *r) {

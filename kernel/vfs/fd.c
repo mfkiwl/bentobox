@@ -52,3 +52,18 @@ int fd_close(int fd) {
     memset(file, 0, sizeof(struct fd));
     return 0;
 }
+
+int fd_dup(int oldfd_num, int newfd_num) {
+    if (oldfd_num == newfd_num)
+        return -EINVAL;
+
+    struct fd *oldfd = &this->fd_table[oldfd_num];
+    struct fd *newfd = &this->fd_table[newfd_num];
+
+    if (!oldfd->node)
+        return -EBADF;
+    if (newfd->node)
+        fd_close(newfd_num);
+    memcpy(newfd, oldfd, sizeof(struct fd));
+    return newfd_num;
+}
