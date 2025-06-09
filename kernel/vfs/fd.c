@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <fcntl.h>
 #include <kernel/fd.h>
 #include <kernel/vfs.h>
 #include <kernel/sched.h>
@@ -35,6 +36,9 @@ int fd_open(const char *path, int flags) {
     for (size_t i = 0; i < sizeof this->fd_table / sizeof(struct fd); i++) {
         if (!this->fd_table[i].node) {
             this->fd_table[i] = fd_new(node, flags);
+            if (flags & O_APPEND) {
+                this->fd_table[i].offset = node->size - 1;
+            }
             return i;
         }
     }
@@ -56,6 +60,8 @@ int fd_close(int fd) {
 int fd_dup(int oldfd_num, int newfd_num) {
     if (oldfd_num == newfd_num)
         return -EINVAL;
+    if (newfd_num > USER_MAX_FDS)
+        return -EBADF;
 
     struct fd *oldfd = &this->fd_table[oldfd_num];
     struct fd *newfd = &this->fd_table[newfd_num];
